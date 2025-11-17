@@ -29,7 +29,7 @@ export async function GET(
     // For now, return a simple PDF placeholder
     const pdfContent = generateK1PlaceholderPDF(investor, year)
 
-    return new NextResponse(pdfContent, {
+    return new NextResponse(pdfContent as any, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="K1-${year}-${investor.name.replace(/\s+/g, '-')}.pdf"`,

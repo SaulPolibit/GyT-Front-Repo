@@ -53,7 +53,7 @@ export async function GET(
     const filename = `${report.title.replace(/\s+/g, '-').toLowerCase()}.xlsx`
 
     // Return Excel with appropriate headers
-    return new NextResponse(excelBuffer, {
+    return new NextResponse(excelBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

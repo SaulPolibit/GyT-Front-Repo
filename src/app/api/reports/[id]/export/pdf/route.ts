@@ -53,7 +53,7 @@ export async function GET(
     const filename = `${report.title.replace(/\s+/g, '-').toLowerCase()}.pdf`
 
     // Return PDF with appropriate headers
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
