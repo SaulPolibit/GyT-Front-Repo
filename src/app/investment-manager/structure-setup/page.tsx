@@ -831,7 +831,7 @@ export default function OnboardingPage() {
             saveInvestor({
             name: investorName,
             email: preInvestor.email,
-            type: preInvestor.investorType, // Use the actual investor type (individual, institution, family-office, fund-of-funds)
+            type: (preInvestor.investorType?.toLowerCase() || 'individual') as 'individual' | 'institution' | 'family-office' | 'fund-of-funds',
             status: 'Pending', // Pending until they complete onboarding
 
             // Entity-specific fields (for B2B entities)
