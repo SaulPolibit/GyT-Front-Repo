@@ -15,7 +15,7 @@ import { getInvestments, updateInvestment } from "@/lib/investments-storage"
 import { getStructures, canAddInvestment, canAddIssuance } from "@/lib/structures-storage"
 import type { Structure } from "@/lib/structures-storage"
 import investmentsData from "@/data/investments.json"
-import type { Investment } from "@/lib/types"
+import type { Investment, AssetSector } from "@/lib/types"
 
 interface PageProps {
   params: Promise<{ id: string }>
