@@ -566,7 +566,7 @@ export default function OnboardingPage() {
 
         setFormData(prev => ({
           ...prev,
-          hierarchyStructures: newStructures
+          hierarchyStructures: newStructures as any
         }))
       }
     }
@@ -712,9 +712,9 @@ export default function OnboardingPage() {
         usState: formData.usState,
         usStateOther: formData.usStateOther,
         capitalCallNoticePeriod: formData.capitalCallNoticePeriod,
-        capitalCallDefaultPercentage: formData.capitalCallDefaultPercentage,
+        capitalCallDefaultPercentage: formData.capitalCallDefaultPercentage || undefined,
         capitalCallPaymentDeadline: formData.capitalCallPaymentDeadline,
-        determinedTier: formData.determinedTier,
+        determinedTier: formData.determinedTier || undefined,
         calculatedIssuances: formData.calculatedIssuances,
         tokenName: formData.tokenName,
         tokenSymbol: formData.tokenSymbol,
@@ -722,13 +722,11 @@ export default function OnboardingPage() {
         totalTokens: formData.totalTokens,
         minTokensPerInvestor: formData.minTokensPerInvestor,
         maxTokensPerInvestor: formData.maxTokensPerInvestor,
-        preRegisteredInvestors: formData.preRegisteredInvestors,
+        preRegisteredInvestors: formData.preRegisteredInvestors as any,
         uploadedFundDocuments: formData.uploadedFundDocuments,
         uploadedInvestorDocuments: formData.uploadedInvestorDocuments,
         // V4: Multi-Level Hierarchy
         hierarchyMode: formData.hierarchyMode,
-        hierarchySetupApproach: formData.hierarchySetupApproach,
-        hierarchyLevels: formData.hierarchyLevels,
         numberOfLevels: formData.hierarchyLevels, // Pass number of levels for multi-level creation
         hierarchyStructures: formData.hierarchyStructures,
         parentStructureId: formData.parentStructureId,
