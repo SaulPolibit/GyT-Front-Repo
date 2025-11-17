@@ -199,7 +199,8 @@ const PRICING_TIERS = {
     additionalAUMCost: 100,
     additionalInvestorCost: 3,
     additionalIssuanceCost: 3000,
-    description: 'Perfect for emerging investment managers'
+    description: 'Perfect for emerging investment managers',
+    badge: undefined
   },
   'growth': {
     name: 'Growth',
@@ -224,7 +225,8 @@ const PRICING_TIERS = {
     additionalAUMCost: 100,
     additionalInvestorCost: 3,
     additionalIssuanceCost: 3000,
-    description: 'Institutional-grade platform for large managers'
+    description: 'Institutional-grade platform for large managers',
+    badge: undefined
   },
   'custom': {
     name: 'Custom',
@@ -237,6 +239,7 @@ const PRICING_TIERS = {
     additionalInvestorCost: 0,
     additionalIssuanceCost: 0,
     description: 'White-glove service and custom integrations',
+    badge: undefined,
     contactSales: true
   }
 }
@@ -2629,7 +2632,7 @@ export default function OnboardingPage() {
                                 <TableHead>Name</TableHead>
                                 <TableHead>Email</TableHead>
                                 <TableHead>Type</TableHead>
-                                {formData.hierarchyMode && formData.hierarchyStructures.length > 0 && (
+                                {formData.hierarchyMode && formData.hierarchyStructures && formData.hierarchyStructures.length > 0 && (
                                   <TableHead>Level</TableHead>
                                 )}
                                 <TableHead>Terms</TableHead>

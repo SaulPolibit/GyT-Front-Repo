@@ -134,14 +134,15 @@ export default function CreateCapitalCallPage() {
           sum + (inv._hierarchyOwnership?.commitment || 0), 0)
 
         level2Investors.forEach(investor => {
-          const ownershipPercent = investor._hierarchyOwnership?.ownershipPercent || 0
-          const commitment = investor._hierarchyOwnership?.commitment || 0
+          const hierarchyOwnership = investor._hierarchyOwnership as any
+          const ownershipPercent = hierarchyOwnership?.ownershipPercent || 0
+          const commitment = hierarchyOwnership?.commitment || 0
 
           // Pro-rata within Level 2 based on commitment
           const commitmentFraction = level2TotalCommitment > 0 ? commitment / level2TotalCommitment : 0
           const callAmount = level2TotalCall * commitmentFraction
 
-          const ownership = investor.fundOwnerships?.find((fo: any) => fo.fundId === investor._hierarchyOwnership.structureId)
+          const ownership = investor.fundOwnerships?.find((fo: any) => fo.fundId === hierarchyOwnership?.structureId)
           const calledToDate = ownership?.calledCapital || 0
           const uncalledCapital = commitment - calledToDate
 
@@ -170,14 +171,15 @@ export default function CreateCapitalCallPage() {
           sum + (inv._hierarchyOwnership?.commitment || 0), 0)
 
         level1Investors.forEach(investor => {
-          const ownershipPercent = investor._hierarchyOwnership?.ownershipPercent || 0
-          const commitment = investor._hierarchyOwnership?.commitment || 0
+          const hierarchyOwnership = investor._hierarchyOwnership as any
+          const ownershipPercent = hierarchyOwnership?.ownershipPercent || 0
+          const commitment = hierarchyOwnership?.commitment || 0
 
           // Pro-rata within Level 1 based on commitment
           const commitmentFraction = level1TotalCommitment > 0 ? commitment / level1TotalCommitment : 0
           const callAmount = level1TotalCall * commitmentFraction
 
-          const ownership = investor.fundOwnerships?.find((fo: any) => fo.fundId === investor._hierarchyOwnership.structureId)
+          const ownership = investor.fundOwnerships?.find((fo: any) => fo.fundId === hierarchyOwnership?.structureId)
           const calledToDate = ownership?.calledCapital || 0
           const uncalledCapital = commitment - calledToDate
 

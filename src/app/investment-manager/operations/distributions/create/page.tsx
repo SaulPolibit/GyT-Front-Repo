@@ -155,7 +155,8 @@ export default function CreateDistributionPage() {
           // Apply waterfall within Level 2 (simple preferred return + pro-rata)
           // For now, using pro-rata distribution based on ownership within Level 2
           level2Investors.forEach(investor => {
-            const ownershipPercent = investor._hierarchyOwnership?.ownershipPercent || 0
+            const hierarchyOwnership = investor._hierarchyOwnership as any
+            const ownershipPercent = hierarchyOwnership?.ownershipPercent || 0
 
             // Pro-rata within Level 2 based on their ownership percentage
             const ownershipFraction = level2TotalOwnership > 0 ? ownershipPercent / level2TotalOwnership : 0
@@ -301,7 +302,8 @@ export default function CreateDistributionPage() {
             }, 0)
 
             level1Investors.forEach(investor => {
-              const ownershipPercent = investor._hierarchyOwnership?.ownershipPercent || 0
+              const hierarchyOwnership = investor._hierarchyOwnership as any
+              const ownershipPercent = hierarchyOwnership?.ownershipPercent || 0
 
               // Pro-rata distribution of remainder based on Level 1 ownership
               const ownershipFraction = level1TotalOwnership > 0 ? ownershipPercent / level1TotalOwnership : 0

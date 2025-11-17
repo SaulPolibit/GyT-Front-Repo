@@ -143,11 +143,12 @@ export default function ChatPage() {
 
   // Map real investors to chat display format
   const chatInvestors = investors.map(inv => {
-    const structure = structures.find(s => s.id === inv.fundOwnership?.fundId)
+    const fundId = inv.fundOwnerships?.[0]?.fundId
+    const structure = structures.find(s => s.id === fundId)
     return {
       id: inv.id,
       name: inv.name,
-      structureId: inv.fundOwnership?.fundId || '',
+      structureId: fundId || '',
       structureName: structure?.name || 'No Structure',
       unreadCount: Math.floor(Math.random() * 3), // Mock unread count
       lastMessage: 'Thank you for the recent update.',

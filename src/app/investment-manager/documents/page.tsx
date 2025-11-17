@@ -268,7 +268,7 @@ export default function DocumentsPage() {
               <SelectContent>
                 <SelectItem value="all">All Investors</SelectItem>
                 {investors
-                  .filter(inv => selectedStructure === 'all' || inv.fundOwnership?.fundId === selectedStructure)
+                  .filter(inv => selectedStructure === 'all' || inv.fundOwnerships?.[0]?.fundId === selectedStructure)
                   .map(investor => (
                     <SelectItem key={investor.id} value={investor.id}>
                       {investor.name}
