@@ -835,9 +835,9 @@ export default function OnboardingPage() {
             status: 'Pending', // Pending until they complete onboarding
 
             // Entity-specific fields (for B2B entities)
-            entityName: preInvestor.entityName,
-            contactFirstName: isEntity ? preInvestor.firstName : undefined,
-            contactLastName: isEntity ? preInvestor.lastName : undefined,
+            entityName: (preInvestor as any).entityName,
+            contactFirstName: preInvestor.firstName,
+            contactLastName: preInvestor.lastName,
 
             // Fund Ownerships (plural array) - will be calculated properly during investor onboarding
             fundOwnerships: [{
@@ -1009,7 +1009,7 @@ export default function OnboardingPage() {
           }
 
           const investor: InvestorPreRegistration = {
-            investorType: mappedInvestorType,
+            investorType: mappedInvestorType as any,
             email: row.email.toLowerCase(),
             source: 'csv',
             addedAt: new Date()
