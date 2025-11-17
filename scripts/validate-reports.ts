@@ -52,7 +52,7 @@ reports.forEach((report, index) => {
   console.log(`${'═'.repeat(60)}`)
   console.log(`ID: ${report.id}`)
   console.log(`Type: ${report.type}`)
-  console.log(`Period: ${report.period}`)
+  console.log(`Period: ${report.periodStart} to ${report.periodEnd}`)
   console.log(`Generated: ${report.generatedDate}`)
   console.log(`Includes: ${report.includesInvestments.length} investments, ${report.includesInvestors.length} investors`)
   console.log('')
@@ -148,7 +148,9 @@ reports.forEach(report => {
     report.includesInvestors.includes(inv.id)
   )
 
-  const corrected = generateReportMetrics(filteredInvestments, filteredInvestors)
+  // Get fundId from first investment in report, or use empty string
+  const reportFundId = filteredInvestments.length > 0 ? filteredInvestments[0].fundId : ''
+  const corrected = generateReportMetrics(filteredInvestments, filteredInvestors, reportFundId)
 
   console.log(`${report.id}: ${report.title}`)
   console.log(`  totalAUM: ${corrected.totalAUM},`)

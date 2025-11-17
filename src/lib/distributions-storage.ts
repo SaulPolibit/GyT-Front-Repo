@@ -1,5 +1,8 @@
 import type { Distribution, DistributionStatus, DistributionSource } from './types'
 
+// Re-export types for convenience
+export type { Distribution, DistributionStatus, DistributionSource }
+
 const STORAGE_KEY = 'polibit_distributions'
 
 // Get all distributions from localStorage

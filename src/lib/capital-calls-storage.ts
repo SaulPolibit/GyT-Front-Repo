@@ -1,5 +1,8 @@
 import type { CapitalCall, CapitalCallStatus } from './types'
 
+// Re-export types for convenience
+export type { CapitalCall, CapitalCallStatus }
+
 const STORAGE_KEY = 'polibit_capital_calls'
 
 // Get all capital calls from localStorage
