@@ -1,0 +1,9 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/lp-portal/dashboard/page": "app/lp-portal/dashboard/page.js",
+  "/investment-manager/structures/page": "app/investment-manager/structures/page.js",
+  "/lp-portal/portfolio/page": "app/lp-portal/portfolio/page.js",
+  "/lp-portal/login/page": "app/lp-portal/login/page.js",
+  "/investment-manager/settings/page": "app/investment-manager/settings/page.js"
+}
