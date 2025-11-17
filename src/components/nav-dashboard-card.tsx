@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { NavSummarySection } from "@/components/nav-summary-section"
 import { NavTrendChart } from "@/components/nav-trend-chart"
-import { NavComponentsBreakdown } from "@/components/nav-components-breakdown"
 import { ValuationByAssetTable } from "@/components/valuation-by-asset-table"
 import fundData from "@/app/investment-manager/fund-data.json"
 import {
@@ -50,8 +49,6 @@ export function NavDashboardCard() {
         />
 
         <NavTrendChart navHistory={navHistory} />
-
-        <NavComponentsBreakdown navComponents={navComponents} />
 
         <ValuationByAssetTable valuationByAsset={valuationByAsset} />
       </CardContent>
