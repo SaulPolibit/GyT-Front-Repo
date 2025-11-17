@@ -1008,11 +1008,13 @@ export default function OnboardingPage() {
             }
           }
 
-          const investor: InvestorPreRegistration = {
+          const investor: any = {
             investorType: mappedInvestorType as any,
             email: row.email.toLowerCase(),
             source: 'csv',
-            addedAt: new Date()
+            addedAt: new Date(),
+            firstName: row.first_name,
+            lastName: row.last_name
           }
 
           // Add type-specific fields
@@ -1024,9 +1026,7 @@ export default function OnboardingPage() {
             investor.contactLastName = row.contact_last_name
             investor.taxId = row.tax_id || undefined
           } else {
-            // Individual investor fields
-            investor.firstName = row.first_name
-            investor.lastName = row.last_name
+            // Individual investor fields - already set above
             investor.taxId = row.tax_id || undefined
           }
 
@@ -1183,7 +1183,7 @@ export default function OnboardingPage() {
       'preferred_return',
       'source'
     ]
-    const rows = formData.preRegisteredInvestors.map(inv => [
+    const rows = formData.preRegisteredInvestors.map((inv: any) => [
       inv.investorType || 'individual',
       inv.firstName || '',
       inv.lastName || '',
@@ -1381,9 +1381,9 @@ export default function OnboardingPage() {
                         <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
                           <div>
                             <p className="font-medium">
-                              {investor.investorType === 'individual'
+                              {investor.investorType?.toLowerCase() === 'individual'
                                 ? `${investor.firstName} ${investor.lastName}`
-                                : investor.entityName}
+                                : (investor as any).entityName}
                             </p>
                             <p className="text-xs text-gray-500">{investor.email}</p>
                           </div>
@@ -2215,7 +2215,7 @@ export default function OnboardingPage() {
             {/* STEP 3: Capital Structure & Issuances (V3 ENHANCED) */}
             {currentStep === 3 && (() => {
               // Calculate structure features based on type and subtype
-              const features = getStructureFeatures(formData.structureType, formData.subtype)
+              const features = getStructureFeatures(formData.structureType, (formData as any).subtype || formData.structureSubtype)
 
               return (
               <div className="space-y-6">
@@ -2482,7 +2482,7 @@ export default function OnboardingPage() {
             {/* STEP 4: Economic Terms (V3 ENHANCED) */}
             {currentStep === 4 && (() => {
               // Calculate structure features based on type and subtype
-              const features = getStructureFeatures(formData.structureType, formData.subtype)
+              const features = getStructureFeatures(formData.structureType, (formData as any).subtype || formData.structureSubtype)
 
               return (
               <div className="space-y-6">
@@ -2648,9 +2648,9 @@ export default function OnboardingPage() {
                                 return (
                                   <TableRow key={idx}>
                                     <TableCell className="font-medium">
-                                      {investor.investorType === 'individual'
+                                      {investor.investorType?.toLowerCase() === 'individual'
                                         ? `${investor.firstName} ${investor.lastName}`
-                                        : investor.entityName}
+                                        : (investor as any).entityName}
                                     </TableCell>
                                     <TableCell className="text-sm text-gray-600">
                                       {investor.email}
