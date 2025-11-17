@@ -21,11 +21,11 @@ const TYPE_LABELS: Record<string, string> = {
   'private-debt': 'Private Debt',
 }
 
-// Status colors
-const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-800',
-  fundraising: 'bg-blue-100 text-blue-800',
-  closed: 'bg-gray-100 text-gray-800',
+// Status badge variants
+const STATUS_VARIANTS: Record<string, 'default' | 'outline' | 'destructive' | 'secondary'> = {
+  active: 'default',
+  fundraising: 'secondary',
+  closed: 'outline',
 }
 
 export default function StructuresPage() {
@@ -287,7 +287,7 @@ export default function StructuresPage() {
                       </span>
                     </div>
                   </div>
-                  <Badge variant={STATUS_COLORS[structure.status]}>
+                  <Badge variant={STATUS_VARIANTS[structure.status]}>
                     {structure.status.charAt(0).toUpperCase() + structure.status.slice(1)}
                   </Badge>
                 </div>
@@ -416,7 +416,7 @@ export default function StructuresPage() {
                       <span className="font-semibold">{master.investors}</span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={STATUS_COLORS[master.status]} className="text-xs">
+                      <Badge variant={STATUS_VARIANTS[master.status]} className="text-xs">
                         {master.status.charAt(0).toUpperCase() + master.status.slice(1)}
                       </Badge>
                     </TableCell>

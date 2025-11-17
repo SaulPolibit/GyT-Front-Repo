@@ -376,7 +376,7 @@ export default function StructureDetailPage({ params }: PageProps) {
                           <div className="text-xs text-muted-foreground">Position</div>
                           <div className="text-sm font-medium">
                             {index === 0 ? 'Master Level' :
-                             index === structure.hierarchyStructures.length - 1 ? 'Property Level' :
+                             index === (structure.hierarchyStructures?.length || 0) - 1 ? 'Property Level' :
                              `Intermediate Level`}
                           </div>
                         </div>
@@ -384,10 +384,10 @@ export default function StructureDetailPage({ params }: PageProps) {
                     </div>
 
                   {/* Income Flow Arrow */}
-                  {index < structure.hierarchyStructures.length - 1 && (
+                  {index < (structure.hierarchyStructures?.length || 0) - 1 && (
                     <div className="mt-3 pt-3 border-t border-dashed flex items-center gap-2 text-xs text-muted-foreground">
                       <TrendingUp className="h-3 w-3" />
-                      <span>Income flows upward to {structure.hierarchyStructures[index - 1]?.name || 'investors'}</span>
+                      <span>Income flows upward to {structure.hierarchyStructures?.[index - 1]?.name || 'investors'}</span>
                     </div>
                   )}
                 </div>
@@ -400,9 +400,9 @@ export default function StructureDetailPage({ params }: PageProps) {
                   Income Flow Direction
                 </div>
                 <div className="text-sm text-blue-800 dark:text-blue-200">
-                  Income enters at <strong>Level {structure.hierarchyStructures.length}</strong> (Property Level)
+                  Income enters at <strong>Level {structure.hierarchyStructures?.length || 0}</strong> (Property Level)
                   and cascades upward through each level
-                  {structure.hierarchyStructures.some(l => l.applyWaterfall) &&
+                  {structure.hierarchyStructures?.some(l => l.applyWaterfall) &&
                     ', applying waterfall calculations at configured levels,'
                   }
                   {' '}until reaching investors at the top.

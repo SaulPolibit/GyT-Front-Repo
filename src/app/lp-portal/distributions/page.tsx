@@ -80,7 +80,7 @@ export default function LPDistributionsPage() {
         // Find investor's allocation in this distribution
         const myAllocation = dist.investorAllocations.find(alloc => alloc.investorId === investor.id)
 
-        if (!myAllocation) return null
+        if (!myAllocation) return null as any
 
         return {
           id: dist.id,

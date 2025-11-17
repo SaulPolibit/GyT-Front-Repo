@@ -76,6 +76,8 @@ export interface Structure {
   uploadedInvestorDocuments?: { name: string; addedAt: Date }[]
   // Hierarchy fields for multi-level structures
   hierarchyMode?: boolean                        // Enable/disable hierarchy features
+  hierarchySetupApproach?: 'all-at-once' | 'incremental'  // How hierarchy is being set up
+  hierarchyLevels?: number                       // How many levels in the hierarchy
   numberOfLevels?: number                        // Total number of levels in hierarchy (e.g., 3, 4, 5)
   hierarchyStructures?: {                        // Configuration for each level in hierarchy
     level: number

@@ -32,6 +32,11 @@ interface InvestorPreRegistration {
   firstName: string
   lastName: string
   email: string
+  taxId?: string
+  entityName?: string
+  entityType?: string
+  contactFirstName?: string
+  contactLastName?: string
   investorType?: 'Individual' | 'Institution' | 'Family Office' | 'Fund of Funds'
   hierarchyLevel?: number  // Which level (1-N) investor participates in
   customTerms?: {
@@ -42,6 +47,22 @@ interface InvestorPreRegistration {
   }
   source: 'manual' | 'csv'
   addedAt: Date
+}
+
+// Pricing tier interface
+interface PricingTier {
+  name: string
+  monthlyFee: number
+  maxAUM: number
+  maxInvestors: number
+  maxIssuances: number
+  setupFee: number
+  additionalAUMCost: number
+  additionalInvestorCost: number
+  additionalIssuanceCost: number
+  description: string
+  badge?: string
+  contactSales?: boolean
 }
 
 // Structure type definitions with standardized country list (for type checking)
@@ -188,7 +209,7 @@ const getStructureFeatures = (structureType: string, subtype: string): Structure
 }
 
 // Tiered pricing model (V3.1 - UPDATED SETUP FEES)
-const PRICING_TIERS = {
+const PRICING_TIERS: Record<string, PricingTier> = {
   'starter': {
     name: 'Starter',
     monthlyFee: 1250,
@@ -2679,10 +2700,10 @@ export default function OnboardingPage() {
                                         <div className="flex flex-col">
                                           <Badge variant="secondary" className="w-fit mb-1">Custom</Badge>
                                           <span className="text-gray-600">
-                                            {investor.customTerms.managementFee ?? formData.managementFee}% /
-                                            {investor.customTerms.performanceFee ?? formData.performanceFee}% /
-                                            {investor.customTerms.hurdleRate ?? formData.hurdleRate}% /
-                                            {investor.customTerms.preferredReturn ?? formData.preferredReturn}%
+                                            {investor.customTerms?.managementFee ?? formData.managementFee}% /
+                                            {investor.customTerms?.performanceFee ?? formData.performanceFee}% /
+                                            {investor.customTerms?.hurdleRate ?? formData.hurdleRate}% /
+                                            {investor.customTerms?.preferredReturn ?? formData.preferredReturn}%
                                           </span>
                                         </div>
                                       ) : (

@@ -76,7 +76,7 @@ export default function LPCapitalCallsPage() {
         // Find investor's allocation in this capital call
         const myAllocation = call.investorAllocations.find(alloc => alloc.investorId === investor.id)
 
-        if (!myAllocation) return null
+        if (!myAllocation) return null as any
 
         return {
           id: call.id,

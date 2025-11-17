@@ -53,7 +53,7 @@ export default function LPCommitmentsPage() {
     const investorCommitments: InvestorCommitmentData[] = investor.fundOwnerships.map(ownership => {
       const structure = allStructures.find(s => s.id === ownership.fundId)
 
-      if (!structure) return null
+      if (!structure) return null as any
 
       const commitment = ownership.commitment || 0
 
