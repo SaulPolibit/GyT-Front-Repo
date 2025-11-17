@@ -29,7 +29,9 @@ console.log('══════════════════════�
 console.log('📊 OVERALL FUND METRICS')
 console.log('─────────────────────────────────────────────────────────')
 const allInvestmentMetrics = calculateInvestmentMetrics(investments)
-const allInvestorMetrics = calculateInvestorMetrics(investors)
+// Get the first fund ID for investor metrics, or use empty string if no investments
+const firstFundId = investments.length > 0 ? investments[0].fundId : ''
+const allInvestorMetrics = calculateInvestorMetrics(investors, firstFundId)
 
 console.log(`Total Fund NAV:          $${allInvestmentMetrics.currentValue.toLocaleString()}`)
 console.log(`Total Invested:          $${allInvestmentMetrics.totalInvested.toLocaleString()}`)
