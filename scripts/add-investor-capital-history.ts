@@ -59,7 +59,7 @@ const updatedInvestors = investors.map(investor => {
   let runningBalance = 0
 
   // Add initial contribution (simplified - using called capital minus recent events)
-  const initialContribution = investor.fundOwnership.calledCapital
+  const initialContribution = investor.fundOwnerships[0]?.calledCapital || 0
   let adjustedInitialCall = initialContribution
 
   // Find this investor's capital call allocation
@@ -166,7 +166,7 @@ console.log('📋 SUMMARY')
 console.log('─────────────────────────────────────────────────────────')
 
 const totalDistributed = updatedInvestors.reduce((sum, inv) => sum + inv.totalDistributed, 0)
-const totalContributed = updatedInvestors.reduce((sum, inv) => sum + inv.fundOwnership.calledCapital, 0)
+const totalContributed = updatedInvestors.reduce((sum, inv) => sum + (inv.fundOwnerships[0]?.calledCapital || 0), 0)
 
 console.log(`Total Investors: ${updatedInvestors.length}`)
 console.log(`Total Capital Called: $${totalContributed.toLocaleString()}`)
