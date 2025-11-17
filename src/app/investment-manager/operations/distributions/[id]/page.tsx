@@ -73,13 +73,16 @@ export default function DistributionDetailPage({ params }: PageProps) {
   }
 
   const getStatusBadge = (status: string) => {
+    // Typed status mapping for DistributionStatus: 'Pending' | 'Processing' | 'Completed' | 'Failed'
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       'Pending': 'secondary',
       'Processing': 'outline',
       'Completed': 'default',
       'Failed': 'destructive',
     }
-    return <Badge variant={variants[status] || 'secondary'}>{status}</Badge>
+    // Status must be one of the valid DistributionStatus values
+    const validStatus = ['Pending', 'Processing', 'Completed', 'Failed'].includes(status)
+    return <Badge variant={validStatus ? variants[status] : 'secondary'}>{status}</Badge>
   }
 
   if (!distribution) {

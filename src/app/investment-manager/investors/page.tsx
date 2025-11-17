@@ -233,9 +233,17 @@ export default function InvestorsPage() {
     }
   }
 
-  const formatStatus = (status: string) => {
-    // Capitalize first letter to handle both lowercase and capitalized formats
-    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+  const formatStatus = (status: string): string => {
+    // Handle special cases first, then apply normal case transformation
+    if (!status) return 'Pending'
+    const normalized = status.toLowerCase()
+    if (normalized === 'kyc/kyb') return 'KYC/KYB'
+    if (normalized === 'pending') return 'Pending'
+    if (normalized === 'contracts') return 'Contracts'
+    if (normalized === 'commitment') return 'Commitment'
+    if (normalized === 'active') return 'Active'
+    if (normalized === 'inactive') return 'Inactive'
+    return status // Return as-is if unrecognized
   }
 
   const getStatusColor = (status: string) => {
@@ -243,9 +251,9 @@ export default function InvestorsPage() {
     const normalizedStatus = formatStatus(status)
     switch (normalizedStatus) {
       case 'Pending': return 'outline'        // Pre-registered
-      case 'Kyc/kyb': return 'outline'        // Identity verification
+      case 'KYC/KYB': return 'outline'        // Identity verification
       case 'Contracts': return 'outline'      // Contract signing
-      case 'Payments': return 'outline'       // Payment setup
+      case 'Commitment': return 'outline'     // Capital commitment setup
       case 'Active': return 'default'         // Fully onboarded
       case 'Inactive': return 'secondary'     // Previously active
       default: return 'secondary'
@@ -348,7 +356,7 @@ export default function InvestorsPage() {
             <TabsTrigger value="Pending">Pending</TabsTrigger>
             <TabsTrigger value="KYC/KYB">KYC/KYB</TabsTrigger>
             <TabsTrigger value="Contracts">Contracts</TabsTrigger>
-            <TabsTrigger value="Payments">Payments</TabsTrigger>
+            <TabsTrigger value="Commitment">Commitment</TabsTrigger>
             <TabsTrigger value="Inactive">Inactive</TabsTrigger>
           </TabsList>
         </Tabs>

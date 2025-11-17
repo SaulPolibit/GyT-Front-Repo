@@ -155,7 +155,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
       case 'Pending': return 'outline'        // Pre-registered
       case 'KYC/KYB': return 'outline'        // Identity verification
       case 'Contracts': return 'outline'      // Contract signing
-      case 'Payments': return 'outline'       // Payment setup
+      case 'Commitment': return 'outline'     // Capital commitment setup
       case 'Active': return 'default'         // Fully onboarded
       case 'Inactive': return 'secondary'     // Previously active
       default: return 'secondary'

@@ -86,6 +86,7 @@ export default function CapitalCallDetailPage({ params }: PageProps) {
   }
 
   const getStatusBadge = (status: string) => {
+    // Typed status mapping for CapitalCallStatus: 'Draft' | 'Sent' | 'Partially Paid' | 'Fully Paid' | 'Overdue' | 'Cancelled'
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       'Draft': 'secondary',
       'Sent': 'default',
@@ -94,7 +95,9 @@ export default function CapitalCallDetailPage({ params }: PageProps) {
       'Overdue': 'destructive',
       'Cancelled': 'secondary',
     }
-    return <Badge variant={variants[status] || 'secondary'}>{status}</Badge>
+    // Status must be one of the valid CapitalCallStatus values
+    const validStatus = ['Draft', 'Sent', 'Partially Paid', 'Fully Paid', 'Overdue', 'Cancelled'].includes(status)
+    return <Badge variant={validStatus ? variants[status] : 'secondary'}>{status}</Badge>
   }
 
   if (!capitalCall) {

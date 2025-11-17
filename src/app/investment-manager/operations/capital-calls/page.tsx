@@ -62,6 +62,7 @@ export default function CapitalCallsPage() {
   }
 
   const getStatusBadge = (status: string) => {
+    // Typed status mapping for CapitalCallStatus: 'Draft' | 'Sent' | 'Partially Paid' | 'Fully Paid' | 'Overdue' | 'Cancelled'
     const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', icon: any }> = {
       'Draft': { variant: 'secondary', icon: IconFileText },
       'Sent': { variant: 'default', icon: IconSend },
@@ -71,7 +72,9 @@ export default function CapitalCallsPage() {
       'Cancelled': { variant: 'secondary', icon: IconCircleX },
     }
 
-    const config = statusConfig[status] || { variant: 'secondary' as const, icon: IconFileText }
+    // Status must be one of the valid CapitalCallStatus values
+    const validStatus = ['Draft', 'Sent', 'Partially Paid', 'Fully Paid', 'Overdue', 'Cancelled'].includes(status)
+    const config = validStatus ? statusConfig[status] : { variant: 'secondary' as const, icon: IconFileText }
     const Icon = config.icon
 
     return (

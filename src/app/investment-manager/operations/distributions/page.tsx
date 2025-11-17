@@ -60,6 +60,7 @@ export default function DistributionsPage() {
   }
 
   const getStatusBadge = (status: string) => {
+    // Typed status mapping for DistributionStatus: 'Pending' | 'Processing' | 'Completed' | 'Failed'
     const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', icon: any }> = {
       'Pending': { variant: 'secondary', icon: IconClock },
       'Processing': { variant: 'outline', icon: IconClock },
@@ -67,7 +68,9 @@ export default function DistributionsPage() {
       'Failed': { variant: 'destructive', icon: IconCircleX },
     }
 
-    const config = statusConfig[status] || { variant: 'secondary' as const, icon: IconClock }
+    // Status must be one of the valid DistributionStatus values
+    const validStatus = ['Pending', 'Processing', 'Completed', 'Failed'].includes(status)
+    const config = validStatus ? statusConfig[status] : { variant: 'secondary' as const, icon: IconClock }
     const Icon = config.icon
 
     return (

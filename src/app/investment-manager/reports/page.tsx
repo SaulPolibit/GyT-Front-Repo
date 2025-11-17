@@ -49,24 +49,30 @@ export default function ReportsPage() {
   }
 
   const getStatusColor = (status: string) => {
+    // Typed status mapping for ReportStatus: 'Draft' | 'In Review' | 'Published' | 'Sent'
+    const validStatus = ['Draft', 'In Review', 'Published', 'Sent'].includes(status)
     switch (status) {
       case 'Published': return 'default'
       case 'Sent': return 'default'
       case 'In Review': return 'outline'
       case 'Draft': return 'secondary'
-      default: return 'secondary'
+      default: return validStatus ? 'secondary' : 'secondary'
     }
   }
 
   const getTypeColor = (type: string) => {
+    // Typed type mapping for ReportType: 'Quarterly' | 'Annual' | 'Monthly' | 'Custom' | 'Capital Call' | 'Distribution' | 'ILPA Performance' | 'ILPA Reporting'
+    const validType = ['Quarterly', 'Annual', 'Monthly', 'Custom', 'Capital Call', 'Distribution', 'ILPA Performance', 'ILPA Reporting'].includes(type)
     switch (type) {
       case 'Quarterly': return 'default'
       case 'Annual': return 'default'
       case 'Monthly': return 'outline'
       case 'Capital Call': return 'destructive'
       case 'Distribution': return 'default'
+      case 'ILPA Performance': return 'default'
+      case 'ILPA Reporting': return 'default'
       case 'Custom': return 'secondary'
-      default: return 'secondary'
+      default: return validType ? 'secondary' : 'secondary'
     }
   }
 

@@ -89,11 +89,17 @@ export default function EditInvestorPage({ params }: PageProps) {
     setTaxId(investor.taxId || "")
 
     // Normalize status to proper case (handle both 'active' and 'Active')
-    const normalizeStatus = (status: string): string => {
+    const normalizeStatus = (status: string): InvestorStatus => {
       if (!status) return "Pending"
-      // Convert to proper case: 'active' -> 'Active', 'kyc/kyb' -> 'KYC/KYB'
-      if (status.toLowerCase() === 'kyc/kyb') return 'KYC/KYB'
-      return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+      const normalized = status.toLowerCase()
+      // Check for valid InvestorStatus values
+      if (normalized === 'kyc/kyb') return 'KYC/KYB'
+      if (normalized === 'pending') return 'Pending'
+      if (normalized === 'contracts') return 'Contracts'
+      if (normalized === 'commitment') return 'Commitment'
+      if (normalized === 'active') return 'Active'
+      if (normalized === 'inactive') return 'Inactive'
+      return 'Pending' // default fallback
     }
     setStatus(normalizeStatus(investor.status || "Pending"))
     // Load all structures the investor is assigned to
@@ -476,13 +482,16 @@ export default function EditInvestorPage({ params }: PageProps) {
                 <select
                   id="type"
                   value={type}
-                  onChange={(e) => setType(e.target.value as InvestorType)}
+                  onChange={(e) => {
+                    const value = e.target.value as InvestorType
+                    setType(value)
+                  }}
                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
                 >
-                  <option value="Individual">Individual</option>
-                  <option value="Institution">Institution</option>
-                  <option value="Family Office">Family Office</option>
-                  <option value="Fund of Funds">Fund of Funds</option>
+                  <option value="individual">Individual</option>
+                  <option value="institution">Institution</option>
+                  <option value="family-office">Family Office</option>
+                  <option value="fund-of-funds">Fund of Funds</option>
                 </select>
               </div>
 
@@ -501,11 +510,12 @@ export default function EditInvestorPage({ params }: PageProps) {
                 <select
                   id="preferredContact"
                   value={preferredContactMethod}
-                  onChange={(e) => setPreferredContactMethod(e.target.value as "Email" | "Phone")}
+                  onChange={(e) => setPreferredContactMethod(e.target.value as "Email" | "Phone" | "Portal")}
                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
                 >
                   <option value="Email">Email</option>
                   <option value="Phone">Phone</option>
+                  <option value="Portal">Portal</option>
                 </select>
               </div>
 
@@ -514,13 +524,16 @@ export default function EditInvestorPage({ params }: PageProps) {
                 <select
                   id="status"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value as InvestorStatus
+                    setStatus(value)
+                  }}
                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
                 >
                   <option value="Pending">Pending</option>
                   <option value="KYC/KYB">KYC/KYB</option>
                   <option value="Contracts">Contracts</option>
-                  <option value="Payments">Payments</option>
+                  <option value="Commitment">Commitment</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
