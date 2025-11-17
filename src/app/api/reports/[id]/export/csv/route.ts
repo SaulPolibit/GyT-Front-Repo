@@ -53,6 +53,9 @@ export async function GET(
     let filename: string
     const baseFilename = report.title.replace(/\s+/g, '-').toLowerCase()
 
+    // Get fundId from first investment in report, or use empty string
+    const reportFundId = includedInvestments.length > 0 ? includedInvestments[0].fundId : ''
+
     // Generate appropriate CSV based on type
     switch (exportType) {
       case 'investments':
@@ -61,7 +64,7 @@ export async function GET(
         break
 
       case 'investors':
-        csvContent = generateInvestorsCSV(report, includedInvestors)
+        csvContent = generateInvestorsCSV(report, includedInvestors, reportFundId)
         filename = `${baseFilename}-investors.csv`
         break
 
