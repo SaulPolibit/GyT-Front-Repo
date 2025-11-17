@@ -15,7 +15,7 @@ import { getInvestors, updateInvestor } from "@/lib/investors-storage"
 import { getStructures, canAddInvestor, getStructureById, getStructureHierarchy, getStructureDescendants, repairHierarchyRelationships, createSampleHierarchies } from "@/lib/structures-storage"
 import investorsData from "@/data/investors.json"
 import type { Structure } from "@/lib/structures-storage"
-import type { Investor, InvestorType } from "@/lib/types"
+import type { Investor, InvestorType, InvestorStatus } from "@/lib/types"
 
 interface PageProps {
   params: Promise<{ id: string }>
