@@ -787,8 +787,8 @@ export default function OnboardingPage() {
 
         formData.preRegisteredInvestors.forEach((preInvestor) => {
           // Determine investor type and name based on investorType field
-          const isEntity = preInvestor.investorType !== 'individual'
-          const investorName = isEntity ? preInvestor.entityName : `${preInvestor.firstName} ${preInvestor.lastName}`
+          const isEntity = preInvestor.investorType?.toLowerCase() !== 'individual'
+          const investorName = isEntity ? ((preInvestor as any).entityName || 'Entity') : `${preInvestor.firstName || ''} ${preInvestor.lastName || ''}`
 
           // Determine which structure this investor should be assigned to based on their hierarchy level
           const investorLevel = preInvestor.hierarchyLevel || 1 // Default to Level 1 (master) if not specified
