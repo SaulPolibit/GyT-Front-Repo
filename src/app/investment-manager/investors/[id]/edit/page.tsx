@@ -385,8 +385,6 @@ export default function EditInvestorPage({ params }: PageProps) {
         taxId: taxId || undefined,
         status,
         fundOwnerships: fundOwnerships,
-        hierarchyLevel: undefined, // Remove single hierarchyLevel as it's now per-ownership
-        customTerms: undefined, // @deprecated - Use per-structure customTerms in fundOwnerships instead
         notes: notes || undefined,
         preferredContactMethod,
         address: street ? {

@@ -117,7 +117,10 @@ export default function CreateCapitalCallPage() {
       // Get Level 2 structure (Investment Trust) ownership of Master
       const level2StructureId = level2Investors[0]?._hierarchyOwnership?.structureId
       const level2Structure = level2StructureId ? structures.find(s => s.id === level2StructureId) : null
-      const level2OwnershipOfMaster = level2Structure?.ownershipOfParent || 0
+      // For multi-level structures, calculate the ownership from level 2 investors' commitment
+      const level2TotalOwnership = level2Investors.reduce((sum, inv) =>
+        sum + (inv._hierarchyOwnership?.ownershipPercent || 0), 0)
+      const level2OwnershipOfMaster = level2TotalOwnership > 0 ? level2TotalOwnership : 0
 
       // Calculate total capital call amount for each level
       const level2TotalCall = formData.totalCallAmount * (level2OwnershipOfMaster / 100)
@@ -138,7 +141,7 @@ export default function CreateCapitalCallPage() {
           const commitmentFraction = level2TotalCommitment > 0 ? commitment / level2TotalCommitment : 0
           const callAmount = level2TotalCall * commitmentFraction
 
-          const ownership = investor.fundOwnerships?.find(fo => fo.fundId === investor._hierarchyOwnership.structureId)
+          const ownership = investor.fundOwnerships?.find((fo: any) => fo.fundId === investor._hierarchyOwnership.structureId)
           const calledToDate = ownership?.calledCapital || 0
           const uncalledCapital = commitment - calledToDate
 
@@ -174,7 +177,7 @@ export default function CreateCapitalCallPage() {
           const commitmentFraction = level1TotalCommitment > 0 ? commitment / level1TotalCommitment : 0
           const callAmount = level1TotalCall * commitmentFraction
 
-          const ownership = investor.fundOwnerships?.find(fo => fo.fundId === investor._hierarchyOwnership.structureId)
+          const ownership = investor.fundOwnerships?.find((fo: any) => fo.fundId === investor._hierarchyOwnership.structureId)
           const calledToDate = ownership?.calledCapital || 0
           const uncalledCapital = commitment - calledToDate
 
@@ -202,12 +205,12 @@ export default function CreateCapitalCallPage() {
       // SINGLE-LEVEL STRUCTURE: Calculate based on commitment
       // Get total commitments from all investors
       const totalCommitments = investors.reduce((sum, inv) => {
-        const ownership = inv.fundOwnerships?.find(fo => fo.fundId === formData.fundId)
+        const ownership = inv.fundOwnerships?.find((fo: any) => fo.fundId === formData.fundId)
         return sum + (ownership?.commitment || 0)
       }, 0)
 
       return investors.map(investor => {
-        const ownership = investor.fundOwnerships?.find(fo => fo.fundId === formData.fundId)
+        const ownership = investor.fundOwnerships?.find((fo: any) => fo.fundId === formData.fundId)
         const ownershipPercent = ownership?.ownershipPercent || 0
         const commitment = ownership?.commitment || 0
 

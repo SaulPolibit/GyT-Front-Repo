@@ -169,7 +169,7 @@ export default function ReportBuilderPage() {
           document.body.removeChild(a)
         } else if (exportFormat === 'pdf') {
           const pdfBuffer = await generateILPAPDF(ilpaConfig)
-          const blob = new Blob([pdfBuffer], { type: 'application/pdf' })
+          const blob = new Blob([pdfBuffer as any], { type: 'application/pdf' })
           const url = window.URL.createObjectURL(blob)
           const a = document.createElement('a')
           a.href = url

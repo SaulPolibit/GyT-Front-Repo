@@ -134,7 +134,10 @@ export default function CreateDistributionPage() {
         console.log('Level 2 Structure:', level2Structure)
 
         // Get the Investment Trust's ownership percentage in the Master Trust
-        const level2OwnershipOfMaster = level2Structure?.ownershipOfParent || 0
+        // Calculate from level 2 investors' total ownership
+        const level2TotalOwnership = level2Investors.reduce((sum, inv) =>
+          sum + (inv._hierarchyOwnership?.ownershipPercent || 0), 0)
+        const level2OwnershipOfMaster = level2TotalOwnership > 0 ? level2TotalOwnership : 0
         console.log('Level 2 Ownership of Master:', level2OwnershipOfMaster, '%')
 
         // STEP 1: Calculate Level 2 distribution (Investment Trust)
@@ -227,7 +230,7 @@ export default function CreateDistributionPage() {
               waterfallStructure,
               remainingForLevel1,
               capitalAccounts,
-              selectedFund.createdAt || new Date().toISOString(),
+              selectedFund.createdDate instanceof Date ? selectedFund.createdDate.toISOString() : new Date().toISOString(),
               formData.distributionDate
             )
 
@@ -348,7 +351,7 @@ export default function CreateDistributionPage() {
           if (investor._hierarchyOwnership) {
             ownershipPercent = investor._hierarchyOwnership.ownershipPercent
           } else {
-            const ownership = investor.fundOwnerships?.find(fo => fo.fundId === formData.fundId)
+            const ownership = investor.fundOwnerships?.find((fo: any) => fo.fundId === formData.fundId)
             ownershipPercent = ownership?.ownershipPercent || 0
           }
 

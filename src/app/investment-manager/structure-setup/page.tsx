@@ -510,7 +510,7 @@ export default function OnboardingPage() {
         const tier = calculateTier(aumInUSD)
         setFormData(prev => ({
           ...prev,
-          determinedTier: tier
+          determinedTier: tier as any
         }))
       }
     }

@@ -430,12 +430,14 @@ export default function InvestmentSubscriptionsPage() {
           </AlertDialogHeader>
           <div className="flex gap-3">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={loading || !adminNotes.trim()}
-              onClick={() => selectedSub && handleReject(selectedSub)}
-            >
-              {loading ? 'Rejecting...' : 'Reject'}
+            <AlertDialogAction asChild>
+              <Button
+                variant="destructive"
+                disabled={loading || !adminNotes.trim()}
+                onClick={() => selectedSub && handleReject(selectedSub)}
+              >
+                {loading ? 'Rejecting...' : 'Reject'}
+              </Button>
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

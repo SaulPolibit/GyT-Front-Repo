@@ -113,33 +113,37 @@ export default function AddInvestorPage() {
     }
 
     try {
+      const fundName = structures.find(s => s.id === selectedStructure)?.name || selectedStructure
+
       const newInvestor = saveInvestor({
         name,
         email,
         phone: phone || undefined,
         type,
         status: "Pending",
-        fundOwnership: {
+        fundOwnerships: [{
           fundId: selectedStructure,
+          fundName: fundName,
           commitment: 0,
           ownershipPercent: 0,
           calledCapital: 0,
           uncalledCapital: 0,
-        },
-        hierarchyLevel: hierarchyLevel,
-        customTerms: hasCustomTerms ? {
-          managementFee: customManagementFee ? parseFloat(customManagementFee) : undefined,
-          performanceFee: customPerformanceFee ? parseFloat(customPerformanceFee) : undefined,
-          hurdleRate: customHurdleRate ? parseFloat(customHurdleRate) : undefined,
-          preferredReturn: customPreferredReturn ? parseFloat(customPreferredReturn) : undefined,
-        } : undefined,
+          investedDate: new Date().toISOString(),
+          hierarchyLevel: hierarchyLevel,
+          customTerms: hasCustomTerms ? {
+            managementFee: customManagementFee ? parseFloat(customManagementFee) : undefined,
+            performanceFee: customPerformanceFee ? parseFloat(customPerformanceFee) : undefined,
+            hurdleRate: customHurdleRate ? parseFloat(customHurdleRate) : undefined,
+            preferredReturn: customPreferredReturn ? parseFloat(customPreferredReturn) : undefined,
+          } : undefined,
+        }],
         currentValue: 0,
         unrealizedGain: 0,
         totalDistributed: 0,
         netCashFlow: 0,
         irr: 0,
-        taxId: taxId || undefined,
         k1Status: "Not Started",
+        taxId: taxId || undefined,
         address: street ? {
           street,
           city,
@@ -149,7 +153,7 @@ export default function AddInvestorPage() {
         } : undefined,
         preferredContactMethod: "Email",
         investorSince: new Date().toISOString(),
-        notes: undefined,
+        notes: "",
         documents: [],
       })
 
