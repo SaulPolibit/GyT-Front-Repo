@@ -28,7 +28,15 @@ console.log('══════════════════════�
  * Define investment composition for each report
  * This is the ONLY configuration needed - all values are calculated
  */
-const reportInvestmentConfig = {
+interface ReportConfig {
+  investments: string[]
+  endDate: string
+  description: string
+  capitalCallAmount?: number
+  distributionAmount?: number
+}
+
+const reportInvestmentConfig: Record<string, ReportConfig> = {
   'report-003': { // 2024 Annual
     investments: ['inv-001', 'inv-002', 'inv-003', 'inv-004', 'inv-005', 'inv-006'],
     endDate: '2024-12-31',
@@ -84,7 +92,7 @@ const formatCurrency = (value: number) => {
 
 // Recalculate metrics for each report
 const updatedReports = reports.map(report => {
-  const config = reportInvestmentConfig[report.id as keyof typeof reportInvestmentConfig]
+  const config = reportInvestmentConfig[report.id]
 
   if (!config) {
     console.log(`⚠️  ${report.title} - No config found, skipping`)
