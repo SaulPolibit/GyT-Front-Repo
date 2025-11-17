@@ -235,7 +235,7 @@ export default function EditInvestmentPage({ params }: PageProps) {
         fundId: selectedStructure,
         name,
         type,
-        sector: sector || "General",
+        sector: (sector || "Multifamily") as AssetSector,
         description: description || investment.description || `Investment in ${name}`,
         investmentType: investmentType.toUpperCase() as 'EQUITY' | 'DEBT' | 'MIXED',
         totalInvestmentSize: totalInvestmentSizeNum,
