@@ -32,12 +32,12 @@ export default function EditInvestorPage({ params }: PageProps) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
-  const [type, setType] = useState<InvestorType>("Individual")
+  const [type, setType] = useState<InvestorType>("individual")
   const [taxId, setTaxId] = useState("")
-  const [status, setStatus] = useState<string>("Pending")
+  const [status, setStatus] = useState<InvestorStatus>("Pending")
   const [selectedStructures, setSelectedStructures] = useState<string[]>([])
   const [notes, setNotes] = useState("")
-  const [preferredContactMethod, setPreferredContactMethod] = useState<"Email" | "Phone">("Email")
+  const [preferredContactMethod, setPreferredContactMethod] = useState<"Email" | "Phone" | "Portal">("Email")
 
   // Address state
   const [street, setStreet] = useState("")
@@ -97,9 +97,9 @@ export default function EditInvestorPage({ params }: PageProps) {
     }
     setStatus(normalizeStatus(investor.status || "Pending"))
     // Load all structures the investor is assigned to
-    setSelectedStructures(investor.fundOwnerships?.map(fo => fo.fundId) || (investor.fundOwnership?.fundId ? [investor.fundOwnership.fundId] : []))
+    setSelectedStructures(investor.fundOwnerships?.map(fo => fo.fundId) || [])
     setNotes(investor.notes || "")
-    setPreferredContactMethod(investor.preferredContactMethod || "Email")
+    setPreferredContactMethod((investor.preferredContactMethod || "Email") as "Email" | "Phone" | "Portal")
 
     if (investor.address) {
       setStreet(investor.address.street)

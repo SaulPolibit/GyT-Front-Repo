@@ -25,7 +25,7 @@ export default function AddInvestorPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
-  const [type, setType] = useState<InvestorType>("Individual")
+  const [type, setType] = useState<InvestorType>("individual")
   const [taxId, setTaxId] = useState("")
 
   // Address state

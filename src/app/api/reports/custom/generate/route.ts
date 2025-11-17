@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate report in requested format
-    let buffer: Buffer
+    let buffer: Buffer | string
     let contentType: string
     let filename: string
 
@@ -125,12 +125,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Return the generated file
-    return new NextResponse(buffer, {
+    return new NextResponse(buffer as any, {
       status: 200,
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': buffer.length.toString(),
+        'Content-Length': (typeof buffer === 'string' ? Buffer.byteLength(buffer) : buffer.length).toString(),
       },
     })
   } catch (error) {

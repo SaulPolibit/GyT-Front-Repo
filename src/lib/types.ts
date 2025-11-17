@@ -118,6 +118,11 @@ export interface Investment {
     multiple: number
   }
 
+  // Additional Fund Commitment Tracking
+  totalInvestmentSize?: number  // Total size of the investment opportunity
+  fundCommitment?: number       // Fund's total commitment to this investment
+  ownershipPercentage?: number  // Fund's ownership percentage (from fundEquityPosition if available)
+
   // Visibility & Access Control
   visibility?: {
     type: 'public' | 'fund-specific' | 'private'
@@ -408,6 +413,9 @@ export interface CapitalCallAllocation {
   investorId: string
   investorName: string
   investorType: InvestorType
+
+  // Hierarchy Support (for multi-level structures)
+  hierarchyLevel?: number  // Which level (1-N) this investor participates at
 
   // Allocation
   commitment: number
