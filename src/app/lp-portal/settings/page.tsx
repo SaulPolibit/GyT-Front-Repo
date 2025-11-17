@@ -1,0 +1,962 @@
+"use client"
+
+import * as React from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  CreditCard,
+  Bell,
+  Shield,
+  Settings as SettingsIcon,
+  Plus,
+  Trash2,
+  Check,
+  FileText,
+  Building2,
+  MapPin,
+  User,
+  CheckCircle,
+  AlertCircle,
+  Mail,
+  Phone,
+  Globe,
+} from "lucide-react"
+import { getInvestorByEmail, getCurrentInvestorEmail } from "@/lib/lp-portal-helpers"
+import { toast } from "sonner"
+
+export default function LPSettingsPage() {
+  const [investor, setInvestor] = React.useState<any>(null)
+  const [activeTab, setActiveTab] = React.useState("payment")
+
+  // Notification settings
+  const [emailNotifications, setEmailNotifications] = React.useState(true)
+  const [smsNotifications, setSmsNotifications] = React.useState(false)
+  const [portalNotifications, setPortalNotifications] = React.useState(true)
+  const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
+
+  React.useEffect(() => {
+    const email = getCurrentInvestorEmail()
+    const inv = getInvestorByEmail(email)
+    if (inv) {
+      setInvestor(inv)
+    }
+  }, [])
+
+  const handleSavePaymentMethod = () => {
+    toast.success("Payment method saved successfully")
+  }
+
+  const handleRemovePaymentMethod = () => {
+    toast.success("Payment method removed")
+  }
+
+  const handleUpdateNotifications = () => {
+    toast.success("Notification preferences updated")
+  }
+
+  const handleEnable2FA = () => {
+    setTwoFactorEnabled(!twoFactorEnabled)
+    toast.success(twoFactorEnabled ? "2FA disabled" : "2FA enabled")
+  }
+
+  if (!investor) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        <h1 className="text-2xl font-semibold">Settings</h1>
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage your payment methods, notifications, security, and legal information
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="payment">Payment</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="legal">Legal Info</TabsTrigger>
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
+        </TabsList>
+
+        {/* Payment Methods Tab */}
+        <TabsContent value="payment" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Payment Methods
+              </CardTitle>
+              <CardDescription>
+                Manage your bank accounts and payment methods for capital calls
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Saved Payment Methods */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Saved Payment Methods</h3>
+
+                {/* Bank Account 1 - Primary */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-primary/10 rounded-md">
+                        <Building2 className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium">Chase Bank - Checking</p>
+                          <Badge variant="default" className="text-xs">Primary</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Account ending in ••••4532</p>
+                        <p className="text-xs text-muted-foreground mt-1">Routing: ••••6789</p>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CheckCircle className="h-3 w-3 text-green-600" />
+                      Verified on Jan 15, 2024
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Account 2 */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-muted rounded-md">
+                        <Building2 className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="font-medium">Bank of America - Savings</p>
+                        <p className="text-sm text-muted-foreground">Account ending in ••••7821</p>
+                        <p className="text-xs text-muted-foreground mt-1">Routing: ••••1234</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm">Set as Primary</Button>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CheckCircle className="h-3 w-3 text-green-600" />
+                      Verified on Dec 10, 2023
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button className="w-full" variant="outline" onClick={handleSavePaymentMethod}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add New Bank Account
+              </Button>
+
+              <Separator />
+
+              {/* Wire Transfer Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Wire Transfer Instructions</h3>
+                <div className="p-4 bg-muted rounded-lg space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Bank Name</Label>
+                      <p className="text-sm font-medium mt-1">Chase Bank</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Account Type</Label>
+                      <p className="text-sm font-medium mt-1">Checking</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Account Number</Label>
+                      <p className="text-sm font-medium mt-1">••••••••4532</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Routing Number</Label>
+                      <p className="text-sm font-medium mt-1">021000021</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">SWIFT Code</Label>
+                      <p className="text-sm font-medium mt-1">CHASUS33</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Account Holder</Label>
+                      <p className="text-sm font-medium mt-1">{investor.name}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Payment History */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Recent Payments</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <div>
+                      <p className="text-sm font-medium">Capital Call #1</p>
+                      <p className="text-xs text-muted-foreground">Jan 15, 2024</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">$125,000.00</p>
+                      <p className="text-xs text-green-600">Completed</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <p className="text-sm font-medium">Initial Commitment</p>
+                      <p className="text-xs text-muted-foreground">Dec 10, 2023</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">Setup</p>
+                      <p className="text-xs text-green-600">Verified</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Notification Preferences
+              </CardTitle>
+              <CardDescription>
+                Choose how and when you want to receive notifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Email Notifications */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Email Notifications</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive notifications via email
+                    </p>
+                  </div>
+                  <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
+                </div>
+
+                {emailNotifications && (
+                  <div className="ml-6 space-y-3 border-l-2 pl-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Capital call notices</Label>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Distribution notices</Label>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Quarterly reports</Label>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">K-1 tax forms available</Label>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Document uploads</Label>
+                      <Switch />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">General announcements</Label>
+                      <Switch />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* SMS Notifications */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">SMS Notifications</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive text alerts for urgent notifications
+                    </p>
+                  </div>
+                  <Switch checked={smsNotifications} onCheckedChange={setSmsNotifications} />
+                </div>
+
+                {smsNotifications && (
+                  <div className="ml-6 space-y-3 border-l-2 pl-4">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Urgent capital calls</Label>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Payment confirmations</Label>
+                      <Switch defaultChecked />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Security alerts</Label>
+                      <Switch defaultChecked />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Portal Notifications */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Portal Notifications</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Show notifications in the investor portal
+                  </p>
+                </div>
+                <Switch checked={portalNotifications} onCheckedChange={setPortalNotifications} />
+              </div>
+
+              <Separator />
+
+              {/* Communication Preferences */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Communication Preferences</h3>
+
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label>Preferred Contact Method</Label>
+                    <Select defaultValue="email">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="phone">Phone</SelectItem>
+                        <SelectItem value="portal">Portal Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Report Delivery Format</Label>
+                    <Select defaultValue="both">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pdf">PDF Only</SelectItem>
+                        <SelectItem value="excel">Excel Only</SelectItem>
+                        <SelectItem value="both">Both PDF & Excel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Notification Frequency</Label>
+                    <Select defaultValue="immediate">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="immediate">Immediate</SelectItem>
+                        <SelectItem value="daily">Daily Digest</SelectItem>
+                        <SelectItem value="weekly">Weekly Summary</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Button onClick={handleUpdateNotifications}>Save Notification Preferences</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Security Tab */}
+        <TabsContent value="security" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Security & Privacy
+              </CardTitle>
+              <CardDescription>
+                Manage your account security and privacy settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Two-Factor Authentication */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Two-Factor Authentication (2FA)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Add an extra layer of security to your account
+                    </p>
+                  </div>
+                  <Switch checked={twoFactorEnabled} onCheckedChange={handleEnable2FA} />
+                </div>
+
+                {twoFactorEnabled && (
+                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-medium text-green-900 dark:text-green-100">2FA is enabled</p>
+                        <p className="text-green-700 dark:text-green-300 mt-1">
+                          You'll be asked for a verification code when signing in
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Password */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Password</h3>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Change your password</p>
+                    <p className="text-xs text-muted-foreground">Last changed 3 months ago</p>
+                  </div>
+                  <Button variant="outline">Change Password</Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Active Sessions */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Active Sessions</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">Current Session</p>
+                        <Badge variant="default" className="text-xs">Active</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Chrome on Mac • San Francisco, CA
+                      </p>
+                      <p className="text-xs text-muted-foreground">Last activity: Just now</p>
+                    </div>
+                    <Badge variant="outline" className="text-xs">This device</Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium">Mobile Session</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Safari on iPhone • San Francisco, CA
+                      </p>
+                      <p className="text-xs text-muted-foreground">Last activity: 2 hours ago</p>
+                    </div>
+                    <Button variant="outline" size="sm">Revoke</Button>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Login History */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Recent Login Activity</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <div>
+                      <p className="font-medium">Login successful</p>
+                      <p className="text-xs text-muted-foreground">Chrome on Mac • 192.168.1.1</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Today at 2:30 PM</p>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <div>
+                      <p className="font-medium">Login successful</p>
+                      <p className="text-xs text-muted-foreground">Safari on iPhone • 192.168.1.5</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Yesterday at 9:15 AM</p>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <p className="font-medium">Login successful</p>
+                      <p className="text-xs text-muted-foreground">Chrome on Mac • 192.168.1.1</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">3 days ago</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Legal Information Tab */}
+        <TabsContent value="legal" className="space-y-4">
+          {/* Legal Entity Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Legal Entity Information
+              </CardTitle>
+              <CardDescription>
+                Your legal entity details and registration information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Investor Type</Label>
+                  <Input value={investor.type.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} disabled />
+                </div>
+
+                {investor.entityName && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Entity Name</Label>
+                      <Input value={investor.entityName} disabled />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Entity Type</Label>
+                      <Input value={investor.entityType || 'N/A'} disabled />
+                    </div>
+                  </>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Legal Name</Label>
+                  <Input value={investor.name} disabled />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={investor.email} disabled />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={investor.phone || 'Not provided'} disabled />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Address */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Address Information
+              </CardTitle>
+              <CardDescription>
+                Your registered address for legal and compliance purposes
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label>Street Address</Label>
+                  <Input defaultValue="123 Market Street, Suite 500" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>City</Label>
+                    <Input value={investor.city || 'San Francisco'} readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>State/Province</Label>
+                    <Input defaultValue="CA" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Postal Code</Label>
+                    <Input defaultValue="94103" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Input value={investor.country || 'United States'} readOnly />
+                  </div>
+                </div>
+              </div>
+              <Button>Update Address</Button>
+            </CardContent>
+          </Card>
+
+          {/* Tax Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Tax Information
+              </CardTitle>
+              <CardDescription>
+                Your tax identification and W-9 documentation
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label>Tax ID / EIN</Label>
+                  <Input value={investor.taxId ? `•••-••-${investor.taxId.slice(-4)}` : 'Not provided'} disabled />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tax Classification</Label>
+                  <Select defaultValue={investor.type === 'individual' ? 'individual' : 'entity'}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual/Sole Proprietor</SelectItem>
+                      <SelectItem value="c-corp">C Corporation</SelectItem>
+                      <SelectItem value="s-corp">S Corporation</SelectItem>
+                      <SelectItem value="partnership">Partnership</SelectItem>
+                      <SelectItem value="llc">Limited Liability Company</SelectItem>
+                      <SelectItem value="trust">Trust/Estate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold">W-9 Form</h4>
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">W-9 Form (2024).pdf</p>
+                        <p className="text-xs text-muted-foreground">Uploaded on Jan 15, 2024</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="default" className="text-xs">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Verified
+                      </Badge>
+                      <Button variant="outline" size="sm">Download</Button>
+                    </div>
+                  </div>
+                  <Button variant="outline" className="w-full">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Upload Updated W-9
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* KYC/AML Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                KYC/AML Documentation Status
+              </CardTitle>
+              <CardDescription>
+                Know Your Customer and Anti-Money Laundering compliance
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-green-900 dark:text-green-100">KYC/AML Verified</p>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                      Your identity and documentation have been verified and approved
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                      Verified on: January 15, 2024
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">Submitted Documents</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Government ID (Driver's License)</p>
+                        <p className="text-xs text-muted-foreground">Uploaded on Jan 10, 2024</p>
+                      </div>
+                    </div>
+                    <Badge variant="default" className="text-xs">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Verified
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Proof of Address (Utility Bill)</p>
+                        <p className="text-xs text-muted-foreground">Uploaded on Jan 10, 2024</p>
+                      </div>
+                    </div>
+                    <Badge variant="default" className="text-xs">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Verified
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold">Annual Review</h4>
+                <p className="text-sm text-muted-foreground">
+                  Your KYC/AML documentation will need to be reviewed annually to maintain compliance.
+                </p>
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <span className="text-amber-700 dark:text-amber-400">Next review due: January 15, 2025</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Accreditation Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Investor Accreditation Status
+              </CardTitle>
+              <CardDescription>
+                Your status as an accredited investor
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-green-900 dark:text-green-100">Accredited Investor Status Verified</p>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                      You are verified as an accredited investor and qualified purchaser
+                    </p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                      Verified on: December 10, 2023
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">Accreditation Criteria Met</h4>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Income Requirement</p>
+                      <p className="text-muted-foreground text-xs">
+                        Individual income exceeding $200,000 (or $300,000 joint) in each of the prior two years
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium">Net Worth Requirement</p>
+                      <p className="text-muted-foreground text-xs">
+                        Net worth exceeding $1,000,000 (excluding primary residence)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold">Annual Certification</h4>
+                <p className="text-sm text-muted-foreground">
+                  Accredited investor status must be recertified annually.
+                </p>
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <span className="text-amber-700 dark:text-amber-400">Next certification due: December 10, 2024</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Preferences Tab */}
+        <TabsContent value="preferences" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <SettingsIcon className="h-5 w-5" />
+                Portal Preferences
+              </CardTitle>
+              <CardDescription>
+                Customize your portal experience
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Language & Region */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Language & Region</h3>
+
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label>Language</Label>
+                    <Select defaultValue="en">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Español</SelectItem>
+                        <SelectItem value="fr">Français</SelectItem>
+                        <SelectItem value="de">Deutsch</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Time Zone</Label>
+                    <Select defaultValue="pst">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pst">Pacific Time (PT)</SelectItem>
+                        <SelectItem value="mst">Mountain Time (MT)</SelectItem>
+                        <SelectItem value="cst">Central Time (CT)</SelectItem>
+                        <SelectItem value="est">Eastern Time (ET)</SelectItem>
+                        <SelectItem value="utc">UTC</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Display Settings */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Display Settings</h3>
+
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label>Default Currency Display</Label>
+                    <Select defaultValue="usd">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="usd">USD ($)</SelectItem>
+                        <SelectItem value="eur">EUR (€)</SelectItem>
+                        <SelectItem value="gbp">GBP (£)</SelectItem>
+                        <SelectItem value="jpy">JPY (¥)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Date Format</Label>
+                    <Select defaultValue="mdy">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mdy">MM/DD/YYYY</SelectItem>
+                        <SelectItem value="dmy">DD/MM/YYYY</SelectItem>
+                        <SelectItem value="ymd">YYYY-MM-DD</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Number Format</Label>
+                    <Select defaultValue="us">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="us">1,234.56 (US)</SelectItem>
+                        <SelectItem value="eu">1.234,56 (EU)</SelectItem>
+                        <SelectItem value="in">1,23,456.78 (Indian)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Document Settings */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Document Settings</h3>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Auto-download reports</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically download reports when they become available
+                    </p>
+                  </div>
+                  <Switch />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">E-signature preference</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Use electronic signatures for document signing
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </div>
+
+              <Button>Save Preferences</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}

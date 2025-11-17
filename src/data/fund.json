@@ -1,0 +1,61 @@
+{
+  "id": "fund-001",
+  "name": "Polibit Real Assets Fund I",
+  "fundNumber": "PRAF-I",
+  "type": "Multi-Strategy",
+  "totalCommittedCapital": 45000000,
+  "totalDeployed": 37900000,
+  "deploymentRate": 84.22,
+  "remainingCapital": 7100000,
+  "totalInvestors": 5,
+  "inceptionDate": "2021-09-20",
+  "managementFeePercent": 2,
+  "carriedInterestPercent": 20,
+  "hurdleRate": 8,
+  "status": "Investing",
+  "investorShares": [
+    {
+      "investorId": "investor-001",
+      "investorName": "Sarah Johnson",
+      "commitment": 2000000,
+      "ownershipPercent": 4.444444,
+      "calledCapital": 1684444,
+      "uncalledCapital": 315556
+    },
+    {
+      "investorId": "investor-002",
+      "investorName": "Anderson Family Office",
+      "commitment": 8000000,
+      "ownershipPercent": 17.777778,
+      "calledCapital": 6737778,
+      "uncalledCapital": 1262222
+    },
+    {
+      "investorId": "investor-003",
+      "investorName": "Metropolitan Pension Fund",
+      "commitment": 20000000,
+      "ownershipPercent": 44.444444,
+      "calledCapital": 16844444,
+      "uncalledCapital": 3155556
+    },
+    {
+      "investorId": "investor-004",
+      "investorName": "David Chen",
+      "commitment": 3000000,
+      "ownershipPercent": 6.666667,
+      "calledCapital": 2526667,
+      "uncalledCapital": 473333
+    },
+    {
+      "investorId": "investor-005",
+      "investorName": "Rodriguez Capital Partners",
+      "commitment": 12000000,
+      "ownershipPercent": 26.666667,
+      "calledCapital": 10106667,
+      "uncalledCapital": 1893333
+    }
+  ],
+  "notes": "Multi-strategy fund investing in real estate equity, private equity, and private debt opportunities across the United States. Currently 84.2% deployed with $7.1M reserved for follow-on investments and operating expenses.",
+  "createdAt": "2021-09-20T10:00:00Z",
+  "updatedAt": "2025-10-11T15:30:00Z"
+}

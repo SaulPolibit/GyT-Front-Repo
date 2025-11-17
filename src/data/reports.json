@@ -1,0 +1,511 @@
+[
+  {
+    "id": "report-001",
+    "title": "Q3 2025 Quarterly Report",
+    "type": "Quarterly",
+    "status": "Published",
+    "periodStart": "2025-07-01",
+    "periodEnd": "2025-09-30",
+    "generatedDate": "2025-10-05",
+    "publishedDate": "2025-10-08",
+    "includesInvestments": [
+      "inv-001",
+      "inv-002",
+      "inv-003",
+      "inv-004",
+      "inv-006",
+      "inv-007"
+    ],
+    "includesInvestors": [
+      "investor-001",
+      "investor-002",
+      "investor-003",
+      "investor-004",
+      "investor-005"
+    ],
+    "metrics": {
+      "totalAUM": 51646959,
+      "totalInvestments": 6,
+      "totalInvestors": 5,
+      "avgIRR": 13.4,
+      "totalDistributions": 850000
+    },
+    "pdfUrl": "/reports/q3-2025-quarterly-report.pdf",
+    "excelUrl": "/reports/q3-2025-quarterly-report.xlsx",
+    "sentTo": [
+      {
+        "investorId": "investor-001",
+        "investorName": "Sarah Johnson",
+        "sentDate": "2025-10-08",
+        "opened": true
+      },
+      {
+        "investorId": "investor-002",
+        "investorName": "Anderson Family Office",
+        "sentDate": "2025-10-08",
+        "opened": true
+      },
+      {
+        "investorId": "investor-003",
+        "investorName": "Metropolitan Pension Fund",
+        "sentDate": "2025-10-08",
+        "opened": false
+      },
+      {
+        "investorId": "tony-bravo",
+        "investorName": "Tony Bravo",
+        "sentDate": "2025-10-08",
+        "opened": false
+      }
+    ],
+    "createdBy": "Gabriela Mena",
+    "createdAt": "2025-10-05T10:00:00Z",
+    "updatedAt": "2025-10-08T15:30:00Z"
+  },
+  {
+    "id": "report-002",
+    "title": "Q2 2025 Quarterly Report",
+    "type": "Quarterly",
+    "status": "Published",
+    "periodStart": "2025-04-01",
+    "periodEnd": "2025-06-30",
+    "generatedDate": "2025-07-05",
+    "publishedDate": "2025-07-08",
+    "includesInvestments": [
+      "inv-001",
+      "inv-002",
+      "inv-003",
+      "inv-004",
+      "inv-005",
+      "inv-006",
+      "inv-007"
+    ],
+    "includesInvestors": [
+      "investor-001",
+      "investor-002",
+      "investor-003",
+      "investor-004",
+      "investor-005"
+    ],
+    "metrics": {
+      "totalAUM": 54936517,
+      "totalInvestments": 7,
+      "totalInvestors": 5,
+      "avgIRR": 13.1,
+      "totalDistributions": 0
+    },
+    "pdfUrl": "/reports/q2-2025-quarterly-report.pdf",
+    "excelUrl": "/reports/q2-2025-quarterly-report.xlsx",
+    "sentTo": [
+      {
+        "investorId": "investor-001",
+        "investorName": "Sarah Johnson",
+        "sentDate": "2025-07-08",
+        "opened": true
+      },
+      {
+        "investorId": "investor-002",
+        "investorName": "Anderson Family Office",
+        "sentDate": "2025-07-08",
+        "opened": true
+      },
+      {
+        "investorId": "tony-bravo",
+        "investorName": "Tony Bravo",
+        "sentDate": "2025-07-08",
+        "opened": false
+      }
+    ],
+    "createdBy": "Gabriela Mena",
+    "createdAt": "2025-07-05T10:00:00Z",
+    "updatedAt": "2025-07-08T15:30:00Z"
+  },
+  {
+    "id": "report-003",
+    "title": "2024 Annual Report",
+    "type": "Annual",
+    "status": "Published",
+    "periodStart": "2024-01-01",
+    "periodEnd": "2024-12-31",
+    "generatedDate": "2025-01-15",
+    "publishedDate": "2025-01-20",
+    "includesInvestments": [
+      "inv-001",
+      "inv-002",
+      "inv-003",
+      "inv-004",
+      "inv-005",
+      "inv-006"
+    ],
+    "includesInvestors": [
+      "investor-001",
+      "investor-002",
+      "investor-003",
+      "investor-004",
+      "investor-005"
+    ],
+    "metrics": {
+      "totalAUM": 48111092,
+      "totalInvestments": 6,
+      "totalInvestors": 5,
+      "avgIRR": 11.9,
+      "totalDistributions": 0
+    },
+    "pdfUrl": "/reports/2024-annual-report.pdf",
+    "excelUrl": "/reports/2024-annual-report.xlsx",
+    "sentTo": [
+      {
+        "investorId": "investor-001",
+        "investorName": "Sarah Johnson",
+        "sentDate": "2025-01-20",
+        "opened": true
+      },
+      {
+        "investorId": "investor-002",
+        "investorName": "Anderson Family Office",
+        "sentDate": "2025-01-20",
+        "opened": true
+      },
+      {
+        "investorId": "investor-003",
+        "investorName": "Metropolitan Pension Fund",
+        "sentDate": "2025-01-20",
+        "opened": true
+      },
+      {
+        "investorId": "investor-004",
+        "investorName": "David Chen",
+        "sentDate": "2025-01-20",
+        "opened": true
+      },
+      {
+        "investorId": "investor-005",
+        "investorName": "Rodriguez Capital Partners",
+        "sentDate": "2025-01-20",
+        "opened": false
+      }
+    ],
+    "createdBy": "Gabriela Mena",
+    "createdAt": "2025-01-15T10:00:00Z",
+    "updatedAt": "2025-01-20T15:30:00Z"
+  },
+  {
+    "id": "report-008",
+    "title": "Q1 2025 Quarterly Report",
+    "type": "Quarterly",
+    "status": "Published",
+    "periodStart": "2025-01-01",
+    "periodEnd": "2025-03-31",
+    "generatedDate": "2025-04-05",
+    "publishedDate": "2025-04-08",
+    "includesInvestments": [
+      "inv-001",
+      "inv-002",
+      "inv-003",
+      "inv-004",
+      "inv-005",
+      "inv-006"
+    ],
+    "includesInvestors": [
+      "investor-001",
+      "investor-002",
+      "investor-003",
+      "investor-004",
+      "investor-005"
+    ],
+    "metrics": {
+      "totalAUM": 49432441,
+      "totalInvestments": 6,
+      "totalInvestors": 5,
+      "avgIRR": 12,
+      "totalDistributions": 0
+    },
+    "pdfUrl": "/reports/q1-2025-quarterly-report.pdf",
+    "excelUrl": "/reports/q1-2025-quarterly-report.xlsx",
+    "sentTo": [
+      {
+        "investorId": "investor-001",
+        "investorName": "Sarah Johnson",
+        "sentDate": "2025-04-08",
+        "opened": true
+      },
+      {
+        "investorId": "investor-002",
+        "investorName": "Anderson Family Office",
+        "sentDate": "2025-04-08",
+        "opened": true
+      },
+      {
+        "investorId": "investor-003",
+        "investorName": "Metropolitan Pension Fund",
+        "sentDate": "2025-04-08",
+        "opened": false
+      },
+      {
+        "investorId": "investor-004",
+        "investorName": "David Chen",
+        "sentDate": "2025-04-08",
+        "opened": true
+      }
+    ],
+    "createdBy": "Gabriela Mena",
+    "createdAt": "2025-04-05T10:00:00Z",
+    "updatedAt": "2025-04-08T15:30:00Z"
+  },
+  {
+    "id": "report-004",
+    "title": "September 2025 Capital Call",
+    "type": "Capital Call",
+    "status": "Sent",
+    "periodStart": "2025-09-01",
+    "periodEnd": "2025-09-30",
+    "generatedDate": "2025-09-25",
+    "publishedDate": "2025-09-26",
+    "includesInvestments": [
+      "inv-001"
+    ],
+    "includesInvestors": [
+      "investor-001",
+      "investor-002",
+      "investor-003"
+    ],
+    "metrics": {
+      "totalAUM": 9470625,
+      "totalInvestments": 1,
+      "totalInvestors": 3,
+      "avgIRR": 11.2,
+      "totalDistributions": 850000
+    },
+    "pdfUrl": "/reports/september-2025-capital-call.pdf",
+    "sentTo": [
+      {
+        "investorId": "investor-001",
+        "investorName": "Sarah Johnson",
+        "sentDate": "2025-09-26",
+        "opened": true
+      },
+      {
+        "investorId": "investor-002",
+        "investorName": "Anderson Family Office",
+        "sentDate": "2025-09-26",
+        "opened": true
+      },
+      {
+        "investorId": "investor-003",
+        "investorName": "Metropolitan Pension Fund",
+        "sentDate": "2025-09-26",
+        "opened": false
+      }
+    ],
+    "createdBy": "Gabriela Mena",
+    "createdAt": "2025-09-25T10:00:00Z",
+    "updatedAt": "2025-09-26T15:30:00Z",
+    "capitalCall": {
+      "totalCallAmount": 1500000,
+      "callNumber": 3,
+      "dueDate": "2025-10-15",
+      "purpose": "Additional capital for property improvements and reserve funding",
+      "relatedInvestmentId": "inv-001",
+      "relatedInvestmentName": "Sunset Tower Apartments",
+      "investorAllocations": [
+        {
+          "investorId": "investor-001",
+          "investorName": "Sarah Johnson",
+          "investorType": "Individual",
+          "ownershipPercent": 4.444444,
+          "amount": 66666.66,
+          "status": "Pending"
+        },
+        {
+          "investorId": "investor-002",
+          "investorName": "Anderson Family Office",
+          "investorType": "Family Office",
+          "ownershipPercent": 17.777778,
+          "amount": 266666.67000000004,
+          "status": "Pending"
+        },
+        {
+          "investorId": "investor-003",
+          "investorName": "Metropolitan Pension Fund",
+          "investorType": "Institution",
+          "ownershipPercent": 44.444444,
+          "amount": 666666.66,
+          "status": "Pending"
+        }
+      ]
+    }
+  },
+  {
+    "id": "report-005",
+    "title": "August 2025 Distribution Notice",
+    "type": "Distribution",
+    "status": "Published",
+    "periodStart": "2025-08-01",
+    "periodEnd": "2025-08-31",
+    "generatedDate": "2025-08-28",
+    "publishedDate": "2025-08-29",
+    "includesInvestments": [
+      "inv-003",
+      "inv-004"
+    ],
+    "includesInvestors": [
+      "investor-001",
+      "investor-002",
+      "investor-003",
+      "investor-004",
+      "investor-005"
+    ],
+    "metrics": {
+      "totalAUM": 20875730,
+      "totalInvestments": 2,
+      "totalInvestors": 5,
+      "avgIRR": 20,
+      "totalDistributions": 850000
+    },
+    "pdfUrl": "/reports/august-2025-distribution-notice.pdf",
+    "sentTo": [
+      {
+        "investorId": "investor-001",
+        "investorName": "Sarah Johnson",
+        "sentDate": "2025-08-29",
+        "opened": true
+      },
+      {
+        "investorId": "investor-002",
+        "investorName": "Anderson Family Office",
+        "sentDate": "2025-08-29",
+        "opened": true
+      },
+      {
+        "investorId": "investor-003",
+        "investorName": "Metropolitan Pension Fund",
+        "sentDate": "2025-08-29",
+        "opened": false
+      },
+      {
+        "investorId": "investor-004",
+        "investorName": "David Chen",
+        "sentDate": "2025-08-29",
+        "opened": true
+      },
+      {
+        "investorId": "investor-005",
+        "investorName": "Rodriguez Capital Partners",
+        "sentDate": "2025-08-29",
+        "opened": true
+      }
+    ],
+    "createdBy": "Gabriela Mena",
+    "createdAt": "2025-08-28T10:00:00Z",
+    "updatedAt": "2025-08-29T15:30:00Z",
+    "distribution": {
+      "totalDistributionAmount": 850000,
+      "distributionNumber": 2,
+      "distributionDate": "2025-08-25",
+      "source": "Operating Income",
+      "investorAllocations": [
+        {
+          "investorId": "investor-001",
+          "investorName": "Sarah Johnson",
+          "investorType": "Individual",
+          "ownershipPercent": 4.444444,
+          "amount": 37777.774000000005,
+          "status": "Paid"
+        },
+        {
+          "investorId": "investor-002",
+          "investorName": "Anderson Family Office",
+          "investorType": "Family Office",
+          "ownershipPercent": 17.777778,
+          "amount": 151111.113,
+          "status": "Paid"
+        },
+        {
+          "investorId": "investor-003",
+          "investorName": "Metropolitan Pension Fund",
+          "investorType": "Institution",
+          "ownershipPercent": 44.444444,
+          "amount": 377777.774,
+          "status": "Paid"
+        },
+        {
+          "investorId": "investor-004",
+          "investorName": "David Chen",
+          "investorType": "Individual",
+          "ownershipPercent": 6.666667,
+          "amount": 56666.669499999996,
+          "status": "Paid"
+        },
+        {
+          "investorId": "investor-005",
+          "investorName": "Rodriguez Capital Partners",
+          "investorType": "Fund of Funds",
+          "ownershipPercent": 26.666667,
+          "amount": 226666.6695,
+          "status": "Paid"
+        }
+      ]
+    }
+  },
+  {
+    "id": "report-006",
+    "title": "October 2025 Monthly Performance",
+    "type": "Monthly",
+    "status": "In Review",
+    "periodStart": "2025-10-01",
+    "periodEnd": "2025-10-31",
+    "generatedDate": "2025-11-01",
+    "includesInvestments": [
+      "inv-001",
+      "inv-002",
+      "inv-003",
+      "inv-004",
+      "inv-006",
+      "inv-007"
+    ],
+    "includesInvestors": [
+      "investor-001",
+      "investor-002",
+      "investor-003",
+      "investor-004",
+      "investor-005"
+    ],
+    "metrics": {
+      "totalAUM": 53049053,
+      "totalInvestments": 6,
+      "totalInvestors": 5,
+      "avgIRR": 13.5,
+      "totalDistributions": 850000
+    },
+    "sentTo": [],
+    "createdBy": "Gabriela Mena",
+    "createdAt": "2025-11-01T10:00:00Z",
+    "updatedAt": "2025-11-01T15:30:00Z"
+  },
+  {
+    "id": "report-007",
+    "title": "Real Estate Portfolio Analysis",
+    "type": "Custom",
+    "status": "Draft",
+    "periodStart": "2025-01-01",
+    "periodEnd": "2025-09-30",
+    "generatedDate": "2025-10-08",
+    "includesInvestments": [
+      "inv-001",
+      "inv-002",
+      "inv-006"
+    ],
+    "includesInvestors": [],
+    "metrics": {
+      "totalAUM": 26955002,
+      "totalInvestments": 3,
+      "totalInvestors": 0,
+      "avgIRR": 6.4,
+      "totalDistributions": 850000
+    },
+    "sentTo": [],
+    "createdBy": "Gabriela Mena",
+    "createdAt": "2025-10-08T10:00:00Z",
+    "updatedAt": "2025-10-08T15:30:00Z"
+  }
+]

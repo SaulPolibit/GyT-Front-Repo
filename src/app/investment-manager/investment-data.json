@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "header": "Downtown Office Tower",
+    "type": "Commercial Real Estate",
+    "status": "Active",
+    "target": "$850,000",
+    "limit": "$1,124,500",
+    "irr": "16.8%"
+  },
+  {
+    "id": 2,
+    "header": "Riverside Apartments",
+    "type": "Multifamily",
+    "status": "Active",
+    "target": "$500,000",
+    "limit": "$628,300",
+    "irr": "12.4%"
+  },
+  {
+    "id": 3,
+    "header": "Industrial Park Phase II",
+    "type": "Industrial",
+    "status": "Matured",
+    "target": "$500,000",
+    "limit": "$704,090",
+    "irr": "18.2%"
+  },
+  {
+    "id": 4,
+    "header": "Tech Startup Fund",
+    "type": "Private Equity",
+    "status": "Active",
+    "target": "$2,000,000",
+    "limit": "$2,450,000",
+    "irr": "22.5%"
+  },
+  {
+    "id": 5,
+    "header": "Healthcare REIT",
+    "type": "Real Estate Investment Trust",
+    "status": "Active",
+    "target": "$1,500,000",
+    "limit": "$1,850,000",
+    "irr": "14.7%"
+  },
+  {
+    "id": 6,
+    "header": "Senior Living Community",
+    "type": "Specialized Real Estate",
+    "status": "Under Construction",
+    "target": "$3,200,000",
+    "limit": "$3,890,000",
+    "irr": "15.3%"
+  },
+  {
+    "id": 7,
+    "header": "Logistics Warehouse Portfolio",
+    "type": "Industrial Real Estate",
+    "status": "Active",
+    "target": "$4,500,000",
+    "limit": "$5,200,000",
+    "irr": "17.9%"
+  },
+  {
+    "id": 8,
+    "header": "Retail Shopping Center",
+    "type": "Commercial Real Estate",
+    "status": "Lease-Up Phase",
+    "target": "$2,800,000",
+    "limit": "$3,150,000",
+    "irr": "13.6%"
+  }
+]

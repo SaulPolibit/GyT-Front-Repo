@@ -1,0 +1,250 @@
+[
+  {
+    "id": "investor-001",
+    "name": "Sarah Johnson",
+    "email": "sarah.johnson@email.com",
+    "phone": "+1 (512) 555-0123",
+    "type": "Individual",
+    "status": "Active",
+    "totalCommitment": 500000,
+    "totalContributed": 450000,
+    "totalDistributed": 125000,
+    "currentValue": 520000,
+    "unrealizedGain": 195000,
+    "irr": 15.2,
+    "taxId": "XXX-XX-1234",
+    "k1Status": "Delivered",
+    "k1DeliveryDate": "2025-02-28",
+    "address": {
+      "street": "123 Main Street",
+      "city": "Austin",
+      "state": "TX",
+      "zipCode": "78701",
+      "country": "USA"
+    },
+    "preferredContactMethod": "Email",
+    "investments": [
+      {
+        "investmentId": "inv-001",
+        "investmentName": "Sunset Tower Apartments",
+        "commitmentAmount": 300000,
+        "percentOwnership": 2.4
+      },
+      {
+        "investmentId": "inv-006",
+        "investmentName": "Greenway Shopping Center",
+        "commitmentAmount": 150000,
+        "percentOwnership": 2.2
+      }
+    ],
+    "lastContactDate": "2025-09-15",
+    "notes": "Long-term investor, interested in multifamily opportunities in Texas.",
+    "documents": [],
+    "investorSince": "2022-03-15",
+    "createdAt": "2022-03-15T10:00:00Z",
+    "updatedAt": "2025-10-01T15:30:00Z"
+  },
+  {
+    "id": "investor-002",
+    "name": "Anderson Family Office",
+    "email": "investments@andersonfamily.com",
+    "phone": "+1 (415) 555-0456",
+    "type": "Family Office",
+    "status": "Active",
+    "totalCommitment": 2000000,
+    "totalContributed": 1850000,
+    "totalDistributed": 420000,
+    "currentValue": 2180000,
+    "unrealizedGain": 750000,
+    "irr": 16.8,
+    "taxId": "XX-XXXXXXX",
+    "k1Status": "Delivered",
+    "k1DeliveryDate": "2025-02-15",
+    "address": {
+      "street": "450 Montgomery Street",
+      "city": "San Francisco",
+      "state": "CA",
+      "zipCode": "94104",
+      "country": "USA"
+    },
+    "preferredContactMethod": "Email",
+    "investments": [
+      {
+        "investmentId": "inv-001",
+        "investmentName": "Sunset Tower Apartments",
+        "commitmentAmount": 800000,
+        "percentOwnership": 6.4
+      },
+      {
+        "investmentId": "inv-003",
+        "investmentName": "TechCo Software Inc.",
+        "commitmentAmount": 700000,
+        "percentOwnership": 4.9
+      },
+      {
+        "investmentId": "inv-004",
+        "investmentName": "HealthFirst Medical Group",
+        "commitmentAmount": 500000,
+        "percentOwnership": 3.1
+      }
+    ],
+    "lastContactDate": "2025-10-05",
+    "notes": "Prefers tech and healthcare investments. Regular quarterly calls with investment committee.",
+    "documents": [],
+    "investorSince": "2022-01-10",
+    "createdAt": "2022-01-10T10:00:00Z",
+    "updatedAt": "2025-10-05T15:30:00Z"
+  },
+  {
+    "id": "investor-003",
+    "name": "Metropolitan Pension Fund",
+    "email": "alternatives@metpension.org",
+    "phone": "+1 (212) 555-0789",
+    "type": "Institution",
+    "status": "Active",
+    "totalCommitment": 5000000,
+    "totalContributed": 4200000,
+    "totalDistributed": 890000,
+    "currentValue": 4850000,
+    "unrealizedGain": 1540000,
+    "irr": 14.3,
+    "taxId": "XX-XXXXXXX",
+    "k1Status": "Delivered",
+    "k1DeliveryDate": "2025-02-01",
+    "address": {
+      "street": "1 Wall Street",
+      "city": "New York",
+      "state": "NY",
+      "zipCode": "10005",
+      "country": "USA"
+    },
+    "preferredContactMethod": "Email",
+    "investments": [
+      {
+        "investmentId": "inv-001",
+        "investmentName": "Sunset Tower Apartments",
+        "commitmentAmount": 1500000,
+        "percentOwnership": 12
+      },
+      {
+        "investmentId": "inv-002",
+        "investmentName": "Metro Plaza Office Complex",
+        "commitmentAmount": 1200000,
+        "percentOwnership": 13.5
+      },
+      {
+        "investmentId": "inv-005",
+        "investmentName": "Bridge Loan - Riverside Development",
+        "commitmentAmount": 1000000,
+        "percentOwnership": 28.6
+      },
+      {
+        "investmentId": "inv-006",
+        "investmentName": "Greenway Shopping Center",
+        "commitmentAmount": 500000,
+        "percentOwnership": 7.4
+      }
+    ],
+    "lastContactDate": "2025-09-28",
+    "notes": "Institutional investor requiring detailed quarterly reporting and ESG metrics. Board approval needed for new commitments >$2M.",
+    "documents": [],
+    "investorSince": "2021-09-20",
+    "createdAt": "2021-09-20T10:00:00Z",
+    "updatedAt": "2025-09-28T15:30:00Z"
+  },
+  {
+    "id": "investor-004",
+    "name": "David Chen",
+    "email": "david.chen@email.com",
+    "phone": "+1 (310) 555-0234",
+    "type": "Individual",
+    "status": "Active",
+    "totalCommitment": 750000,
+    "totalContributed": 680000,
+    "totalDistributed": 180000,
+    "currentValue": 780000,
+    "unrealizedGain": 280000,
+    "irr": 17.5,
+    "taxId": "XXX-XX-5678",
+    "k1Status": "Delivered",
+    "k1DeliveryDate": "2025-03-05",
+    "address": {
+      "street": "789 Ocean Avenue",
+      "city": "Los Angeles",
+      "state": "CA",
+      "zipCode": "90291",
+      "country": "USA"
+    },
+    "preferredContactMethod": "Phone",
+    "investments": [
+      {
+        "investmentId": "inv-003",
+        "investmentName": "TechCo Software Inc.",
+        "commitmentAmount": 500000,
+        "percentOwnership": 3.5
+      },
+      {
+        "investmentId": "inv-004",
+        "investmentName": "HealthFirst Medical Group",
+        "commitmentAmount": 180000,
+        "percentOwnership": 1.1
+      }
+    ],
+    "lastContactDate": "2025-09-20",
+    "notes": "Tech entrepreneur, prefers PE investments in software and healthcare. Very hands-on, likes quarterly portfolio reviews.",
+    "documents": [],
+    "investorSince": "2023-01-10",
+    "createdAt": "2023-01-10T10:00:00Z",
+    "updatedAt": "2025-09-20T15:30:00Z"
+  },
+  {
+    "id": "investor-005",
+    "name": "Rodriguez Capital Partners",
+    "email": "investments@rodriguezcp.com",
+    "phone": "+1 (305) 555-0567",
+    "type": "Fund of Funds",
+    "status": "Active",
+    "totalCommitment": 3000000,
+    "totalContributed": 2750000,
+    "totalDistributed": 640000,
+    "currentValue": 3100000,
+    "unrealizedGain": 990000,
+    "irr": 15.9,
+    "taxId": "XX-XXXXXXX",
+    "k1Status": "In Progress",
+    "address": {
+      "street": "1200 Brickell Avenue",
+      "city": "Miami",
+      "state": "FL",
+      "zipCode": "33131",
+      "country": "USA"
+    },
+    "preferredContactMethod": "Email",
+    "investments": [
+      {
+        "investmentId": "inv-001",
+        "investmentName": "Sunset Tower Apartments",
+        "commitmentAmount": 1000000,
+        "percentOwnership": 8
+      },
+      {
+        "investmentId": "inv-004",
+        "investmentName": "HealthFirst Medical Group",
+        "commitmentAmount": 900000,
+        "percentOwnership": 5.6
+      },
+      {
+        "investmentId": "inv-005",
+        "investmentName": "Bridge Loan - Riverside Development",
+        "commitmentAmount": 850000,
+        "percentOwnership": 24.3
+      }
+    ],
+    "lastContactDate": "2025-10-02",
+    "notes": "Fund of funds focused on Latin America and US investments. Requires monthly updates and detailed performance analytics.",
+    "documents": [],
+    "investorSince": "2022-06-15",
+    "createdAt": "2022-06-15T10:00:00Z",
+    "updatedAt": "2025-10-02T15:30:00Z"
+  }
+]
