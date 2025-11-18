@@ -159,8 +159,8 @@ const getTooltipProps = (tooltipConfig?: TooltipConfig) => {
 
     case 'advanced':
       return {
-        formatter: (value: any, name: string, item: any, index: number, payload: any) => {
-          return `${formatValue(value, name)}`
+        formatter: (value: any) => {
+          return `${formatValue(value, 'default')}`
         },
         labelFormatter: (label: any) => {
           return label
@@ -349,11 +349,11 @@ export function CustomChartRenderer({ config }: CustomChartRendererProps) {
     case 'pie':
     case 'donut':
       // Transform data for pie charts - convert metrics to pie slices
-      const pieData = data.length > 0 && data[0].name
-        ? data.slice(0, 5) // Already formatted with name/value
+      const pieData = data.length > 0 && 'name' in data[0]
+        ? (data as any[]).slice(0, 5) // Already formatted with name/value
         : config.metrics.map((metric, index) => ({
             name: chartConfig[metric]?.label || metric,
-            value: data[data.length - 1]?.[metric] || 0,
+            value: (data[data.length - 1] as any)?.[metric] || 0,
             fill: chartConfig[metric]?.color || `hsl(var(--chart-${index + 1}))`,
           })).filter(item => item.value > 0)
 
@@ -414,7 +414,7 @@ export function CustomChartRenderer({ config }: CustomChartRendererProps) {
     case 'radar':
       // For radar charts, transform data to show latest values across metrics
       const radarData = config.metrics.map(metric => {
-        const latestValue = data[data.length - 1]?.[metric] || 0
+        const latestValue = (data[data.length - 1] as any)?.[metric] || 0
         return {
           metric: formatHeader(metric),
           value: typeof latestValue === 'number' ? latestValue : 0,
@@ -446,8 +446,8 @@ export function CustomChartRenderer({ config }: CustomChartRendererProps) {
     case 'radial':
       // For radial charts, show progress/goal completion
       const radialData = config.metrics.map((metric, index) => {
-        const latestValue = data[data.length - 1]?.[metric] || 0
-        const total = data.reduce((sum, item) => sum + (item[metric] || 0), 0)
+        const latestValue = (data[data.length - 1] as any)?.[metric] || 0
+        const total = data.reduce((sum, item) => sum + ((item as any)[metric] || 0), 0)
         return {
           name: formatHeader(metric),
           value: typeof latestValue === 'number' ? latestValue : 0,

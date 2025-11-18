@@ -23,7 +23,7 @@ export async function generateReportExcel(options: ExcelGeneratorOptions): Promi
   workbook.properties.date1904 = false
 
   // Get fundId from report - assuming report has a fundId field
-  const fundId = report.fundId || ''
+  const fundId = (report as any).fundId || ''
 
   // Create sheets
   addSummarySheet(workbook, report)
@@ -289,7 +289,7 @@ function addInvestorsSheet(
   // Add data rows
   includedInvestors.forEach(investor => {
     const fundOwnership = investor.fundOwnerships?.find(fo => fo.fundId === fundId)
-    const capitalHistory = investor.capitalAccountHistory || []
+    const capitalHistory = (investor as any).capitalAccountHistory || []
     const currentBalance = capitalHistory.length > 0
       ? capitalHistory[capitalHistory.length - 1].runningBalance
       : (fundOwnership?.calledCapital || 0)
@@ -301,7 +301,7 @@ function addInvestorsSheet(
       ownershipPercent: fundOwnership?.ownershipPercent || 0,
       commitment: fundOwnership?.commitment || 0,
       calledCapital: fundOwnership?.calledCapital || 0,
-      fundedPercent: fundOwnership?.fundedPercent || 0,
+      fundedPercent: fundOwnership?.commitment ? ((fundOwnership.calledCapital / fundOwnership.commitment) * 100) : 0,
       currentBalance: currentBalance
     })
 

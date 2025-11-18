@@ -2,26 +2,26 @@
 
 import * as React from "react"
 import {
-  IconBuilding,
-  IconCamera,
-  IconChartBar,
-  IconDashboard,
-  IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconHelp,
-  IconInnerShadowTop,
-  IconListDetails,
-  IconReport,
-  IconSearch,
-  IconSettings,
-  IconUsers,
-  IconMessage,
-  IconCurrencyDollar,
-  IconChartLine,
-} from "@tabler/icons-react"
+  Building2,
+  Camera,
+  BarChart3,
+  LayoutDashboard,
+  Database,
+  Sparkles,
+  FileText,
+  FileText as FileWord,
+  Folder,
+  HelpCircle,
+  Share2,
+  List,
+  FileText as Report,
+  Search,
+  Settings,
+  Users,
+  MessageSquare,
+  DollarSign,
+  TrendingUp,
+} from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavManagement } from "@/components/nav-management"
@@ -56,48 +56,48 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
       {
         title: t.nav.dashboard,
         url: "/investment-manager",
-        icon: IconDashboard,
+        icon: LayoutDashboard,
       },
       {
         title: t.nav.structures,
         url: "/investment-manager/structures",
-        icon: IconBuilding,
+        icon: Building2,
       },
       {
         title: t.nav.investments,
         url: "/investment-manager/investments",
-        icon: IconListDetails,
+        icon: List,
       },
       {
         title: t.nav.investors,
         url: "/investment-manager/investors",
-        icon: IconUsers,
+        icon: Users,
       },
       {
         title: t.nav.reports,
         url: "/investment-manager/reports",
-        icon: IconFolder,
+        icon: Folder,
       },
       {
         title: t.nav.performance,
         url: "/investment-manager/reports/performance",
-        icon: IconChartLine,
+        icon: TrendingUp,
       },
       {
         title: t.nav.documents,
         url: "/investment-manager/documents",
-        icon: IconFileDescription,
+        icon: FileText,
       },
       {
         title: t.nav.chat,
         url: "/investment-manager/chat",
-        icon: IconMessage,
+        icon: MessageSquare,
       },
     ],
     navManagement: [
       {
         title: t.nav.capital,
-        icon: IconCurrencyDollar,
+        icon: DollarSign,
         isActive: true,
         url: "#",
         items: [
@@ -113,7 +113,7 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
       },
       {
         title: t.nav.operations,
-        icon: IconFileAi,
+        icon: Sparkles,
         url: "#",
         items: [
           {
@@ -130,7 +130,7 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
     navClouds: [
       {
         title: t.nav.capital,
-        icon: IconCurrencyDollar,
+        icon: DollarSign,
         isActive: true,
         url: "#",
         items: [
@@ -146,7 +146,7 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
       },
       {
         title: t.nav.operations,
-        icon: IconFileAi,
+        icon: Sparkles,
         url: "#",
         items: [
           {
@@ -164,17 +164,17 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
       {
         title: t.nav.settings,
         url: "/investment-manager/settings",
-        icon: IconSettings,
+        icon: Settings,
       },
       {
         title: t.nav.getHelp,
         url: "/investment-manager/help",
-        icon: IconHelp,
+        icon: HelpCircle,
       },
       {
         title: t.nav.search,
         url: "#",
-        icon: IconSearch,
+        icon: Search,
         onClick: onSearchClick,
       },
     ],
@@ -197,7 +197,7 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
                       className="!size-5 object-contain rounded"
                     />
                   ) : (
-                    <IconInnerShadowTop className="!size-5" />
+                    <Share2 className="!size-5" />
                   )}
                   <span className="text-base font-semibold">
                     {firmSettings?.firmName || 'Polibit'}

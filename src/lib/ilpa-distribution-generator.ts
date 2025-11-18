@@ -155,13 +155,13 @@ export async function generateILPADistributionTemplate(distribution: Distributio
 
   // LP Data
   distribution.investorAllocations.forEach((allocation) => {
-    const rocAmount = distribution.isReturnOfCapital ? allocation.amount * ((distribution.returnOfCapitalAmount || 0) / distribution.totalDistributionAmount) : 0
-    const incomeAmount = distribution.isIncome ? allocation.amount * ((distribution.incomeAmount || 0) / distribution.totalDistributionAmount) : 0
-    const capitalGainAmount = distribution.isCapitalGain ? allocation.amount * ((distribution.capitalGainAmount || 0) / distribution.totalDistributionAmount) : 0
+    const rocAmount = distribution.isReturnOfCapital ? allocation.finalAllocation * ((distribution.returnOfCapitalAmount || 0) / distribution.totalDistributionAmount) : 0
+    const incomeAmount = distribution.isIncome ? allocation.finalAllocation * ((distribution.incomeAmount || 0) / distribution.totalDistributionAmount) : 0
+    const capitalGainAmount = distribution.isCapitalGain ? allocation.finalAllocation * ((distribution.capitalGainAmount || 0) / distribution.totalDistributionAmount) : 0
 
     worksheet.getCell(`A${currentRow}`).value = allocation.investorName
     worksheet.getCell(`B${currentRow}`).value = `${allocation.ownershipPercent.toFixed(2)}%`
-    worksheet.getCell(`C${currentRow}`).value = allocation.amount
+    worksheet.getCell(`C${currentRow}`).value = allocation.finalAllocation
     worksheet.getCell(`D${currentRow}`).value = rocAmount
     worksheet.getCell(`E${currentRow}`).value = incomeAmount
     worksheet.getCell(`F${currentRow}`).value = capitalGainAmount
@@ -182,7 +182,7 @@ export async function generateILPADistributionTemplate(distribution: Distributio
   })
 
   // Totals Row
-  const totalDistributed = distribution.investorAllocations.reduce((sum, a) => sum + a.amount, 0)
+  const totalDistributed = distribution.investorAllocations.reduce((sum, a) => sum + a.finalAllocation, 0)
   const totalROC = distribution.returnOfCapitalAmount || 0
   const totalIncome = distribution.incomeAmount || 0
   const totalCapitalGains = distribution.capitalGainAmount || 0
@@ -281,7 +281,7 @@ export async function generateILPADistributionTemplate(distribution: Distributio
 
 export function downloadILPADistribution(distribution: Distribution) {
   generateILPADistributionTemplate(distribution).then((buffer) => {
-    const blob = new Blob([buffer], {
+    const blob = new Blob([buffer as BlobPart], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     })
     const url = window.URL.createObjectURL(blob)

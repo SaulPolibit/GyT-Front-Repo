@@ -48,7 +48,7 @@ export function generateReportSummaryCSV(report: Report): string {
       ['Call Number', report.capitalCall.callNumber.toString()],
       ['Due Date', report.capitalCall.dueDate],
       ['Purpose', report.capitalCall.purpose],
-      ['Related Investment', report.capitalCall.relatedInvestmentName]
+      ['Related Investment', report.capitalCall.relatedInvestmentName || 'N/A']
     )
   }
 
@@ -157,7 +157,7 @@ export function generateInvestorsCSV(report: Report, investors: Investor[], fund
 
   includedInvestors.forEach(investor => {
     const fundOwnership = investor.fundOwnerships?.find(fo => fo.fundId === fundId)
-    const capitalHistory = investor.capitalAccountHistory || []
+    const capitalHistory = (investor as any).capitalAccountHistory || []
     const currentBalance = capitalHistory.length > 0
       ? capitalHistory[capitalHistory.length - 1].runningBalance
       : (fundOwnership?.calledCapital || 0)
@@ -171,7 +171,7 @@ export function generateInvestorsCSV(report: Report, investors: Investor[], fund
       (fundOwnership?.ownershipPercent || 0).toString(),
       (fundOwnership?.commitment || 0).toString(),
       (fundOwnership?.calledCapital || 0).toString(),
-      (fundOwnership?.fundedPercent || 0).toString(),
+      (fundOwnership?.commitment ? ((fundOwnership.calledCapital / fundOwnership.commitment) * 100) : 0).toString(),
       currentBalance.toString()
     ])
   })
@@ -190,13 +190,17 @@ export function generateInvestorsCSV(report: Report, investors: Investor[], fund
     0
   )
   const avgFunded = includedInvestors.reduce(
-    (sum, inv) => sum + (inv.fundOwnerships?.find(fo => fo.fundId === fundId)?.fundedPercent || 0),
+    (sum, inv) => {
+      const ownership = inv.fundOwnerships?.find(fo => fo.fundId === fundId)
+      const funded = ownership?.commitment ? ((ownership.calledCapital / ownership.commitment) * 100) : 0
+      return sum + funded
+    },
     0
   ) / includedInvestors.length
 
   const totalCurrentBalance = includedInvestors.reduce((sum, investor) => {
     const fundOwnership = investor.fundOwnerships?.find(fo => fo.fundId === fundId)
-    const capitalHistory = investor.capitalAccountHistory || []
+    const capitalHistory = (investor as any).capitalAccountHistory || []
     const currentBalance = capitalHistory.length > 0
       ? capitalHistory[capitalHistory.length - 1].runningBalance
       : (fundOwnership?.calledCapital || 0)
@@ -306,7 +310,7 @@ export function generateCapitalAccountHistoryCSV(investor: Investor): string {
     [],
     ['Investor:', investor.name],
     ['Type:', investor.type],
-    ['Email:', investor.contactInfo.email],
+    ['Email:', investor.email || 'N/A'],
     [],
     [
       'Date',
@@ -318,9 +322,9 @@ export function generateCapitalAccountHistoryCSV(investor: Investor): string {
     ]
   ]
 
-  const history = investor.capitalAccountHistory || []
+  const history = (investor as any).capitalAccountHistory || []
 
-  history.forEach(transaction => {
+  history.forEach((transaction: any) => {
     rows.push([
       transaction.date,
       transaction.type,

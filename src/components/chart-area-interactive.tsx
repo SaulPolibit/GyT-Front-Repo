@@ -193,7 +193,7 @@ export function ChartAreaInteractive() {
                       day: "numeric",
                     })
                   }}
-                  valueFormatter={(value) => {
+                  formatter={(value) => {
                     return new Intl.NumberFormat("en-US", {
                       style: "currency",
                       currency: "USD",

@@ -1,4 +1,5 @@
-import type { CapitalCall, Distribution, Investment, Structure } from './types'
+import type { CapitalCall, Distribution, Investment } from './types'
+import type { Structure } from './structures-storage'
 import { getCapitalCallsByFundId } from './capital-calls-storage'
 import { getDistributionsByFundId } from './distributions-storage'
 import { getInvestmentsByFundId } from './investments-storage'

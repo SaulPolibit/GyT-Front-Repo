@@ -1,6 +1,6 @@
 "use client"
 
-import { IconChevronRight, type Icon } from "@tabler/icons-react"
+import { ChevronRight, type LucideIcon } from "lucide-react"
 import Link from "next/link"
 
 import {
@@ -25,7 +25,7 @@ export function NavManagement({
   items: {
     title: string
     url: string
-    icon?: Icon
+    icon?: LucideIcon
     isActive?: boolean
     items?: {
       title: string
@@ -49,7 +49,7 @@ export function NavManagement({
                 <SidebarMenuButton tooltip={item.title}>
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
-                  <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                 </SidebarMenuButton>
               </CollapsibleTrigger>
               <CollapsibleContent>

@@ -261,7 +261,7 @@ export async function generateILPACapitalCallTemplate(capitalCall: CapitalCall):
 
 export function downloadILPACapitalCall(capitalCall: CapitalCall) {
   generateILPACapitalCallTemplate(capitalCall).then((buffer) => {
-    const blob = new Blob([buffer], {
+    const blob = new Blob([buffer as BlobPart], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     })
     const url = window.URL.createObjectURL(blob)

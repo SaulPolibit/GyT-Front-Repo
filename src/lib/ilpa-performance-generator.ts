@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs'
-import type { Structure, PerformanceMethodology } from './types'
+import type { PerformanceMethodology } from './types'
+import type { Structure } from './structures-storage'
 import {
   calculateFundPerformance,
   getFundCashFlows,
@@ -93,7 +94,7 @@ export async function generateILPAPerformanceTemplate(
     ['Fund Size (Total Commitment)', `${fund.currency} ${fund.totalCommitment.toLocaleString()}`],
     ['Fund Currency', fund.currency],
     ['Fund Type', fund.subtype],
-    ['Inception Date', new Date(fund.inceptionDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
+    ['Inception Date', fund.inceptionDate ? new Date(fund.inceptionDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'],
     ['As of Date', asOfDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })],
     ['Methodology', methodology === 'granular' ? 'Granular' : 'Gross Up'],
   ]

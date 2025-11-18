@@ -197,7 +197,7 @@ export function LPCustomChartRenderer({ config }: LPCustomChartRendererProps) {
       // For pie charts, data should already have name/value or type/value structure
       const pieData = data.map((item, index) => ({
         name: item.name || item.type || item.fund || `Item ${index + 1}`,
-        value: item.value || item.allocation || item.amount || 0,
+        value: Number(item.value || item.allocation || item.amount || 0),
         fill: chartConfig[config.metrics[0]]?.color || `hsl(${index * 137.5}, 70%, 50%)`,
       })).filter(item => item.value > 0)
 
@@ -212,8 +212,8 @@ export function LPCustomChartRenderer({ config }: LPCustomChartRendererProps) {
       const pieChartConfig = React.useMemo(() => {
         const configObj: Record<string, { label: string; color: string }> = {}
         pieData.forEach((item, index) => {
-          configObj[item.name] = {
-            label: item.name,
+          configObj[String(item.name)] = {
+            label: String(item.name),
             color: item.fill,
           }
         })
