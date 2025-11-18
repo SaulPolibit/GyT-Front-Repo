@@ -28,11 +28,11 @@ import {
   File,
   Loader2,
 } from "lucide-react"
-import { getInvestmentById } from "@/lib/investments-storage"
+import { getStructureById } from "@/lib/structures-storage"
 import { getCurrentInvestorEmail, getInvestorByEmail } from "@/lib/lp-portal-helpers"
 import { createInvestmentSubscription, updateInvestmentSubscriptionStatus } from "@/lib/investment-subscriptions-storage"
 import { addFundOwnershipToInvestor } from "@/lib/investors-storage"
-import type { Investment } from "@/lib/types"
+import type { Structure } from "@/lib/structures-storage"
 import { useToast } from "@/hooks/use-toast"
 
 interface Props {
@@ -43,7 +43,7 @@ export default function PaymentPage({ params }: Props) {
   const { structureId } = use(params)
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const [investment, setInvestment] = React.useState<Investment | null>(null)
+  const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [cardNumber, setCardNumber] = React.useState("")
   const [cardName, setCardName] = React.useState("")
@@ -61,8 +61,8 @@ export default function PaymentPage({ params }: Props) {
   const amount = searchParams.get("amount") || "0"
 
   React.useEffect(() => {
-    const inv = getInvestmentById(structureId)
-    setInvestment(inv)
+    const struct = getStructureById(structureId)
+    setStructure(struct)
     setLoading(false)
   }, [structureId])
 
@@ -88,7 +88,7 @@ export default function PaymentPage({ params }: Props) {
   }
 
   const handlePayment = async () => {
-    if (!isFormValid() || !investment) return
+    if (!isFormValid() || !structure) return
 
     setIsProcessing(true)
     try {
@@ -105,9 +105,9 @@ export default function PaymentPage({ params }: Props) {
 
       // Create investment subscription (records the purchase request)
       const subscription = createInvestmentSubscription({
-        structureId: investment.id,
+        structureId: structure.id,
         investorId: investor.id,
-        fundId: investment.fundId,
+        fundId: structure.id,
         requestedAmount: parseInt(amount),
         currency: 'USD',
         status: 'pending',
@@ -121,7 +121,7 @@ export default function PaymentPage({ params }: Props) {
       // Add fund ownership to investor (this is what shows in their portfolio!)
       const ownershipAdded = addFundOwnershipToInvestor(
         investor.id,
-        investment.fundId,
+        structure.id,
         parseInt(amount) // commitment amount
       )
 
@@ -134,11 +134,11 @@ export default function PaymentPage({ params }: Props) {
       setPaymentComplete(true)
 
       // Show success alert with detailed message
-      alert(`✅ Investment Successful!\n\nYou've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${investment.name}.\n\nThe fund has been added to your portfolio. Redirecting to dashboard...`)
+      alert(`✅ Investment Successful!\n\nYou've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${structure.name}.\n\nThe fund has been added to your portfolio. Redirecting to dashboard...`)
 
-      // Redirect to portfolio to see the investment
+      // Redirect to success page
       setTimeout(() => {
-        window.location.href = `/lp-portal/portfolio`
+        window.location.href = `/lp-portal/marketplace/structure/${structureId}/payment-success?tokens=${tokens}&email=${encodeURIComponent(email)}&amount=${amount}`
       }, 500)
     } catch (error) {
       console.error('Payment error:', error)
@@ -181,7 +181,7 @@ export default function PaymentPage({ params }: Props) {
     )
   }
 
-  if (!investment) {
+  if (!structure) {
     return (
       <div className="space-y-6 p-4 md:p-6">
         <Button variant="ghost" asChild>
@@ -193,7 +193,7 @@ export default function PaymentPage({ params }: Props) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold mb-2">Investment not found</p>
+            <p className="text-lg font-semibold mb-2">Structure not found</p>
           </CardContent>
         </Card>
       </div>
@@ -219,10 +219,10 @@ export default function PaymentPage({ params }: Props) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Investment</p>
-                <p className="font-semibold text-sm">{investment.name}</p>
+                <p className="text-xs text-muted-foreground mb-1">Fund Structure</p>
+                <p className="font-semibold text-sm">{structure.name}</p>
                 <Badge variant="outline" className="mt-2">
-                  {investment.type}
+                  {structure.type}
                 </Badge>
               </div>
               <Separator />
