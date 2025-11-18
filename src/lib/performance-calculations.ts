@@ -292,7 +292,7 @@ export function calculateFundLevelPerformance(inputs: FundLevelInputs) {
  * Works for both methodologies.
  */
 
-interface CashFlow {
+export interface CashFlow {
   date: Date
   amount: number  // Negative for calls, positive for distributions
 }
