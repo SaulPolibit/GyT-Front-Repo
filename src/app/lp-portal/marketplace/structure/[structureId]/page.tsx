@@ -162,7 +162,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold capitalize">{structure.type}</div>
-            <p className="text-xs text-muted-foreground">{structure.subtype}</p>
+            <p className="text-xs text-muted-foreground">{structure.subtype || 'Standard'}</p>
           </CardContent>
         </Card>
 
@@ -184,7 +184,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{structure.investors || 0}</div>
-            <p className="text-xs text-muted-foreground">Current count</p>
+            <p className="text-xs text-muted-foreground">LP count</p>
           </CardContent>
         </Card>
 
@@ -195,7 +195,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{structure.jurisdiction}</div>
-            <p className="text-xs text-muted-foreground">Legal location</p>
+            <p className="text-xs text-muted-foreground">Registration</p>
           </CardContent>
         </Card>
       </div>
@@ -224,8 +224,8 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                   <p className="text-sm font-semibold">{structure.name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Fund Type</p>
-                  <p className="text-sm font-semibold">{structure.fundType || 'N/A'}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Structure Type</p>
+                  <p className="text-sm font-semibold capitalize">{structure.type}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Status</p>
@@ -234,8 +234,8 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Current Stage</p>
-                  <p className="text-sm font-semibold">{structure.currentStage || 'N/A'}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Jurisdiction</p>
+                  <p className="text-sm font-semibold">{structure.jurisdiction}</p>
                 </div>
               </div>
 
@@ -248,6 +248,14 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Total Commitment</p>
                     <p className="text-lg font-bold">{formatCurrency(structure.totalCommitment)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Currency</p>
+                    <p className="text-sm font-semibold">{structure.currency}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Total Investors</p>
+                    <p className="text-sm font-semibold">{structure.investors || 0} LPs</p>
                   </div>
                   {structure.inceptionDate && (
                     <div>
@@ -267,23 +275,25 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
               <Separator />
 
               {/* Investment Info */}
-              <div>
-                <h3 className="font-semibold mb-4">Investment Parameters</h3>
-                <div className="grid md:grid-cols-2 gap-6">
-                  {structure.minCheckSize && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Minimum Check Size</p>
-                      <p className="text-lg font-bold">{formatCurrency(structure.minCheckSize)}</p>
-                    </div>
-                  )}
-                  {structure.maxCheckSize && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Maximum Check Size</p>
-                      <p className="text-lg font-bold">{formatCurrency(structure.maxCheckSize)}</p>
-                    </div>
-                  )}
+              {(structure.minCheckSize || structure.maxCheckSize) && (
+                <div>
+                  <h3 className="font-semibold mb-4">Investment Parameters</h3>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {structure.minCheckSize && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Minimum Check Size</p>
+                        <p className="text-lg font-bold">{formatCurrency(structure.minCheckSize)}</p>
+                      </div>
+                    )}
+                    {structure.maxCheckSize && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Maximum Check Size</p>
+                        <p className="text-lg font-bold">{formatCurrency(structure.maxCheckSize)}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
