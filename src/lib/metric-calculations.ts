@@ -23,6 +23,10 @@ function formatCurrency(value: number): string {
 
 // Helper to format percentage
 function formatPercentage(value: number): string {
+  // Handle NaN, Infinity, and other invalid numbers
+  if (!isFinite(value)) {
+    value = 0
+  }
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
 }
 
@@ -170,8 +174,8 @@ export function calculateMetric(metricId: string, structureId?: string): Calcula
         return sum + (validIrr * weight)
       }, 0)
 
-      // Use || 0 pattern to catch any remaining NaN
-      const finalIRR = weightedIRR || 0
+      // Explicitly check for NaN before using the value
+      const finalIRR = isNaN(weightedIRR) ? 0 : weightedIRR
 
       return {
         value: formatPercentage(finalIRR),
