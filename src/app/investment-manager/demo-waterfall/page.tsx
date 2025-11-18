@@ -106,28 +106,15 @@ export default function MultiLevelWaterfallDemo() {
     }))
   }, [])
 
-  // Calculate profit allocation from Level 4 FIRST
-  const profitAllocation = useMemo(() => {
-    const level4Distribution = distributionAmount[0]
-    const subFundAProfit = level4Distribution * (OWNERSHIP_STRUCTURE.subFundA_pct / 100)
-    const subFundBProfit = level4Distribution * (OWNERSHIP_STRUCTURE.subFundB_pct / 100)
-
-    return {
-      level4Distribution,
-      subFundAProfit,
-      subFundBProfit,
-    }
-  }, [distributionAmount])
-
   const subFundAWaterfallResult = useMemo(() => {
     return calculateWaterfall(
       STANDARD_WATERFALL,
-      profitAllocation.subFundAProfit,  // Use allocated amount, not full distribution
+      distributionAmount[0],
       subFundACapitalAccounts,
       SUB_FUND_A.fundId,
       new Date().toISOString()
     )
-  }, [profitAllocation.subFundAProfit, subFundACapitalAccounts])
+  }, [distributionAmount, subFundACapitalAccounts])
 
   // Calculate waterfall for Sub-Fund B
   const subFundBCapitalAccounts: InvestorCapitalAccount[] = useMemo(() => {
@@ -145,12 +132,12 @@ export default function MultiLevelWaterfallDemo() {
   const subFundBWaterfallResult = useMemo(() => {
     return calculateWaterfall(
       STANDARD_WATERFALL,
-      profitAllocation.subFundBProfit,  // Use allocated amount, not full distribution
+      distributionAmount[0],
       subFundBCapitalAccounts,
       SUB_FUND_B.fundId,
       new Date().toISOString()
     )
-  }, [profitAllocation.subFundBProfit, subFundBCapitalAccounts])
+  }, [distributionAmount, subFundBCapitalAccounts])
 
   // Calculate tax impacts
   const currentTaxRate = taxRate[0] / 100
@@ -176,27 +163,34 @@ export default function MultiLevelWaterfallDemo() {
   const profitFlowCalculations = useMemo(() => {
     const level4TotalValue = TOTAL_LEVEL_4_VALUE
 
+    // Distribution amount received from Level 4
+    const level4Distribution = distributionAmount[0]
+
+    // Allocate Level 4 profits to sub-funds based on ownership
+    const subFundAProfit = level4Distribution * (OWNERSHIP_STRUCTURE.subFundA_pct / 100)
+    const subFundBProfit = level4Distribution * (OWNERSHIP_STRUCTURE.subFundB_pct / 100)
+
     // Calculate what flows up to Parent Fund after sub-fund waterfalls
-    const subFundAAfterTax = profitAllocation.subFundAProfit - totalTaxA
-    const subFundBAfterTax = profitAllocation.subFundBProfit - totalTaxB
+    const subFundAAfterTax = subFundAProfit - totalTaxA
+    const subFundBAfterTax = subFundBProfit - totalTaxB
 
     // Total flowing to Parent Fund
     const totalToParentFund = subFundAAfterTax + subFundBAfterTax
 
     return {
       level4TotalValue,
-      level4Distribution: profitAllocation.level4Distribution,
-      subFundAProfit: profitAllocation.subFundAProfit,
-      subFundBProfit: profitAllocation.subFundBProfit,
+      level4Distribution,
+      subFundAProfit,
+      subFundBProfit,
       subFundAOwnershipPct: OWNERSHIP_STRUCTURE.subFundA_pct,
       subFundBOwnershipPct: OWNERSHIP_STRUCTURE.subFundB_pct,
       totalToParentFund,
       subFundAAfterTax,
       subFundBAfterTax,
-      subFundANetProfit: profitAllocation.subFundAProfit - totalTaxA,
-      subFundBNetProfit: profitAllocation.subFundBProfit - totalTaxB,
+      subFundANetProfit: subFundAProfit - totalTaxA,
+      subFundBNetProfit: subFundBProfit - totalTaxB,
     }
-  }, [profitAllocation, totalTaxA, totalTaxB])
+  }, [distributionAmount, totalTaxA, totalTaxB])
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -459,8 +453,8 @@ export default function MultiLevelWaterfallDemo() {
               }
             }
             const colors = getTierColor()
-            const progressPercent = profitAllocation.subFundAProfit > 0
-              ? (tier.amountDistributed / profitAllocation.subFundAProfit) * 100
+            const progressPercent = distributionAmount[0] > 0
+              ? (tier.amountDistributed / distributionAmount[0]) * 100
               : 0
             return (
               <div key={tier.tierId} className={`${colors.bg} ${colors.border} border rounded-lg p-3`}>
@@ -483,11 +477,11 @@ export default function MultiLevelWaterfallDemo() {
                   <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
                     <div
                       className={`${colors.progress} h-full rounded-full transition-all duration-300`}
-                      style={{ width: `${Math.min(Math.max(progressPercent, 2), 100)}%` }}
+                      style={{ width: `${Math.max(progressPercent, 2)}%` }}
                     />
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{progressPercent.toFixed(1)}% of {formatCurrency(profitAllocation.subFundAProfit)}</span>
+                    <span>{progressPercent.toFixed(1)}% of {formatCurrency(distributionAmount[0])}</span>
                     <span className="font-medium">{progressPercent.toFixed(0)}%</span>
                   </div>
                 </div>
@@ -504,7 +498,7 @@ export default function MultiLevelWaterfallDemo() {
             <Card className="bg-gray-100 dark:bg-gray-900/20">
               <CardContent className="pt-3">
                 <p className="text-xs text-muted-foreground">After-Tax Dist.</p>
-                <p className="text-lg font-bold text-purple-600">{formatCurrency(profitAllocation.subFundAProfit - totalTaxA)}</p>
+                <p className="text-lg font-bold text-purple-600">{formatCurrency(distributionAmount[0] - totalTaxA)}</p>
               </CardContent>
             </Card>
           </div>
@@ -546,8 +540,8 @@ export default function MultiLevelWaterfallDemo() {
               }
             }
             const colors = getTierColor()
-            const progressPercent = profitAllocation.subFundBProfit > 0
-              ? (tier.amountDistributed / profitAllocation.subFundBProfit) * 100
+            const progressPercent = distributionAmount[0] > 0
+              ? (tier.amountDistributed / distributionAmount[0]) * 100
               : 0
             return (
               <div key={tier.tierId} className={`${colors.bg} ${colors.border} border rounded-lg p-3`}>
@@ -570,11 +564,11 @@ export default function MultiLevelWaterfallDemo() {
                   <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
                     <div
                       className={`${colors.progress} h-full rounded-full transition-all duration-300`}
-                      style={{ width: `${Math.min(Math.max(progressPercent, 2), 100)}%` }}
+                      style={{ width: `${Math.max(progressPercent, 2)}%` }}
                     />
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{progressPercent.toFixed(1)}% of {formatCurrency(profitAllocation.subFundBProfit)}</span>
+                    <span>{progressPercent.toFixed(1)}% of {formatCurrency(distributionAmount[0])}</span>
                     <span className="font-medium">{progressPercent.toFixed(0)}%</span>
                   </div>
                 </div>
@@ -591,7 +585,7 @@ export default function MultiLevelWaterfallDemo() {
             <Card className="bg-gray-100 dark:bg-gray-900/20">
               <CardContent className="pt-3">
                 <p className="text-xs text-muted-foreground">After-Tax Dist.</p>
-                <p className="text-lg font-bold text-purple-600">{formatCurrency(profitAllocation.subFundBProfit - totalTaxB)}</p>
+                <p className="text-lg font-bold text-purple-600">{formatCurrency(distributionAmount[0] - totalTaxB)}</p>
               </CardContent>
             </Card>
           </div>
