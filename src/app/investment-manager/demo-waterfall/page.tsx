@@ -397,21 +397,13 @@ export default function MultiLevelWaterfallDemo() {
             <Card className="bg-gray-100 dark:bg-gray-900/20">
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Effective Tax Rate</p>
-                <p className="text-lg font-bold">
-                  {profitFlowCalculations.level4Distribution > 0
-                    ? (((totalTaxA + totalTaxB) / profitFlowCalculations.level4Distribution) * 100).toFixed(1)
-                    : '0.0'}%
-                </p>
+                <p className="text-lg font-bold">{((((totalTaxA + totalTaxB) / profitFlowCalculations.level4Distribution) * 100) || 0).toFixed(1)}%</p>
               </CardContent>
             </Card>
             <Card className="bg-gray-100 dark:bg-gray-900/20">
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Net Profit Preserved</p>
-                <p className="text-lg font-bold text-green-600">
-                  {profitFlowCalculations.level4Distribution > 0
-                    ? ((profitFlowCalculations.totalToParentFund / profitFlowCalculations.level4Distribution) * 100).toFixed(1)
-                    : '0.0'}%
-                </p>
+                <p className="text-lg font-bold text-green-600">{((profitFlowCalculations.totalToParentFund / profitFlowCalculations.level4Distribution) * 100 || 0).toFixed(1)}%</p>
               </CardContent>
             </Card>
           </div>
