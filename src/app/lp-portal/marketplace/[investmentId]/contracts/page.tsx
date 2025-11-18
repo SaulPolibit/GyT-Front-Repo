@@ -264,6 +264,7 @@ export default function ContractsSigningPage({ params }: Props) {
             <CardContent className="flex flex-col flex-1 min-h-0 gap-3 pt-0 overflow-y-auto">
               {/* DocuSeal Embed */}
               <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
+                {/* @ts-ignore - DocuSeal is a custom web component */}
                 <docuseal-form
                   data-src="https://docuseal.com/d/tmbNrqj1TzQoPR"
                   data-email={email}

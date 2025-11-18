@@ -339,7 +339,7 @@ export default function LPDocumentsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Object.entries(structureDocsGrouped).map(([structureId, data]) => (
+                  {Object.entries(structureDocsGrouped).map(([structureId, data]: [string, any]) => (
                     <div key={structureId} className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-4">
                         <IconBuilding className="w-5 h-5 text-primary" />
@@ -348,7 +348,7 @@ export default function LPDocumentsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        {data.documents.map((doc) => (
+                        {data.documents.map((doc: any) => (
                           <div
                             key={doc.id}
                             className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
@@ -411,7 +411,7 @@ export default function LPDocumentsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Object.entries(myDocsGrouped).map(([structureId, data]) => (
+                  {Object.entries(myDocsGrouped).map(([structureId, data]: [string, any]) => (
                     <div key={structureId} className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-4">
                         <IconBuilding className="w-5 h-5 text-primary" />
@@ -420,7 +420,7 @@ export default function LPDocumentsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        {data.documents.map((doc) => (
+                        {data.documents.map((doc: any) => (
                           <div
                             key={doc.id}
                             className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
