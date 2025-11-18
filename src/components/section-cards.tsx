@@ -21,10 +21,12 @@ export function SectionCards() {
   const totalValue = investments.reduce((sum, inv) => sum + inv.totalFundPosition.currentValue, 0)
   const totalCost = investments.reduce((sum, inv) => sum + inv.totalFundPosition.totalInvested, 0)
   const totalDistributed = investors.reduce((sum, inv) => sum + inv.totalDistributed, 0)
-  const avgIRR = investments.reduce((sum, inv) => sum + inv.totalFundPosition.irr, 0) / investments.length
+  const avgIRR = investments.length > 0
+    ? investments.reduce((sum, inv) => sum + inv.totalFundPosition.irr, 0) / investments.length
+    : 0
 
   const totalGain = totalValue - totalCost
-  const totalReturn = ((totalGain / totalCost) * 100)
+  const totalReturn = totalCost > 0 ? ((totalGain / totalCost) * 100) : 0
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -36,6 +38,10 @@ export function SectionCards() {
   }
 
   const formatPercent = (value: number) => {
+    // Handle NaN, Infinity, and other invalid numbers
+    if (!isFinite(value)) {
+      value = 0
+    }
     return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
   }
 
