@@ -82,16 +82,6 @@ export default function MarketplacePage() {
     }
   }
 
-  // Filter investments
-  const filteredInvestments = investments.filter(investment => {
-    const matchesSearch = investment.name.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = typeFilter === 'all' || investment.type === typeFilter
-    const matchesSector = sectorFilter === 'all' || investment.sector === sectorFilter
-    const matchesStatus = statusFilter === 'all' || investment.status === statusFilter
-
-    return matchesSearch && matchesType && matchesSector && matchesStatus
-  })
-
   const getTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {
       case 'real estate':
