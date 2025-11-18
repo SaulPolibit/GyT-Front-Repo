@@ -167,13 +167,12 @@ export function calculateWaterfall(
 
       case 'PREFERRED_RETURN': {
         const hurdleRate = tier.hurdleRate || 8
-        const yearsElapsed = calculateYearsElapsed(fundStartDate, distributionDate)
 
-        // Calculate total accrued preferred return not yet paid
+        // Calculate total preferred return (8% of initial invested capital, not time-based)
         const totalPreferredReturnDue = capitalAccounts.reduce((sum, account) => {
           const contributedCapital = account.capitalContributed
-          const accruedReturn = contributedCapital * (hurdleRate / 100) * yearsElapsed
-          const unpaidReturn = Math.max(0, accruedReturn - account.preferredReturnPaid)
+          const preferredReturnAmount = contributedCapital * (hurdleRate / 100)
+          const unpaidReturn = Math.max(0, preferredReturnAmount - account.preferredReturnPaid)
           return sum + unpaidReturn
         }, 0)
 
@@ -181,17 +180,11 @@ export function calculateWaterfall(
         lpAmount = tierAmount
         gpAmount = 0
 
-        // Calculate total capital contributed for ownership percentage
-        const totalCapitalContributed = capitalAccounts.reduce(
-          (sum, account) => sum + account.capitalContributed,
-          0
-        )
-
-        // Distribute proportionally to investors based on unpaid preferred return
+        // Distribute proportionally to investors based on preferred return
         capitalAccounts.forEach((account) => {
           const contributedCapital = account.capitalContributed
-          const accruedReturn = contributedCapital * (hurdleRate / 100) * yearsElapsed
-          const unpaidReturn = Math.max(0, accruedReturn - account.preferredReturnPaid)
+          const preferredReturnAmount = contributedCapital * (hurdleRate / 100)
+          const unpaidReturn = Math.max(0, preferredReturnAmount - account.preferredReturnPaid)
 
           if (unpaidReturn > 0 && totalPreferredReturnDue > 0) {
             const investorShare = (unpaidReturn / totalPreferredReturnDue) * tierAmount
@@ -202,12 +195,6 @@ export function calculateWaterfall(
               amount: investorShare,
             })
             allocation.totalAllocation += investorShare
-
-            // Calculate ownership percent based on capital contributed
-            if (totalCapitalContributed > 0) {
-              const ownershipPercent = (account.capitalContributed / totalCapitalContributed) * 100
-              allocation.ownershipPercent = ownershipPercent
-            }
           }
         })
 
@@ -216,20 +203,25 @@ export function calculateWaterfall(
 
       case 'CATCH_UP': {
         const targetGpPercent = tier.catchUpTo || 20
-        const lpSplitPercent = tier.lpSplit || 80
-        const gpSplitPercent = tier.gpSplit || 20
 
         // Calculate how much GP has received so far
         const gpReceivedSoFar = gpTierAllocations.reduce((sum, alloc) => sum + alloc.amount, 0)
 
-        // Calculate how much LP has received so far (from all previous tiers)
-        const lpReceivedSoFar = tierDistributions.reduce((sum, td) => sum + td.lpAmount, 0)
+        // Calculate how much LP has received in preferred return (Tier 2)
+        // We need to calculate profits distributed so far (excluding return of capital)
+        const returnOfCapitalAmount = tierDistributions[0]?.lpAmount || 0 // Tier 1 ROC
+        const preferredReturnAmount = tierDistributions[1]?.lpAmount || 0 // Tier 2 Preferred Return
 
-        // Total distributed so far (before this tier)
-        const totalDistributedSoFar = lpReceivedSoFar + gpReceivedSoFar
+        // Profits distributed so far = preferred return (since ROC is not profit)
+        const profitsDistributedSoFar = preferredReturnAmount
+
+        // Total distributed to LPs (for catch-up calculation, only count profits)
+        const profitsTotal = profitsDistributedSoFar + gpReceivedSoFar
 
         // Target GP amount to catch up to target percentage
-        const targetGpAmount = totalDistributedSoFar * (targetGpPercent / 100)
+        // GP should receive (targetGpPercent / (100 - targetGpPercent)) of LP's profits
+        // Or: targetGpAmount = profits * (targetGpPercent / 100)
+        const targetGpAmount = profitsTotal * (targetGpPercent / (100 - targetGpPercent))
 
         // How much more GP needs to reach target
         const gpCatchUpNeeded = Math.max(0, targetGpAmount - gpReceivedSoFar)
