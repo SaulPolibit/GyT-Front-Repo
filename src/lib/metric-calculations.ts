@@ -160,6 +160,16 @@ export function calculateMetric(metricId: string, structureId?: string): Calcula
         return sum + (inv.totalFundPosition?.currentValue || 0)
       }, 0)
 
+      // Avoid division by zero - if totalValue is 0, return 0
+      if (totalValue === 0) {
+        return {
+          value: formatPercentage(0),
+          badge: 'Portfolio',
+          trend: 'neutral',
+          description: `Across ${investments.length} investments`,
+        }
+      }
+
       const weightedIRR = investments.reduce((sum, inv) => {
         const weight = (inv.totalFundPosition?.currentValue || 0) / totalValue
         const irr = inv.totalFundPosition?.irr || 0
