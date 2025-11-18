@@ -128,7 +128,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
         <div className="flex gap-2">
           <Button asChild>
             <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
-              Buy Tokens
+              Buy
             </a>
           </Button>
         </div>

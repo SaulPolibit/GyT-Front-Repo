@@ -720,6 +720,27 @@ export function migrateStructures(): void {
         }
       }
 
+      // Ensure tokenValue is always set (even if structure was partially migrated)
+      if (!migratedStructure.tokenValue || migratedStructure.tokenValue === 0) {
+        hasChanges = true
+        const aum = structure.totalCommitment
+        const targetTokens = 1000
+        let tokenValue = Math.round(aum / targetTokens)
+
+        if (tokenValue >= 100000) tokenValue = Math.round(tokenValue / 100000) * 100000
+        else if (tokenValue >= 10000) tokenValue = Math.round(tokenValue / 10000) * 10000
+        else if (tokenValue >= 1000) tokenValue = Math.round(tokenValue / 1000) * 1000
+        else if (tokenValue >= 100) tokenValue = Math.round(tokenValue / 100) * 100
+
+        const totalTokens = Math.round(aum / tokenValue)
+
+        migratedStructure = {
+          ...migratedStructure,
+          tokenValue: tokenValue,
+          totalTokens: totalTokens,
+        }
+      }
+
       // Migrate to hierarchy support (add default values)
       if (structure.hierarchyMode === undefined) {
         hasChanges = true

@@ -38,9 +38,22 @@ export default function StructureCheckoutPage({ params }: Props) {
   React.useEffect(() => {
     const struct = getStructureById(structureId)
     setStructure(struct)
+
+    // Log structure data for debugging
+    console.log('[Structure Checkout] Loaded structure:', {
+      id: struct?.id,
+      name: struct?.name,
+      tokenValue: struct?.tokenValue,
+      minCheckSize: (struct as any)?.minCheckSize,
+      totalCommitment: struct?.totalCommitment,
+    })
+
     // Set price from structure if available, otherwise use default
-    if (struct?.tokenValue) {
+    if (struct?.tokenValue && struct.tokenValue > 0) {
       setPricePerToken(struct.tokenValue)
+      console.log('[Structure Checkout] Using tokenValue:', struct.tokenValue)
+    } else {
+      console.log('[Structure Checkout] tokenValue not available, using default: 1000')
     }
     setLoading(false)
   }, [structureId])
