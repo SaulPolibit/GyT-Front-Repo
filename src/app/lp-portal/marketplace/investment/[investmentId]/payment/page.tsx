@@ -133,13 +133,19 @@ export default function PaymentPage({ params }: Props) {
 
       setPaymentComplete(true)
 
-      // Show success alert with detailed message
-      alert(`✅ Investment Successful!\n\nYou've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${investment.name}.\n\nThe fund has been added to your portfolio. Redirecting to dashboard...`)
+      // Show success toast
+      toast({
+        title: "✅ Payment Successful!",
+        description: `You've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${investment.name}. The fund has been added to your portfolio.`,
+        variant: "default",
+      })
 
-      // Redirect to portfolio to see the investment
+      console.log('✅ Payment successful, redirecting to portfolio...')
+
+      // Redirect to portfolio after a short delay
       setTimeout(() => {
         window.location.href = `/lp-portal/portfolio`
-      }, 500)
+      }, 1500)
     } catch (error) {
       console.error('Payment error:', error)
       toast({
