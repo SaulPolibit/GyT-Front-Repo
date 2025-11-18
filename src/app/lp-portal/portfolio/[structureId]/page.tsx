@@ -967,7 +967,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                   <h4 className="text-sm font-semibold mb-2 text-green-700 dark:text-green-400">Limited Partner Rights</h4>
                   <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
                     {structure.legalTerms?.limitedPartnerRights && structure.legalTerms.limitedPartnerRights.length > 0 ? (
-                      structure.legalTerms.limitedPartnerRights.map((right, idx) => (
+                      structure.legalTerms.limitedPartnerRights.map((right: string, idx: number) => (
                         <li key={idx}>{right}</li>
                       ))
                     ) : (
@@ -990,7 +990,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                   <h4 className="text-sm font-semibold mb-2 text-orange-700 dark:text-orange-400">Limited Partner Obligations</h4>
                   <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
                     {structure.legalTerms?.limitedPartnerObligations && structure.legalTerms.limitedPartnerObligations.length > 0 ? (
-                      structure.legalTerms.limitedPartnerObligations.map((obligation, idx) => (
+                      structure.legalTerms.limitedPartnerObligations.map((obligation: string, idx: number) => (
                         <li key={idx}>{obligation}</li>
                       ))
                     ) : (
@@ -1024,7 +1024,7 @@ export default function StructureDataRoomPage({ params }: Props) {
               </p>
               <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside ml-2">
                 {structure.legalTerms?.votingRights?.mattersRequiringConsent && structure.legalTerms.votingRights.mattersRequiringConsent.length > 0 ? (
-                  structure.legalTerms.votingRights.mattersRequiringConsent.map((matter, idx) => (
+                  structure.legalTerms.votingRights.mattersRequiringConsent.map((matter: string, idx: number) => (
                     <li key={idx}>{matter}</li>
                   ))
                 ) : (
@@ -1066,7 +1066,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                 <p className="font-medium text-foreground">Withdrawal Conditions:</p>
                 <ul className="list-disc list-inside ml-2 space-y-1">
                   {structure.legalTerms?.redemptionTerms?.withdrawalConditions && structure.legalTerms.redemptionTerms.withdrawalConditions.length > 0 ? (
-                    structure.legalTerms.redemptionTerms.withdrawalConditions.map((condition, idx) => (
+                    structure.legalTerms.redemptionTerms.withdrawalConditions.map((condition: string, idx: number) => (
                       <li key={idx}>{condition}</li>
                     ))
                   ) : (
