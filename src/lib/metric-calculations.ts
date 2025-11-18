@@ -157,29 +157,26 @@ export function calculateMetric(metricId: string, structureId?: string): Calcula
 
     case 'average-irr': {
       const totalValue = investments.reduce((sum, inv) => {
-        return sum + (inv.totalFundPosition?.currentValue || 0)
+        const value = inv.totalFundPosition?.currentValue || 0
+        return sum + (isNaN(value) ? 0 : value)
       }, 0)
-
-      // Avoid division by zero - if totalValue is 0, return 0
-      if (totalValue === 0) {
-        return {
-          value: formatPercentage(0),
-          badge: 'Portfolio',
-          trend: 'neutral',
-          description: `Across ${investments.length} investments`,
-        }
-      }
 
       const weightedIRR = investments.reduce((sum, inv) => {
-        const weight = (inv.totalFundPosition?.currentValue || 0) / totalValue
+        if (totalValue === 0) return sum
+        const currentValue = inv.totalFundPosition?.currentValue || 0
+        const weight = (isNaN(currentValue) ? 0 : currentValue) / totalValue
         const irr = inv.totalFundPosition?.irr || 0
-        return sum + (irr * weight)
+        const validIrr = isNaN(irr) ? 0 : irr
+        return sum + (validIrr * weight)
       }, 0)
 
+      // Use || 0 pattern to catch any remaining NaN
+      const finalIRR = weightedIRR || 0
+
       return {
-        value: formatPercentage(weightedIRR),
+        value: formatPercentage(finalIRR),
         badge: 'Portfolio',
-        trend: weightedIRR >= 10 ? 'up' : weightedIRR >= 5 ? 'neutral' : 'down',
+        trend: finalIRR >= 10 ? 'up' : finalIRR >= 5 ? 'neutral' : 'down',
         description: `Across ${investments.length} investments`,
       }
     }
