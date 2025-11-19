@@ -25,26 +25,32 @@ import {
   MapPin,
   Users,
 } from "lucide-react"
+import { getInvestments } from "@/lib/investments-storage"
 import { getStructures } from "@/lib/structures-storage"
+import type { Investment } from "@/lib/types"
 import type { Structure } from "@/lib/structures-storage"
 
 export default function MarketplacePage() {
+  const [investments, setInvestments] = React.useState<Investment[]>([])
   const [structures, setStructures] = React.useState<Structure[]>([])
   const [searchQuery, setSearchQuery] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState('all')
+  const [sectorFilter, setSectorFilter] = React.useState('all')
   const [statusFilter, setStatusFilter] = React.useState('all')
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid')
   const [refreshKey, setRefreshKey] = React.useState(0)
 
   React.useEffect(() => {
+    const allInvestments = getInvestments()
     const allStructures = getStructures()
+    setInvestments(allInvestments)
     setStructures(allStructures)
   }, [refreshKey])
 
   // Listen for storage events to refresh when data changes
   React.useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'polibit_structures') {
+      if (e.key === 'polibit_investments' || e.key === 'polibit_structures') {
         setRefreshKey(prev => prev + 1)
       }
     }
