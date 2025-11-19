@@ -605,14 +605,13 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-amber-900 dark:text-amber-100">
-            This will create sample structures, investments, investors, capital calls, and distributions.
+            This will create sample structures, investors, capital calls, and distributions.
             Perfect for showcasing the platform to clients or for testing features.
           </p>
           <div className="bg-white dark:bg-slate-950 p-3 rounded border border-amber-200 dark:border-amber-800">
             <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">Sample Data Includes:</p>
             <ul className="text-sm text-amber-800 dark:text-amber-200 space-y-1 ml-4 list-disc">
               <li>3 Fund Structures (Real Estate, Tech, Private Debt)</li>
-              <li>6 Investments with realistic performance metrics</li>
               <li>5 Investors with varied fund commitments</li>
               <li>2 Capital Calls with payment history</li>
               <li>3 Distributions showing different scenarios</li>

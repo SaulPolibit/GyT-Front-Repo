@@ -1,11 +1,11 @@
 /**
  * Demo Data Seeder
  * This script creates realistic demo data for the Polibit platform
- * Run this once to populate localStorage with structures, investments, investors, capital calls, and distributions
+ * Run this once to populate localStorage with structures, investors, capital calls, and distributions
  */
 
 import { saveStructure, clearStructures } from './structures-storage'
-import { saveInvestment, clearInvestments } from './investments-storage'
+import { clearInvestments } from './investments-storage'
 import { saveInvestor, clearInvestors } from './investors-storage'
 import { saveCapitalCall } from './capital-calls-storage'
 import { saveDistribution } from './distributions-storage'
@@ -108,259 +108,6 @@ export function seedDemoData() {
   } as any)
 
   console.log('✅ Created 3 fund structures')
-
-  // ==================== INVESTMENTS ====================
-  console.log('📊 Creating investments...')
-
-  const investment1 = saveInvestment({
-    fundId: fundAlpha.id,
-    name: 'Skyline Plaza Apartments - Austin',
-    type: 'Real Estate',
-    status: 'Active',
-    sector: 'Multifamily',
-    investmentType: 'EQUITY',
-    totalPropertyValue: 125000000,
-    geography: {
-      city: 'Austin',
-      state: 'Texas',
-      country: 'United States',
-    },
-    fundEquityPosition: {
-      ownershipPercent: 25,
-      equityInvested: 12500000,
-      currentEquityValue: 14500000,
-      unrealizedGain: 2000000,
-    },
-    fundDebtPosition: null,
-    externalDebt: [],
-    totalFundPosition: {
-      totalInvested: 12500000,
-      currentValue: 14500000,
-      unrealizedGain: 2000000,
-      irr: 18.5,
-      multiple: 1.16,
-    },
-    visibility: {
-      type: 'public',
-    },
-    acquisitionDate: new Date('2023-02-15').toISOString(),
-    lastValuationDate: new Date().toISOString(),
-    description: 'Class A multifamily property with 350 units in Austin, TX. Strong market fundamentals and tenant demand.',
-    documents: [],
-    createdAt: new Date('2023-02-15').toISOString(),
-    updatedAt: new Date().toISOString(),
-  } as any)
-
-  const investment2 = saveInvestment({
-    fundId: fundAlpha.id,
-    name: 'Downtown Miami Office Complex',
-    type: 'Real Estate',
-    status: 'Active',
-    sector: 'Office',
-    investmentType: 'MIXED',
-    totalPropertyValue: 250000000,
-    geography: {
-      city: 'Miami',
-      state: 'Florida',
-      country: 'United States',
-    },
-    fundEquityPosition: {
-      ownershipPercent: 30,
-      equityInvested: 20000000,
-      currentEquityValue: 18500000,
-      unrealizedGain: -1500000,
-    },
-    fundDebtPosition: {
-      principalProvided: 10000000,
-      interestRate: 5.5,
-      originationDate: new Date('2022-09-01').toISOString(),
-      maturityDate: new Date('2027-09-01').toISOString(),
-      accruedInterest: 2750000,
-      currentDebtValue: 12750000,
-      unrealizedGain: 2750000,
-    },
-    externalDebt: [],
-    totalFundPosition: {
-      totalInvested: 30000000,
-      currentValue: 31250000,
-      unrealizedGain: 1250000,
-      irr: 8.2,
-      multiple: 1.04,
-    },
-    visibility: {
-      type: 'public',
-    },
-    acquisitionDate: new Date('2022-09-01').toISOString(),
-    lastValuationDate: new Date().toISOString(),
-    description: '450,000 sq ft Class A office space in Miami CBD. Mixed-use development with retail component.',
-    documents: [],
-    createdAt: new Date('2022-09-01').toISOString(),
-    updatedAt: new Date().toISOString(),
-  } as any)
-
-  const investment3 = saveInvestment({
-    fundId: fundBeta.id,
-    name: 'CloudSync AI - Series B',
-    type: 'Private Equity',
-    status: 'Active',
-    sector: 'Software',
-    investmentType: 'EQUITY',
-    totalCompanyValue: 500000000,
-    geography: {
-      city: 'San Francisco',
-      state: 'California',
-      country: 'United States',
-    },
-    fundEquityPosition: {
-      ownershipPercent: 8,
-      equityInvested: 40000000,
-      currentEquityValue: 65000000,
-      unrealizedGain: 25000000,
-    },
-    fundDebtPosition: null,
-    externalDebt: [],
-    totalFundPosition: {
-      totalInvested: 40000000,
-      currentValue: 65000000,
-      unrealizedGain: 25000000,
-      irr: 45.3,
-      multiple: 1.625,
-    },
-    visibility: {
-      type: 'public',
-    },
-    acquisitionDate: new Date('2023-06-15').toISOString(),
-    lastValuationDate: new Date().toISOString(),
-    description: 'AI-powered cloud analytics platform. Revenue: $12M ARR, 40% YoY growth. Series B round.',
-    documents: [],
-    createdAt: new Date('2023-06-15').toISOString(),
-    updatedAt: new Date().toISOString(),
-  } as any)
-
-  const investment4 = saveInvestment({
-    fundId: fundBeta.id,
-    name: 'DataVault Systems - Growth Equity',
-    type: 'Private Equity',
-    status: 'Active',
-    sector: 'Software',
-    investmentType: 'EQUITY',
-    totalCompanyValue: 350000000,
-    geography: {
-      city: 'Boston',
-      state: 'Massachusetts',
-      country: 'United States',
-    },
-    fundEquityPosition: {
-      ownershipPercent: 12,
-      equityInvested: 35000000,
-      currentEquityValue: 40250000,
-      unrealizedGain: 5250000,
-    },
-    fundDebtPosition: null,
-    externalDebt: [],
-    totalFundPosition: {
-      totalInvested: 35000000,
-      currentValue: 40250000,
-      unrealizedGain: 5250000,
-      irr: 12.8,
-      multiple: 1.15,
-    },
-    visibility: {
-      type: 'fund-specific',
-      fundId: fundBeta.id,
-    },
-    acquisitionDate: new Date('2023-08-20').toISOString(),
-    lastValuationDate: new Date().toISOString(),
-    description: 'Enterprise data security platform. Revenue: $8.5M ARR, Fortune 500 customers.',
-    documents: [],
-    createdAt: new Date('2023-08-20').toISOString(),
-    updatedAt: new Date().toISOString(),
-  } as any)
-
-  const investment5 = saveInvestment({
-    fundId: fundGamma.id,
-    name: 'LatAm Trade Finance - Senior Debt',
-    type: 'Private Debt',
-    status: 'Active',
-    sector: 'Senior Debt',
-    investmentType: 'DEBT',
-    totalProjectValue: 250000000,
-    geography: {
-      city: 'Mexico City',
-      country: 'Mexico',
-    },
-    fundEquityPosition: null,
-    fundDebtPosition: {
-      principalProvided: 75000000,
-      interestRate: 7.5,
-      originationDate: new Date('2023-01-10').toISOString(),
-      maturityDate: new Date('2026-01-10').toISOString(),
-      accruedInterest: 15625000,
-      currentDebtValue: 90625000,
-      unrealizedGain: 15625000,
-    },
-    externalDebt: [],
-    totalFundPosition: {
-      totalInvested: 75000000,
-      currentValue: 90625000,
-      unrealizedGain: 15625000,
-      irr: 9.8,
-      multiple: 1.21,
-    },
-    visibility: {
-      type: 'public',
-    },
-    acquisitionDate: new Date('2023-01-10').toISOString(),
-    lastValuationDate: new Date().toISOString(),
-    description: 'Trade finance facility for cross-border commerce. AAA-rated counterparties, 3-year term.',
-    documents: [],
-    createdAt: new Date('2023-01-10').toISOString(),
-    updatedAt: new Date().toISOString(),
-  } as any)
-
-  const investment6 = saveInvestment({
-    fundId: fundGamma.id,
-    name: 'Real Estate Mezzanine - Panama City',
-    type: 'Private Debt',
-    status: 'Active',
-    sector: 'Mezzanine',
-    investmentType: 'DEBT',
-    totalProjectValue: 180000000,
-    geography: {
-      city: 'Panama City',
-      country: 'Panama',
-    },
-    fundEquityPosition: null,
-    fundDebtPosition: {
-      principalProvided: 45000000,
-      interestRate: 9.0,
-      originationDate: new Date('2023-04-05').toISOString(),
-      maturityDate: new Date('2025-04-05').toISOString(),
-      accruedInterest: 7200000,
-      currentDebtValue: 52200000,
-      unrealizedGain: 7200000,
-    },
-    externalDebt: [],
-    totalFundPosition: {
-      totalInvested: 45000000,
-      currentValue: 52200000,
-      unrealizedGain: 7200000,
-      irr: 11.2,
-      multiple: 1.16,
-    },
-    visibility: {
-      type: 'fund-specific',
-      fundId: fundGamma.id,
-    },
-    acquisitionDate: new Date('2023-04-05').toISOString(),
-    lastValuationDate: new Date().toISOString(),
-    description: 'Mezzanine financing for luxury residential tower in Panama City. 40-story development.',
-    documents: [],
-    createdAt: new Date('2023-04-05').toISOString(),
-    updatedAt: new Date().toISOString(),
-  } as any)
-
-  console.log('✅ Created 6 investments')
 
   // ==================== INVESTORS ====================
   const investor1 = saveInvestor({
@@ -581,9 +328,7 @@ export function seedDemoData() {
     callDate: new Date('2023-02-01').toISOString(),
     dueDate: new Date('2023-02-28').toISOString(),
     noticePeriodDays: 10,
-    purpose: 'Acquisition of Skyline Plaza Apartments - Austin',
-    relatedInvestmentId: investment1.id,
-    relatedInvestmentName: investment1.name,
+    purpose: 'Capital deployment for fund operations and management fees',
     status: 'Fully Paid',
     sentDate: new Date('2023-02-01').toISOString(),
     investorAllocations: [
@@ -645,9 +390,7 @@ export function seedDemoData() {
     callDate: new Date('2023-06-15').toISOString(),
     dueDate: new Date('2023-07-15').toISOString(),
     noticePeriodDays: 15,
-    purpose: 'Series B funding for CloudSync AI and DataVault Systems',
-    relatedInvestmentId: investment3.id,
-    relatedInvestmentName: investment3.name,
+    purpose: 'Capital deployment for portfolio expansion',
     status: 'Fully Paid',
     sentDate: new Date('2023-06-15').toISOString(),
     investorAllocations: [
@@ -713,9 +456,7 @@ export function seedDemoData() {
     recordDate: new Date('2023-09-30').toISOString(),
     paymentDate: new Date('2023-10-15').toISOString(),
     source: 'Operating Income',
-    sourceDescription: 'Quarterly distributions from property operations',
-    relatedInvestmentId: investment1.id,
-    relatedInvestmentName: investment1.name,
+    sourceDescription: 'Quarterly distributions from fund operations',
     isReturnOfCapital: false,
     isIncome: true,
     isCapitalGain: false,
@@ -881,7 +622,6 @@ export function seedDemoData() {
   console.log('')
   console.log('Summary:')
   console.log('  - 3 Funds/Structures')
-  console.log('  - 6 Investments')
   console.log('  - 5 Investors with fund ownerships')
   console.log('  - 2 Capital Calls with investor allocations')
   console.log('  - 3 Distributions with investor allocations')
