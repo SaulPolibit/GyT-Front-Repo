@@ -23,32 +23,28 @@ import {
   Briefcase,
   ArrowRight,
   MapPin,
+  Users,
 } from "lucide-react"
-import { getInvestments } from "@/lib/investments-storage"
 import { getStructures } from "@/lib/structures-storage"
-import type { Investment } from "@/lib/types"
+import type { Structure } from "@/lib/structures-storage"
 
 export default function MarketplacePage() {
-  const [investments, setInvestments] = React.useState<Investment[]>([])
-  const [structures, setStructures] = React.useState<any[]>([])
+  const [structures, setStructures] = React.useState<Structure[]>([])
   const [searchQuery, setSearchQuery] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState('all')
-  const [sectorFilter, setSectorFilter] = React.useState('all')
   const [statusFilter, setStatusFilter] = React.useState('all')
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid')
   const [refreshKey, setRefreshKey] = React.useState(0)
 
   React.useEffect(() => {
-    const allInvestments = getInvestments()
     const allStructures = getStructures()
-    setInvestments(allInvestments)
     setStructures(allStructures)
   }, [refreshKey])
 
   // Listen for storage events to refresh when data changes
   React.useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'polibit_investments') {
+      if (e.key === 'polibit_structures') {
         setRefreshKey(prev => prev + 1)
       }
     }
@@ -70,25 +66,24 @@ export default function MarketplacePage() {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
   }
 
-  const formatPercent = (value: number) => {
-    return `${value.toFixed(2)}%`
-  }
-
-  const formatDate = (dateString: string) => {
+  const formatDate = (date: Date | undefined) => {
+    if (!date) return 'N/A'
     try {
-      return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     } catch {
-      return dateString
+      return 'N/A'
     }
   }
 
   const getTypeIcon = (type: string) => {
     switch (type.toLowerCase()) {
-      case 'real estate':
+      case 'fund':
+        return <Landmark className="h-5 w-5" />
+      case 'sa':
         return <Building2 className="h-5 w-5" />
-      case 'private equity':
+      case 'fideicomiso':
         return <Briefcase className="h-5 w-5" />
-      case 'private debt':
+      case 'private-debt':
         return <DollarSign className="h-5 w-5" />
       default:
         return <Landmark className="h-5 w-5" />
@@ -99,7 +94,7 @@ export default function MarketplacePage() {
     switch (status.toLowerCase()) {
       case 'active':
         return 'default'
-      case 'pending':
+      case 'fundraising':
         return 'secondary'
       case 'closed':
         return 'destructive'
@@ -108,31 +103,19 @@ export default function MarketplacePage() {
     }
   }
 
-  const getFundName = (fundId: string) => {
-    const fund = structures.find(s => s.id === fundId)
-    return fund?.name || 'Unknown Fund'
-  }
-
-  const getTotalFundedAmount = (investment: Investment) => {
-    let amount = 0
-    if (investment.fundEquityPosition) {
-      amount += investment.fundEquityPosition.equityInvested
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'fund':
+        return 'Fund'
+      case 'sa':
+        return 'SA/LLC'
+      case 'fideicomiso':
+        return 'Fideicomiso/Trust'
+      case 'private-debt':
+        return 'Private Debt'
+      default:
+        return type
     }
-    if (investment.fundDebtPosition) {
-      amount += investment.fundDebtPosition.principalProvided
-    }
-    return amount
-  }
-
-  const getCurrentValue = (investment: Investment) => {
-    let value = 0
-    if (investment.fundEquityPosition) {
-      value += investment.fundEquityPosition.currentEquityValue
-    }
-    if (investment.fundDebtPosition) {
-      value += investment.fundDebtPosition.currentDebtValue
-    }
-    return value
   }
 
   // Filter investments
@@ -163,7 +146,7 @@ export default function MarketplacePage() {
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Investment Marketplace</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Structure Marketplace</h1>
         <p className="text-muted-foreground">
           Explore available investment opportunities and fund structures
         </p>
@@ -173,8 +156,8 @@ export default function MarketplacePage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Opportunities</CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Structures</CardTitle>
+            <Landmark className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{allMarketplaceItems.length}</div>
@@ -184,27 +167,27 @@ export default function MarketplacePage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Invested</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Commitment</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(investments.reduce((sum, inv) => sum + getTotalFundedAmount(inv), 0))}
+              {formatCurrency(structures.reduce((sum, s) => sum + s.totalCommitment, 0))}
             </div>
-            <p className="text-xs text-muted-foreground">Across all opportunities</p>
+            <p className="text-xs text-muted-foreground">Across all structures</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Value</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Investors</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(investments.reduce((sum, inv) => sum + getCurrentValue(inv), 0))}
+              {structures.reduce((sum, s) => sum + s.investors, 0)}
             </div>
-            <p className="text-xs text-muted-foreground">Portfolio valuation</p>
+            <p className="text-xs text-muted-foreground">Active investors</p>
           </CardContent>
         </Card>
       </div>
@@ -216,7 +199,7 @@ export default function MarketplacePage() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search investments..."
+              placeholder="Search structures..."
               className="pl-8"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -229,27 +212,10 @@ export default function MarketplacePage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="Real Estate">Real Estate</SelectItem>
-              <SelectItem value="Private Equity">Private Equity</SelectItem>
-              <SelectItem value="Private Debt">Private Debt</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={sectorFilter} onValueChange={setSectorFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by sector" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Sectors</SelectItem>
-              <SelectItem value="Office">Office</SelectItem>
-              <SelectItem value="Multifamily">Multifamily</SelectItem>
-              <SelectItem value="Industrial">Industrial</SelectItem>
-              <SelectItem value="Retail">Retail</SelectItem>
-              <SelectItem value="Hospitality">Hospitality</SelectItem>
-              <SelectItem value="Technology">Technology</SelectItem>
-              <SelectItem value="Healthcare">Healthcare</SelectItem>
-              <SelectItem value="Financial Services">Financial Services</SelectItem>
-              <SelectItem value="Consumer Goods">Consumer Goods</SelectItem>
+              <SelectItem value="fund">Fund</SelectItem>
+              <SelectItem value="sa">SA/LLC</SelectItem>
+              <SelectItem value="fideicomiso">Fideicomiso/Trust</SelectItem>
+              <SelectItem value="private-debt">Private Debt</SelectItem>
             </SelectContent>
           </Select>
 
@@ -259,10 +225,9 @@ export default function MarketplacePage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="Closed">Closed</SelectItem>
-              <SelectItem value="Exited">Exited</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="fundraising">Fundraising</SelectItem>
+              <SelectItem value="closed">Closed</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -289,12 +254,12 @@ export default function MarketplacePage() {
       {allMarketplaceItems.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold mb-2">No opportunities found</p>
+            <Landmark className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-semibold mb-2">No structures found</p>
             <p className="text-sm text-muted-foreground">
-              {searchQuery || typeFilter !== 'all' || sectorFilter !== 'all' || statusFilter !== 'all'
+              {searchQuery || typeFilter !== 'all' || statusFilter !== 'all'
                 ? 'Try adjusting your filters'
-                : 'No investment opportunities available'}
+                : 'No structures available'}
             </p>
           </CardContent>
         </Card>
