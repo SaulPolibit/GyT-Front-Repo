@@ -670,14 +670,13 @@ export function migrateStructures(): void {
       let needsMigration = false
       let migratedStructure = { ...structure }
 
-      // Migrate SA/LLC subtypes from financing-based to function-based
-      if (structure.type === 'sa' && ['equity', 'debt', 'mixed'].includes(structure.subtype)) {
+      // Migrate SA/LLC subtypes - SA/LLC no longer has subtypes
+      if (structure.type === 'sa' && structure.subtype) {
         hasChanges = true
         needsMigration = true
-        // Default all old subtypes to 'spv' (Single-Property Entity)
-        // This is the most common use case for SA/LLC structures
-        migratedStructure.subtype = 'spv'
-        console.log(`Migrated structure "${structure.name}" from SA/LLC subtype "${structure.subtype}" to "spv"`)
+        // SA/LLC no longer supports subtypes, remove it
+        migratedStructure.subtype = ''
+        console.log(`Migrated structure "${structure.name}" - removed SA/LLC subtype "${structure.subtype}"`)
       }
 
       // Check if structure needs migration (missing new fields)

@@ -70,7 +70,7 @@ export const en = {
     logout: "Log out",
     dashboard: "Dashboard",
     structures: "Structures",
-    investments: "Investments",
+    investments: "Assets",
     investors: "Investors",
     reports: "Reports",
     settings: "Settings",
@@ -100,7 +100,7 @@ export const en = {
   // Structure Types
   structures: {
     fund: "Fund",
-    sa: "SA / LLC / SPV",
+    sa: "SA / LLC",
     fideicomiso: "Trust",
     privateDebt: "Private Debt",
   },
@@ -233,7 +233,7 @@ export const en = {
     primaryStructureType: "Primary Structure Type",
     fund: "Fund",
     fundDescription: "Investment fund for single or multiple projects with capital calls",
-    saLLC: "SA / LLC / SPV",
+    saLLC: "SA / LLC",
     saLLCDescription: "Single-property legal entity for isolated risk",
     fideicomiso: "Trust",
     fideicomisoDescription: "Bank trust structure with tax incentives, can hold multiple properties",

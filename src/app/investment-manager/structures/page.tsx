@@ -72,8 +72,7 @@ export default function StructuresPage() {
     const matchesFilter = selectedFilter === 'all' ||
                          (selectedFilter === 'fund' && structure.type === 'fund') ||
                          (selectedFilter === 'sa' && structure.type === 'sa') ||
-                         (selectedFilter === 'fideicomiso' && structure.type === 'fideicomiso') ||
-                         (selectedFilter === 'private-debt' && structure.type === 'private-debt')
+                         (selectedFilter === 'fideicomiso' && structure.type === 'fideicomiso')
 
     const matchesStatus = selectedStatus === 'all' ||
                          structure.status.toLowerCase() === selectedStatus.toLowerCase()
@@ -217,7 +216,6 @@ export default function StructuresPage() {
               <TabsTrigger value="fund">Fund</TabsTrigger>
               <TabsTrigger value="sa">SA / LLC</TabsTrigger>
               <TabsTrigger value="fideicomiso">Trust</TabsTrigger>
-              <TabsTrigger value="private-debt">Private Debt</TabsTrigger>
             </TabsList>
           </Tabs>
           <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
@@ -234,8 +232,8 @@ export default function StructuresPage() {
         <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
           <TabsList>
             <TabsTrigger value="all">All Status</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
             <TabsTrigger value="fundraising">Fundraising</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
             <TabsTrigger value="closed">Closed</TabsTrigger>
           </TabsList>
         </Tabs>

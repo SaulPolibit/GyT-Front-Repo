@@ -72,7 +72,7 @@ export const es: TranslationKeys = {
     logout: "Cerrar sesión",
     dashboard: "Panel",
     structures: "Estructuras",
-    investments: "Inversiones",
+    investments: "Activos",
     investors: "Inversionistas",
     reports: "Reportes",
     settings: "Configuración",
@@ -102,7 +102,7 @@ export const es: TranslationKeys = {
   // Structure Types
   structures: {
     fund: "Fondo",
-    sa: "SA / SRL / SPV",
+    sa: "SA / SRL",
     fideicomiso: "Fideicomiso",
     privateDebt: "Deuda Privada",
   },
@@ -235,7 +235,7 @@ export const es: TranslationKeys = {
     primaryStructureType: "Tipo de Estructura Principal",
     fund: "Fondo",
     fundDescription: "Fondo de inversión para uno o múltiples proyectos con llamadas de capital",
-    saLLC: "SA / SRL / SPV",
+    saLLC: "SA / SRL",
     saLLCDescription: "Entidad legal de una sola propiedad para riesgo aislado",
     fideicomiso: "Fideicomiso",
     fideicomisoDescription: "Estructura de fideicomiso bancario con incentivos fiscales, puede contener múltiples propiedades",

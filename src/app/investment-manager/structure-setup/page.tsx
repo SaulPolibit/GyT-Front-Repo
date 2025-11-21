@@ -67,23 +67,18 @@ interface PricingTier {
 
 // Structure type definitions with standardized country list (for type checking)
 const STRUCTURE_TYPES = {
+  'sa': {
+    label: 'SA / LLC',
+    description: 'Single-property legal entity for isolated risk',
+    subtypes: [],
+    regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
+  },
   'fund': {
     label: 'Fund',
     description: 'Investment fund for single or multiple projects with capital calls',
     subtypes: [
-      { value: 'single-project', label: 'Single-Project Fund', description: 'Fund for one specific project (5-7 year lifecycle)' },
-      { value: 'multi-project', label: 'Multi-Project Fund', description: 'Fund for multiple properties/projects (10-15 year lifecycle)' },
-      { value: 'core-income', label: 'Core/Income Fund', description: 'Rent-focused with stable income (10+ year hold)' },
-    ],
-    regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
-  },
-  'sa': {
-    label: 'SA / LLC / SPV',
-    description: 'Single-property legal entity for isolated risk',
-    subtypes: [
-      { value: 'spv', label: 'Single-Property Entity (SPV)', description: 'Holds one property/project for risk isolation' },
-      { value: 'management', label: 'Management Company / GP Entity', description: 'Manages fund operations and employs investment professionals' },
-      { value: 'joint-venture', label: 'Joint Venture Vehicle', description: 'Partnership structure for co-investment opportunities' }
+      { value: 'single-project', label: 'Single-Asset Fund', description: 'Fund for one specific asset (5-7 year lifecycle)' },
+      { value: 'multi-project', label: 'Multi-Asset Fund', description: 'Fund for multiple properties/assets (10-15 year lifecycle)' },
     ],
     regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
   },
@@ -91,8 +86,8 @@ const STRUCTURE_TYPES = {
     label: 'Trust',
     description: 'Bank trust structure with tax incentives, can hold multiple properties',
     subtypes: [
-      { value: 'single-property', label: 'Single Property Trust', description: 'Trust for one property' },
-      { value: 'multi-property', label: 'Multi-Property Trust', description: 'Trust holding multiple properties (fund-like)' },
+      { value: 'single-property', label: 'Single-Asset Trust', description: 'Trust for one specific asset' },
+      { value: 'multi-property', label: 'Multi-Asset Trust', description: 'Trust holding multiple properties/assets (fund-like)' },
     ],
     regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
   },
@@ -109,15 +104,15 @@ const STRUCTURE_TYPES = {
 
 // Function to get translated structure types
 const getTranslatedStructureTypes = (t: any) => ({
-  'fund': {
-    ...STRUCTURE_TYPES.fund,
-    label: t.structures.fund,
-    description: t.onboarding.fundDescription,
-  },
   'sa': {
     ...STRUCTURE_TYPES.sa,
     label: t.structures.sa,
     description: t.onboarding.saLLCDescription,
+  },
+  'fund': {
+    ...STRUCTURE_TYPES.fund,
+    label: t.structures.fund,
+    description: t.onboarding.fundDescription,
   },
   'fideicomiso': {
     ...STRUCTURE_TYPES.fideicomiso,
@@ -325,6 +320,7 @@ export default function OnboardingPage() {
     // Step 2: Basic Information
     structureName: '',
     jurisdiction: '',
+    jurisdictionOther: '', // When "Other" is selected
     usState: '', // For SA/LLC in United States
     usStateOther: '', // When "Other" is selected
     inceptionDate: undefined,
@@ -579,7 +575,6 @@ export default function OnboardingPage() {
           return {
             level: index,
             name: index === 0 ? 'Master Structure' :
-                  index === targetLevels - 1 ? 'Property/Investment Level' :
                   `Level ${index + 1} Structure`,
             type: formData.structureType, // Use correct field name: formData.structureType (not formData.type which doesn't exist!)
             applyWaterfall: index === 0, // Only apply waterfall at master level by default
@@ -1584,44 +1579,6 @@ export default function OnboardingPage() {
                 </>
               )}
 
-              {/* Pricing Summary */}
-              {additionalCosts && (
-                <div className="bg-primary/5 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold mb-3">Pricing Summary</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Plan:</span>
-                      <span className="font-medium">{currentTier?.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Monthly Base Fee:</span>
-                      <span className="font-medium">${additionalCosts.baseMonthlyCost.toLocaleString()}</span>
-                    </div>
-                    {additionalCosts.additionalAUMCost > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">+ AUM Overage:</span>
-                        <span className="font-medium">${additionalCosts.additionalAUMCost.toLocaleString()}/mo</span>
-                      </div>
-                    )}
-                    {additionalCosts.additionalInvestorCost > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">+ Investor Overage:</span>
-                        <span className="font-medium">${additionalCosts.additionalInvestorCost.toLocaleString()}/mo</span>
-                      </div>
-                    )}
-                    <Separator />
-                    <div className="flex justify-between font-bold">
-                      <span>Total Monthly:</span>
-                      <span className="text-primary">${additionalCosts.totalMonthlyCost.toLocaleString()}/month</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between font-bold">
-                      <span>One-Time Setup Fee:</span>
-                      <span className="text-primary">${additionalCosts.totalSetupCost.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -1672,27 +1629,6 @@ export default function OnboardingPage() {
           <Progress value={progress} className="h-2" />
         </div>
 
-        {currentTier && currentStep >= 3 && (
-          <Alert className="mb-6 border-primary/20 bg-primary/5">
-            <CheckCircle2 className="h-4 w-4 text-primary" />
-            <AlertTitle className="text-primary">
-              {currentTier.name} Plan Selected
-            </AlertTitle>
-            <AlertDescription className="text-primary/80">
-              {(() => {
-                const aum = parseFloat(formData.totalCapitalCommitment)
-                const aumInUSD = convertToUSD(aum, formData.currency)
-                const displayText = formData.currency === 'USD'
-                  ? `$${aum.toLocaleString()} USD`
-                  : `${formData.currency} ${aum.toLocaleString()} (~$${aumInUSD.toLocaleString()} USD)`
-                return `Based on your ${displayText} AUM, you're on the ${currentTier.name} tier at $${currentTier.monthlyFee.toLocaleString()}/month`
-              })()}
-              {additionalCosts && (additionalCosts.additionalAUMCost > 0 || additionalCosts.additionalInvestorCost > 0) && (
-                <span> + ${(additionalCosts.additionalAUMCost + additionalCosts.additionalInvestorCost).toLocaleString()}/month in overages</span>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
 
         {validationErrors.length > 0 && (
           <Alert className="mb-6 border-red-200 bg-red-50">
@@ -1741,7 +1677,7 @@ export default function OnboardingPage() {
                       updateFormData('structureSubtype', '')
                     }}
                   >
-                    {Object.entries(translatedStructureTypes).map(([key, structure]) => (
+                    {Object.entries(translatedStructureTypes).filter(([key]) => key !== 'private-debt').map(([key, structure]) => (
                       <div
                         key={key}
                         className="flex items-start space-x-3 space-y-0 rounded-lg border p-4 hover:bg-gray-50 cursor-pointer"
@@ -1805,9 +1741,6 @@ export default function OnboardingPage() {
                         <Label htmlFor="hierarchyMode" className="cursor-pointer font-medium text-base">
                           Enable Multi-Level Hierarchy
                         </Label>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Create a multi-level structure with cascading distributions (e.g., Master Trust → Investor Trust → Project Trust → Property)
-                        </p>
                       </div>
                     </div>
 
@@ -1860,7 +1793,7 @@ export default function OnboardingPage() {
                                       <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                                      {[2, 3].map(num => (
                                         <SelectItem key={num} value={num.toString()}>
                                           {num} Levels
                                         </SelectItem>
@@ -1894,11 +1827,6 @@ export default function OnboardingPage() {
                                                 </Badge>
                                                 {structure.name}
                                               </CardTitle>
-                                              <CardDescription className="text-xs mt-1">
-                                                {index === 0 && 'Top-level structure (receives distributions from children)'}
-                                                {index === formData.hierarchyLevels - 1 && 'Property/Investment level (income entry point)'}
-                                                {index > 0 && index < formData.hierarchyLevels - 1 && `Intermediate level (flows from Level ${index + 2} to Level ${index})`}
-                                              </CardDescription>
                                             </div>
                                           </div>
                                         </CardHeader>
@@ -1996,43 +1924,7 @@ export default function OnboardingPage() {
                                             )}
                                           </div>
 
-                                          {/* Economic Terms Configuration */}
-                                          <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
-                                            <div className="flex items-start space-x-2">
-                                              <Checkbox
-                                                id={`level-${index}-economic`}
-                                                checked={structure.applyEconomicTerms}
-                                                onCheckedChange={(checked) => {
-                                                  const newStructures = [...formData.hierarchyStructures]
-                                                  newStructures[index] = { ...structure, applyEconomicTerms: checked as boolean }
-                                                  updateFormData('hierarchyStructures', newStructures)
-                                                }}
-                                              />
-                                              <div className="flex-1">
-                                                <Label htmlFor={`level-${index}-economic`} className="cursor-pointer text-xs font-medium">
-                                                  Apply Economic Terms at This Level
-                                                </Label>
-                                                <p className="text-xs text-muted-foreground mt-0.5">
-                                                  {index === formData.hierarchyLevels - 1
-                                                    ? 'Enable if investors will participate at this level (property/investment level)'
-                                                    : 'Calculate management fees, performance fees, and carry at this level'}
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
 
-                                          {/* Income Flow Direction */}
-                                          <div className="pt-2 border-t border-muted">
-                                            <p className="text-xs text-muted-foreground">
-                                              <strong>Income Flow:</strong> {
-                                                index === formData.hierarchyLevels - 1
-                                                  ? '💰 Income enters here from properties/investments'
-                                                  : index === 0
-                                                  ? `⬆️ Receives from Level ${index + 2} → Distributes to investors`
-                                                  : `⬆️ Receives from Level ${index + 2} → Flows to Level ${index}`
-                                              }
-                                            </p>
-                                          </div>
                                         </CardContent>
                                       </Card>
                                     ))}
@@ -2109,9 +2001,23 @@ export default function OnboardingPage() {
                           </SelectItem>
                         )
                       })}
+                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Other Jurisdiction - Text Input */}
+                {formData.jurisdiction === 'other' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="jurisdictionOther">Enter Jurisdiction *</Label>
+                    <Input
+                      id="jurisdictionOther"
+                      value={formData.jurisdictionOther}
+                      onChange={(e) => updateFormData('jurisdictionOther', e.target.value)}
+                      placeholder="e.g., Singapore, Dubai, etc."
+                    />
+                  </div>
+                )}
 
                 {/* US State Selection for United States jurisdiction (Fund, SA/LLC, Trust) */}
                 {['fund', 'sa', 'fideicomiso'].includes(formData.structureType) && formData.jurisdiction === 'United States' && (
@@ -2192,9 +2098,8 @@ export default function OnboardingPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="fundraising">Fundraising</SelectItem>
-                      <SelectItem value="investment">Investment Period</SelectItem>
-                      <SelectItem value="management">Management/Hold</SelectItem>
-                      <SelectItem value="exit">Exit/Distribution</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2294,31 +2199,6 @@ export default function OnboardingPage() {
                   </div>
                 </div>
 
-                {currentTier && (
-                  <Alert className="border-blue-200 bg-blue-50">
-                    <Info className="h-4 w-4 text-blue-600" />
-                    <AlertTitle className="text-blue-900">
-                      {currentTier.name} Plan
-                      {currentTier.badge && (
-                        <Badge className="ml-2 bg-primary">{currentTier.badge}</Badge>
-                      )}
-                    </AlertTitle>
-                    <AlertDescription className="text-blue-700 space-y-2">
-                      <p>{currentTier.description}</p>
-                      <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
-                        <div>
-                          <strong>Max AUM:</strong> ${(currentTier.maxAUM / 1000000).toFixed(0)}M
-                        </div>
-                        <div>
-                          <strong>Max Investors:</strong> {currentTier.maxInvestors}
-                        </div>
-                        <div>
-                          <strong>Max Issuances:</strong> {currentTier.maxIssuances}
-                        </div>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
 
                 {/* Conditional: Show Investment & Financing Configuration for all except Private Debt */}
                 {features.distributionType !== 'interest-only' && (
