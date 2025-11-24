@@ -18,13 +18,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { CalendarIcon, ChevronLeft, ChevronRight, Info, AlertCircle, CheckCircle2, Building2, DollarSign, Users, TrendingUp, Upload, Download, X, Edit, Trash2 } from 'lucide-react'
+import { CalendarIcon, ChevronLeft, ChevronRight, Info, AlertCircle, CheckCircle2, Building2, DollarSign, Users, TrendingUp, Upload, Download, X, Edit, Trash2, Plus } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from '@/hooks/useTranslation'
 import { saveStructure } from '@/lib/structures-storage'
-import { saveInvestor } from '@/lib/investors-storage'
+import { saveInvestor, getInvestors } from '@/lib/investors-storage'
 import { useRouter } from 'next/navigation'
 
 // V3.1: Investor Pre-Registration Interface
@@ -77,8 +77,8 @@ const STRUCTURE_TYPES = {
     label: 'Fund',
     description: 'Investment fund for single or multiple projects with capital calls',
     subtypes: [
-      { value: 'single-project', label: 'Single-Asset Fund', description: 'Fund for one specific asset (5-7 year lifecycle)' },
-      { value: 'multi-project', label: 'Multi-Asset Fund', description: 'Fund for multiple properties/assets (10-15 year lifecycle)' },
+      { value: 'single-project', label: 'Single-Asset Fund', description: 'Fund for one specific asset' },
+      { value: 'multi-project', label: 'Multi-Asset Fund', description: 'Fund for multiple properties/assets' },
     ],
     regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
   },
@@ -87,7 +87,7 @@ const STRUCTURE_TYPES = {
     description: 'Bank trust structure with tax incentives, can hold multiple properties',
     subtypes: [
       { value: 'single-property', label: 'Single-Asset Trust', description: 'Trust for one specific asset' },
-      { value: 'multi-property', label: 'Multi-Asset Trust', description: 'Trust holding multiple properties/assets (fund-like)' },
+      { value: 'multi-property', label: 'Multi-Asset Trust', description: 'Trust holding multiple properties/assets' },
     ],
     regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
   },
@@ -200,6 +200,44 @@ const getStructureFeatures = (structureType: string, subtype: string): Structure
     supportsCarriedInterest: false,
     supportsManagementFees: false,
     distributionType: 'simple'
+  }
+}
+
+// Helper function to get equity and debt subtypes based on structure type
+const getEquityAndDebtSubtypes = (structureType: string) => {
+  const equityOptions: { value: string; label: string }[] = []
+  const debtOptions: { value: string; label: string }[] = []
+
+  // Common debt options for all structure types
+  const commonDebtOptions = [
+    { value: 'bonds', label: 'Bonds' },
+    { value: 'debt-notes', label: 'Debt Notes' },
+    { value: 'mezzanine-debt', label: 'Mezzanine Debt' },
+    { value: 'promissory-notes', label: 'Promissory Notes' },
+  ]
+
+  switch (structureType) {
+    case 'sa':
+      // SA/LLC structure
+      equityOptions.push(
+        { value: 'preferred-shares', label: 'Preferred Shares' },
+        { value: 'common-shares', label: 'Common Shares' },
+        { value: 'membership', label: 'Membership' }
+      )
+      return { equityOptions, debtOptions: commonDebtOptions }
+
+    case 'fideicomiso':
+      // Trust structure
+      equityOptions.push({ value: 'trust-interest', label: 'Trust Interest' })
+      return { equityOptions, debtOptions: commonDebtOptions }
+
+    case 'fund':
+      // Fund structure
+      equityOptions.push({ value: 'fund-shares', label: 'Fund Shares' })
+      return { equityOptions, debtOptions: commonDebtOptions }
+
+    default:
+      return { equityOptions, debtOptions }
   }
 }
 
@@ -331,6 +369,8 @@ export default function OnboardingPage() {
     currency: 'USD',
     plannedInvestments: '1', // NEW: How many properties/projects
     financingStrategy: 'equity', // NEW: equity, debt, or mixed
+    equitySubtype: '', // NEW: Subtype for equity instruments
+    debtSubtype: '', // NEW: Subtype for debt instruments
     totalInvestors: '',
     minCheckSize: '',
     maxCheckSize: '',
@@ -342,11 +382,42 @@ export default function OnboardingPage() {
     performanceFee: '20',
     hurdleRate: '8',
     preferredReturn: '8',
-    waterfallStructure: 'american',
+    waterfallStructure: 'european',
+    waterfallScenarios: [ // Multiple waterfall scenarios (up to 3)
+      {
+        id: '1',
+        name: 'Scenario 1',
+        managementFee: '2',
+        gpSplit: '20',
+        irrHurdle: '8',
+        preferredReturn: '8',
+        isExpanded: true
+      }
+    ] as Array<{id: string; name: string; managementFee: string; gpSplit: string; irrHurdle: string; preferredReturn: string; isExpanded: boolean}>,
 
     // Step 5: Distribution & Tax
     distributionFrequency: 'quarterly',
     defaultTaxRate: '',
+    debtInterestRate: '', // Interest rate for debt instruments
+    debtGrossInterestRate: '', // Gross interest rate for debt
+    enableCapitalCalls: false, // NEW: Whether to enable capital calls configuration
+    capitalCalls: [] as Array<{ id: string; date: string; callPercentage: number }>, // Capital calls (up to 4)
+    // Tax fields - specific to asset type
+    vatRate: '', // For Debt: VAT Rate
+    incomeDebtTaxRate: '', // For Debt: Income tax
+    witholdingDividendTaxRate: '', // For Equity: Withholding / Dividend tax
+    incomeEquityTaxRate: '', // For Equity: Income tax
+    sameTaxTreatment: true, // NEW: Same tax treatment for natural persons and legal entities
+    // Tax fields for natural persons (when sameTaxTreatment is false)
+    vatRateNaturalPersons: '', // For Debt: VAT Rate - Natural Persons
+    incomeDebtTaxRateNaturalPersons: '', // For Debt: Income tax - Natural Persons
+    witholdingDividendTaxRateNaturalPersons: '', // For Equity: Withholding / Dividend tax - Natural Persons
+    incomeEquityTaxRateNaturalPersons: '', // For Equity: Income tax - Natural Persons
+    // Tax fields for legal entities (when sameTaxTreatment is false)
+    vatRateLegalEntities: '', // For Debt: VAT Rate - Legal Entities
+    incomeDebtTaxRateLegalEntities: '', // For Debt: Income tax - Legal Entities
+    witholdingDividendTaxRateLegalEntities: '', // For Equity: Withholding / Dividend tax - Legal Entities
+    incomeEquityTaxRateLegalEntities: '', // For Equity: Income tax - Legal Entities
 
     // Fund-specific
     fundTerm: '10',
@@ -657,9 +728,30 @@ export default function OnboardingPage() {
             parseFloat(formData.minCheckSize) > parseFloat(formData.maxCheckSize)) {
           errors.push('Minimum check size cannot be greater than maximum check size')
         }
+        // Validate equity/debt subtype selection
+        if (formData.financingStrategy === 'equity' && !formData.equitySubtype) {
+          errors.push('Please select an equity instrument type')
+        }
+        if (formData.financingStrategy === 'debt' && !formData.debtSubtype) {
+          errors.push('Please select a debt instrument type')
+        }
         break
 
-      // Steps 4, 5, and 6 have no required fields (all have defaults or are optional)
+      case 5:
+        // Validate capital calls if enabled
+        if (formData.enableCapitalCalls) {
+          if (formData.capitalCalls.length === 0) {
+            errors.push('Please add at least one capital call')
+          } else {
+            const totalCallPercent = formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)
+            if (Math.abs(totalCallPercent - 100) > 0.01) { // Allow for small floating point differences
+              errors.push(`Capital call percentages must total 100% (currently ${totalCallPercent}%)`)
+            }
+          }
+        }
+        break
+
+      // Steps 4 and 6 have no required fields (all have defaults or are optional)
       default:
         break
     }
@@ -723,11 +815,16 @@ export default function OnboardingPage() {
         hurdleRate: formData.hurdleRate,
         preferredReturn: formData.preferredReturn,
         waterfallStructure: formData.waterfallStructure,
+        waterfallScenarios: formData.waterfallScenarios,
         distributionFrequency: formData.distributionFrequency,
         defaultTaxRate: formData.defaultTaxRate,
+        debtInterestRate: formData.debtInterestRate,
+        debtGrossInterestRate: formData.debtGrossInterestRate,
         // V3 Additional fields
         plannedInvestments: formData.plannedInvestments,
         financingStrategy: formData.financingStrategy,
+        equitySubtype: formData.equitySubtype,
+        debtSubtype: formData.debtSubtype,
         usState: formData.usState,
         usStateOther: formData.usStateOther,
         capitalCallNoticePeriod: formData.capitalCallNoticePeriod,
@@ -1269,12 +1366,14 @@ export default function OnboardingPage() {
                     <span className="text-gray-500">Structure Type:</span>
                     <p className="font-medium">{selectedStructure?.label}</p>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Subtype:</span>
-                    <p className="font-medium">
-                      {availableSubtypes.find(s => s.value === formData.structureSubtype)?.label}
-                    </p>
-                  </div>
+                  {formData.structureSubtype && (
+                    <div>
+                      <span className="text-gray-500">Subtype:</span>
+                      <p className="font-medium">
+                        {availableSubtypes.find(s => s.value === formData.structureSubtype)?.label}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <span className="text-gray-500">Jurisdiction:</span>
                     <p className="font-medium">{formData.jurisdiction}</p>
@@ -1297,6 +1396,18 @@ export default function OnboardingPage() {
                     <span className="text-gray-500">Current Stage:</span>
                     <p className="font-medium capitalize">{formData.currentStage}</p>
                   </div>
+                  {formData.structureType === 'fund' && (
+                    <>
+                      <div>
+                        <span className="text-gray-500">Fund Term:</span>
+                        <p className="font-medium">{formData.fundTerm} years</p>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Fund Type:</span>
+                        <p className="font-medium capitalize">{formData.fundType}</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1385,6 +1496,34 @@ export default function OnboardingPage() {
                     <span className="text-gray-500">Financing Strategy:</span>
                     <p className="font-medium capitalize">{formData.financingStrategy}</p>
                   </div>
+                  {formData.financingStrategy === 'equity' && formData.equitySubtype && (
+                    <div>
+                      <span className="text-gray-500">Equity Subtype:</span>
+                      <p className="font-medium">{formData.equitySubtype}</p>
+                    </div>
+                  )}
+                  {formData.financingStrategy === 'debt' && formData.debtSubtype && (
+                    <div>
+                      <span className="text-gray-500">Debt Subtype:</span>
+                      <p className="font-medium">{formData.debtSubtype}</p>
+                    </div>
+                  )}
+                  {formData.financingStrategy === 'mixed' && (
+                    <>
+                      {formData.equitySubtype && (
+                        <div>
+                          <span className="text-gray-500">Equity Subtype:</span>
+                          <p className="font-medium">{formData.equitySubtype}</p>
+                        </div>
+                      )}
+                      {formData.debtSubtype && (
+                        <div>
+                          <span className="text-gray-500">Debt Subtype:</span>
+                          <p className="font-medium">{formData.debtSubtype}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div>
                     <span className="text-gray-500">Total Issuances:</span>
                     <p className="font-medium">{calculatedIssuances}</p>
@@ -1482,24 +1621,111 @@ export default function OnboardingPage() {
                     <p className="font-medium capitalize">{formData.distributionFrequency}</p>
                   </div>
                   <div>
-                    <span className="text-gray-500">Default Tax Rate:</span>
-                    <p className="font-medium">{formData.defaultTaxRate}%</p>
+                    <span className="text-gray-500">Same Tax Treatment:</span>
+                    <p className="font-medium">{formData.sameTaxTreatment ? 'Yes' : 'No'}</p>
                   </div>
-                  {formData.structureType === 'fund' && (
+
+                  {formData.sameTaxTreatment ? (
+                    formData.structureType === 'private-debt' ? (
+                      <>
+                        <div>
+                          <span className="text-gray-500">VAT Rate:</span>
+                          <p className="font-medium">{formData.vatRate}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Income Tax:</span>
+                          <p className="font-medium">{formData.incomeDebtTaxRate}%</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <span className="text-gray-500">Withholding / Dividend Tax:</span>
+                          <p className="font-medium">{formData.witholdingDividendTaxRate}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Income Tax:</span>
+                          <p className="font-medium">{formData.incomeEquityTaxRate}%</p>
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    formData.structureType === 'private-debt' ? (
+                      <>
+                        <div>
+                          <span className="text-gray-500">VAT Rate (Natural Persons):</span>
+                          <p className="font-medium">{formData.vatRateNaturalPersons}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Income Tax (Natural Persons):</span>
+                          <p className="font-medium">{formData.incomeDebtTaxRateNaturalPersons}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">VAT Rate (Legal Entities):</span>
+                          <p className="font-medium">{formData.vatRateLegalEntities}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Income Tax (Legal Entities):</span>
+                          <p className="font-medium">{formData.incomeDebtTaxRateLegalEntities}%</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <span className="text-gray-500">Withholding / Dividend Tax (Natural Persons):</span>
+                          <p className="font-medium">{formData.witholdingDividendTaxRateNaturalPersons}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Income Tax (Natural Persons):</span>
+                          <p className="font-medium">{formData.incomeEquityTaxRateNaturalPersons}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Withholding / Dividend Tax (Legal Entities):</span>
+                          <p className="font-medium">{formData.witholdingDividendTaxRateLegalEntities}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Income Tax (Legal Entities):</span>
+                          <p className="font-medium">{formData.incomeEquityTaxRateLegalEntities}%</p>
+                        </div>
+                      </>
+                    )
+                  )}
+
+                  {formData.structureType === 'private-debt' && (formData.debtInterestRate || formData.debtGrossInterestRate) && (
                     <>
-                      <div>
-                        <span className="text-gray-500">Capital Call Notice Period:</span>
-                        <p className="font-medium">{formData.capitalCallNoticePeriod} days</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Default Capital Call %:</span>
-                        <p className="font-medium">{formData.capitalCallDefaultPercentage}%</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-500">Payment Deadline:</span>
-                        <p className="font-medium">{formData.capitalCallPaymentDeadline} days</p>
-                      </div>
+                      {formData.debtInterestRate && (
+                        <div>
+                          <span className="text-gray-500">Debt Interest Rate:</span>
+                          <p className="font-medium">{formData.debtInterestRate}%</p>
+                        </div>
+                      )}
+                      {formData.debtGrossInterestRate && (
+                        <div>
+                          <span className="text-gray-500">Debt Gross Interest Rate:</span>
+                          <p className="font-medium">{formData.debtGrossInterestRate}%</p>
+                        </div>
+                      )}
                     </>
+                  )}
+
+                  {formData.enableCapitalCalls && formData.capitalCalls.length > 0 && (
+                    <div className="col-span-2 pt-2 border-t">
+                      <h4 className="font-semibold text-sm mb-3">Capital Calls Schedule</h4>
+                      <div className="space-y-2">
+                        {formData.capitalCalls.map((call, idx) => (
+                          <div key={idx} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
+                            <span>Capital Call {idx + 1}:</span>
+                            <span className="font-medium">
+                              {call.date} - {call.callPercentage}%
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-sm font-semibold bg-primary/10 p-2 rounded mt-2">
+                          <span>Total:</span>
+                          <span>{formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)}%</span>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1542,10 +1768,10 @@ export default function OnboardingPage() {
                       <h3 className="text-lg font-semibold">Documentation</h3>
                     </div>
 
-                    {/* Fund Documents */}
+                    {/* Offering-Related Documents */}
                     {formData.uploadedFundDocuments.length > 0 && (
                       <div className="mb-4">
-                        <h4 className="text-sm font-semibold mb-2 text-gray-700">Fund Documents ({formData.uploadedFundDocuments.length})</h4>
+                        <h4 className="text-sm font-semibold mb-2 text-gray-700">Offering-Related Documents ({formData.uploadedFundDocuments.length})</h4>
                         <div className="space-y-1">
                           {formData.uploadedFundDocuments.map((doc, idx) => (
                             <div key={idx} className="flex items-center gap-2 p-2 bg-primary/5 rounded text-sm">
@@ -2249,15 +2475,62 @@ export default function OnboardingPage() {
                           <p className="text-xs text-gray-500">1 issuance per investment</p>
                         </div>
                       </div>
-                      <div className="flex items-start space-x-2">
-                        <RadioGroupItem value="mixed" id="mixed" />
-                        <div>
-                          <Label htmlFor="mixed" className="cursor-pointer font-medium">Mixed (Equity + Debt)</Label>
-                          <p className="text-xs text-gray-500">2 issuances per investment (one for equity, one for debt)</p>
-                        </div>
-                      </div>
                     </RadioGroup>
                   </div>
+
+                  {/* Equity Subtype Selection */}
+                  {formData.financingStrategy === 'equity' && (() => {
+                    const { equityOptions } = getEquityAndDebtSubtypes(formData.structureType)
+                    return equityOptions.length > 0 ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="equitySubtype">
+                          Type of Equity Instrument *
+                        </Label>
+                        <Select
+                          value={formData.equitySubtype}
+                          onValueChange={(value) => updateFormData('equitySubtype', value)}
+                        >
+                          <SelectTrigger id="equitySubtype">
+                            <SelectValue placeholder="Select equity type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {equityOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null
+                  })()}
+
+                  {/* Debt Subtype Selection */}
+                  {formData.financingStrategy === 'debt' && (() => {
+                    const { debtOptions } = getEquityAndDebtSubtypes(formData.structureType)
+                    return debtOptions.length > 0 ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="debtSubtype">
+                          Type of Debt Instrument *
+                        </Label>
+                        <Select
+                          value={formData.debtSubtype}
+                          onValueChange={(value) => updateFormData('debtSubtype', value)}
+                        >
+                          <SelectTrigger id="debtSubtype">
+                            <SelectValue placeholder="Select debt type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {debtOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null
+                  })()}
 
                   <Alert className="border-primary/30 bg-white">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -2324,17 +2597,23 @@ export default function OnboardingPage() {
                     required
                     min="1"
                   />
-                  {currentTier && parseInt(formData.totalInvestors) > currentTier.maxInvestors && currentTier.maxInvestors !== Infinity && (
-                    <p className="text-sm text-orange-600">
-                      ⚠️ You'll have {parseInt(formData.totalInvestors) - currentTier.maxInvestors} investors above your plan limit.
-                      Additional cost: ${(parseInt(formData.totalInvestors) - currentTier.maxInvestors) * currentTier.additionalInvestorCost}/month
-                    </p>
-                  )}
+                  {currentTier && (() => {
+                    const existingInvestorsCount = getInvestors().length
+                    const newInvestorsCount = parseInt(formData.totalInvestors) || 0
+                    const totalInvestors = existingInvestorsCount + newInvestorsCount
+                    const overage = totalInvestors - currentTier.maxInvestors
+                    return overage > 0 && currentTier.maxInvestors !== Infinity ? (
+                      <p className="text-sm text-orange-600">
+                        ⚠️ You'll have {overage} investors above your plan limit.
+                        Additional cost: ${overage * currentTier.additionalInvestorCost}/month
+                      </p>
+                    ) : null
+                  })()}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="minCheckSize">Minimum Check Size *</Label>
+                    <Label htmlFor="minCheckSize">Minimum Ticket Size *</Label>
                     <div className="flex gap-2">
                       <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs">
                         {formData.currency}
@@ -2357,7 +2636,7 @@ export default function OnboardingPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="maxCheckSize">Maximum Check Size *</Label>
+                    <Label htmlFor="maxCheckSize">Maximum Ticket Size *</Label>
                     <div className="flex gap-2">
                       <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs">
                         {formData.currency}
@@ -2478,15 +2757,6 @@ export default function OnboardingPage() {
                         <Download className="w-4 h-4 mr-2" />
                         Download Template
                       </Button>
-                    </div>
-
-                    {/* CSV Format Note */}
-                    <div className="text-xs text-green-700 bg-green-100/50 p-3 rounded border border-green-200">
-                      <p className="font-semibold mb-1">CSV Format Notes:</p>
-                      <ul className="list-disc list-inside space-y-0.5">
-                        <li><span className="font-medium">investor_type</span>: Individual, Institution, Family Office, or Fund of Funds</li>
-                        <li><span className="font-medium">hierarchy_level</span>: 1-N for multi-level structures, or 0 if hierarchy is not enabled</li>
-                      </ul>
                     </div>
 
                     <input
@@ -2973,7 +3243,7 @@ export default function OnboardingPage() {
                       </p>
                     </AlertDescription>
                   </Alert>
-                ) : (
+                ) : formData.financingStrategy === 'equity' ? (
                   <div className="space-y-2">
                     <Label htmlFor="distributionModel">Distribution Model *</Label>
                     <Select
@@ -2985,104 +3255,217 @@ export default function OnboardingPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="simple">Simple Pro-Rata Distribution</SelectItem>
-                        <SelectItem value="waterfall">Waterfall Distribution (2-20 Structure)</SelectItem>
+                        <SelectItem value="waterfall">Waterfall Distribution</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-sm text-gray-500">
                       {formData.distributionModel === 'simple' && 'Profits distributed proportionally based on ownership percentage'}
-                      {formData.distributionModel === 'waterfall' && 'Complex waterfall with management fees, performance fees, hurdle rates'}
+                      {formData.distributionModel === 'waterfall' && 'Distributions are calculated on total fund performance'}
                     </p>
                   </div>
-                )}
+                ) : formData.financingStrategy === 'debt' ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="debtInterestRate">Interest Rate (Brute) %</Label>
+                      <Input
+                        id="debtInterestRate"
+                        type="number"
+                        step="0.1"
+                        placeholder="5.0"
+                        value={formData.debtInterestRate}
+                        onChange={(e) => updateFormData('debtInterestRate', e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500">Base interest rate</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="debtGrossInterestRate">Annual Gross Interest %</Label>
+                      <Input
+                        id="debtGrossInterestRate"
+                        type="number"
+                        step="0.1"
+                        placeholder="5.5"
+                        value={formData.debtGrossInterestRate}
+                        onChange={(e) => updateFormData('debtGrossInterestRate', e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500">Gross interest rate for reporting</p>
+                    </div>
+                  </div>
+                ) : null}
 
-                {/* Conditional: Show waterfall config if waterfall model selected */}
-                {formData.distributionModel === 'waterfall' && (
+                {/* Conditional: Show waterfall scenarios if waterfall model selected - only for equity */}
+                {formData.financingStrategy === 'equity' && formData.distributionModel === 'waterfall' && (
                 <>
-                <div className="space-y-2">
-                  <Label htmlFor="waterfallStructure">Waterfall Structure *</Label>
-                  <Select
-                    value={formData.waterfallStructure}
-                    onValueChange={(value) => updateFormData('waterfallStructure', value)}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-base font-medium text-gray-900">Waterfall Scenarios</h4>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (formData.waterfallScenarios.length < 3) {
+                          const newScenario = {
+                            id: Date.now().toString(),
+                            name: `Scenario ${formData.waterfallScenarios.length + 1}`,
+                            managementFee: '2',
+                            gpSplit: '20',
+                            irrHurdle: '8',
+                            preferredReturn: '8',
+                            isExpanded: true
+                          }
+                          updateFormData('waterfallScenarios', [...formData.waterfallScenarios, newScenario])
+                        }
+                      }}
+                      disabled={formData.waterfallScenarios.length >= 3}
+                    >
+                      + Add Scenario {formData.waterfallScenarios.length < 3 ? `(${formData.waterfallScenarios.length}/3)` : '(Max)'}
+                    </Button>
+                  </div>
+
+                  {formData.waterfallScenarios.map((scenario, index) => (
+                    <div key={scenario.id} className="border border-gray-200 rounded-lg">
+                      <div className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer" onClick={() => {
+                        const updated = [...formData.waterfallScenarios]
+                        updated[index].isExpanded = !updated[index].isExpanded
+                        updateFormData('waterfallScenarios', updated)
+                      }}>
+                        <div className="flex items-center gap-2">
+                          <span className={`transform transition-transform ${scenario.isExpanded ? 'rotate-180' : ''}`}>
+                            ▼
+                          </span>
+                          <h5 className="font-medium text-gray-900">{scenario.name}</h5>
+                        </div>
+                        {formData.waterfallScenarios.length > 1 && (
+                          <button
+                            type="button"
+                            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              updateFormData('waterfallScenarios', formData.waterfallScenarios.filter((_, i) => i !== index))
+                            }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+
+                      {scenario.isExpanded && (
+                        <div className="p-4 border-t border-gray-200 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`managementFee-${scenario.id}`}>Management Fee (%)</Label>
+                              <Input
+                                id={`managementFee-${scenario.id}`}
+                                type="number"
+                                step="0.1"
+                                placeholder="2.0"
+                                value={scenario.managementFee}
+                                onChange={(e) => {
+                                  const updated = [...formData.waterfallScenarios]
+                                  updated[index].managementFee = e.target.value
+                                  updateFormData('waterfallScenarios', updated)
+                                }}
+                              />
+                              <p className="text-xs text-gray-500">Annual % of AUM</p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`gpSplit-${scenario.id}`}>GP Split / Carry (%)</Label>
+                              <Input
+                                id={`gpSplit-${scenario.id}`}
+                                type="number"
+                                step="0.1"
+                                placeholder="20.0"
+                                value={scenario.gpSplit}
+                                onChange={(e) => {
+                                  const updated = [...formData.waterfallScenarios]
+                                  updated[index].gpSplit = e.target.value
+                                  updateFormData('waterfallScenarios', updated)
+                                }}
+                              />
+                              <p className="text-xs text-gray-500">% of profits above hurdle</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor={`irrHurdle-${scenario.id}`}>IRR Hurdle / Hurdle Rate (%)</Label>
+                              <Input
+                                id={`irrHurdle-${scenario.id}`}
+                                type="number"
+                                step="0.1"
+                                placeholder="8.0"
+                                value={scenario.irrHurdle}
+                                onChange={(e) => {
+                                  const updated = [...formData.waterfallScenarios]
+                                  updated[index].irrHurdle = e.target.value
+                                  updateFormData('waterfallScenarios', updated)
+                                }}
+                              />
+                              <p className="text-xs text-gray-500">Minimum return before carry</p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`preferredReturn-${scenario.id}`}>Preferred Return (%)</Label>
+                              <Input
+                                id={`preferredReturn-${scenario.id}`}
+                                type="number"
+                                step="0.1"
+                                placeholder="8.0"
+                                value={scenario.preferredReturn}
+                                onChange={(e) => {
+                                  const updated = [...formData.waterfallScenarios]
+                                  updated[index].preferredReturn = e.target.value
+                                  updateFormData('waterfallScenarios', updated)
+                                }}
+                              />
+                              <p className="text-xs text-gray-500">Annual preferred return to LPs</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Performance Methodology Selection - moved before 2-and-20 */}
+                <div className="space-y-3">
+                  <Label className="text-base font-medium text-gray-900">
+                    Do you track detailed capital calls?
+                  </Label>
+                  <p className="text-xs text-gray-700">
+                    Do you call capital specifically to pay management fees, finance an investment, and is the use known at the time of the capital call?
+                  </p>
+
+                  <RadioGroup
+                    value={formData.performanceMethodology}
+                    onValueChange={(value) => updateFormData('performanceMethodology', value)}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="american">American (Deal-by-Deal)</SelectItem>
-                      <SelectItem value="european">European (Whole Fund)</SelectItem>
-                      <SelectItem value="custom">Custom Tiers</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-gray-500">
-                    {formData.waterfallStructure === 'american' && 'Distributions calculated per deal/asset'}
-                    {formData.waterfallStructure === 'european' && 'Distributions calculated on total fund performance'}
-                    {formData.waterfallStructure === 'custom' && 'Custom tiered structure based on performance'}
-                  </p>
+                    <div className="flex items-start space-x-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50/50 cursor-pointer">
+                      <RadioGroupItem value="granular" id="granular" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="granular" className="cursor-pointer font-medium text-gray-900">
+                          Yes - Use Granular Methodology
+                        </Label>
+                        <p className="text-xs text-gray-700 mt-1">
+                          Detailed tracking of capital call purposes. Most accurate for performance reporting.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50/50 cursor-pointer">
+                      <RadioGroupItem value="grossup" id="grossup-fund" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="grossup-fund" className="cursor-pointer font-medium text-gray-900">
+                          No - Use Gross Up Methodology
+                        </Label>
+                        <p className="text-xs text-gray-700 mt-1">
+                          Simplified calculation. Suitable when capital call purposes aren't tracked in detail.
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="managementFee">Management Fee (%)</Label>
-                    <Input
-                      id="managementFee"
-                      type="number"
-                      step="0.1"
-                      placeholder="2.0"
-                      value={formData.managementFee}
-                      onChange={(e) => updateFormData('managementFee', e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500">Annual % of AUM</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="performanceFee">Performance Fee / Carry (%)</Label>
-                    <Input
-                      id="performanceFee"
-                      type="number"
-                      step="0.1"
-                      placeholder="20.0"
-                      value={formData.performanceFee}
-                      onChange={(e) => updateFormData('performanceFee', e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500">% of profits above hurdle</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="hurdleRate">Hurdle Rate (%)</Label>
-                    <Input
-                      id="hurdleRate"
-                      type="number"
-                      step="0.1"
-                      placeholder="8.0"
-                      value={formData.hurdleRate}
-                      onChange={(e) => updateFormData('hurdleRate', e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500">Minimum return before carry</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="preferredReturn">Preferred Return (%)</Label>
-                    <Input
-                      id="preferredReturn"
-                      type="number"
-                      step="0.1"
-                      placeholder="8.0"
-                      value={formData.preferredReturn}
-                      onChange={(e) => updateFormData('preferredReturn', e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500">Annual preferred return to LPs</p>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-yellow-50 rounded-lg">
-                  <h4 className="font-medium text-sm text-yellow-900 mb-2">Standard 2-and-20 Structure</h4>
-                  <p className="text-xs text-yellow-700">
-                    Most funds use 2% management fee + 20% performance fee above an 8% hurdle rate.
-                    Adjust based on your investor negotiations and market standards.
-                  </p>
-                </div>
                 </>
                 )}
 
@@ -3102,13 +3485,14 @@ export default function OnboardingPage() {
                   </Alert>
                 )}
 
-                {/* V5: ILPA Performance Methodology Selector */}
+                {/* V5: ILPA Performance Methodology Selector - only show for equity with waterfall distribution */}
+                {formData.financingStrategy === 'equity' && formData.distributionModel === 'waterfall' && (
                 <div className="mt-8 p-6 bg-purple-50 rounded-lg border-2 border-purple-200 space-y-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-5 h-5 text-purple-600" />
-                    <h4 className="font-semibold text-purple-900">ILPA Performance Reporting Methodology</h4>
+                    <TrendingUp className="w-5 h-5 text-gray-700" />
+                    <h4 className="font-semibold text-gray-900">ILPA Performance Reporting Methodology</h4>
                   </div>
-                  <p className="text-sm text-purple-700 mb-4">
+                  <p className="text-sm text-gray-700 mb-4">
                     Select how you will calculate gross performance for investor reporting. This follows ILPA (Institutional Limited Partners Association) standards.
                   </p>
 
@@ -3127,103 +3511,22 @@ export default function OnboardingPage() {
                     </div>
                   </div>
 
-                  {/* Calculation Level Selection */}
-                  <div className="space-y-3">
-                    <Label className="text-base font-medium text-purple-900">
-                      Where do you calculate "Gross Performance"?
-                    </Label>
-                    <RadioGroup
-                      value={formData.calculationLevel}
-                      onValueChange={(value) => {
-                        updateFormData('calculationLevel', value)
-                        // Auto-select methodology based on level
-                        if (value === 'portfolio-level') {
-                          updateFormData('performanceMethodology', 'grossup')
-                        }
-                      }}
-                    >
-                      <div className="flex items-start space-x-2 p-3 border border-purple-200 rounded-lg hover:bg-purple-50/50 cursor-pointer">
-                        <RadioGroupItem value="fund-level" id="fund-level" className="mt-1" />
-                        <div className="flex-1">
-                          <Label htmlFor="fund-level" className="cursor-pointer font-medium text-purple-900">
-                            Fund-Level (Fund-to-Investor cash flows)
-                          </Label>
-                          <p className="text-xs text-purple-700 mt-1">
-                            Track cash flows between fund and investors. Requires detailed capital call tracking.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start space-x-2 p-3 border border-purple-200 rounded-lg hover:bg-purple-50/50 cursor-pointer">
-                        <RadioGroupItem value="portfolio-level" id="portfolio-level" className="mt-1" />
-                        <div className="flex-1">
-                          <Label htmlFor="portfolio-level" className="cursor-pointer font-medium text-purple-900">
-                            Portfolio-Level (Fund-to-Investment cash flows)
-                          </Label>
-                          <p className="text-xs text-purple-700 mt-1">
-                            Track cash flows between fund and investments. Simpler, uses Gross Up methodology.
-                          </p>
-                        </div>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  {/* Conditional: If Fund-Level, ask about detailed capital calls */}
-                  {formData.calculationLevel === 'fund-level' && (
-                    <div className="space-y-3 pl-4 border-l-4 border-purple-300">
-                      <Label className="text-base font-medium text-purple-900">
-                        Do you track detailed capital calls?
-                      </Label>
-                      <p className="text-xs text-purple-700">
-                        Do you call capital specifically to pay management fees, finance an investment, and is the use known at the time of the capital call?
-                      </p>
-                      <RadioGroup
-                        value={formData.performanceMethodology}
-                        onValueChange={(value) => updateFormData('performanceMethodology', value)}
-                      >
-                        <div className="flex items-start space-x-2 p-3 border border-purple-200 rounded-lg hover:bg-purple-50/50 cursor-pointer">
-                          <RadioGroupItem value="granular" id="granular" className="mt-1" />
-                          <div className="flex-1">
-                            <Label htmlFor="granular" className="cursor-pointer font-medium text-purple-900">
-                              Yes - Use Granular Methodology
-                            </Label>
-                            <p className="text-xs text-purple-700 mt-1">
-                              Detailed tracking of capital call purposes. Most accurate for performance reporting.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-start space-x-2 p-3 border border-purple-200 rounded-lg hover:bg-purple-50/50 cursor-pointer">
-                          <RadioGroupItem value="grossup" id="grossup-fund" className="mt-1" />
-                          <div className="flex-1">
-                            <Label htmlFor="grossup-fund" className="cursor-pointer font-medium text-purple-900">
-                              No - Use Gross Up Methodology
-                            </Label>
-                            <p className="text-xs text-purple-700 mt-1">
-                              Simplified calculation. Suitable when capital call purposes aren't tracked in detail.
-                            </p>
-                          </div>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                  )}
-
-                  {/* Show selected methodology */}
+                  {/* ILPA Reporting Note */}
                   {formData.performanceMethodology && (
                     <Alert className="border-purple-300 bg-white">
                       <CheckCircle2 className="h-4 w-4 text-purple-600" />
-                      <AlertTitle className="text-purple-900">Selected Methodology</AlertTitle>
+                      <AlertTitle className="text-purple-900">ILPA Reporting</AlertTitle>
                       <AlertDescription className="text-purple-700">
-                        <p className="font-medium">
-                          {formData.performanceMethodology === 'granular' ? 'Granular Methodology' : 'Gross Up Methodology'}
-                        </p>
-                        <p className="text-sm mt-1">
+                        <p className="text-sm">
                           {formData.performanceMethodology === 'granular'
-                            ? 'You will track detailed capital call purposes for accurate performance calculations based on Fund-to-Investor cash flows.'
-                            : 'You will use simplified performance calculations. Management fees and expenses will be grossed up.'}
+                            ? 'Granular methodology with detailed capital call tracking provides the most accurate ILPA-compliant performance reporting.'
+                            : 'Gross Up methodology enables simplified ILPA reporting with management fees and expenses grossed up.'}
                         </p>
                       </AlertDescription>
                     </Alert>
                   )}
                 </div>
+                )}
               </div>
               )
             })()}
@@ -3244,35 +3547,345 @@ export default function OnboardingPage() {
                       <SelectItem value="quarterly">Quarterly</SelectItem>
                       <SelectItem value="semi-annual">Semi-Annual</SelectItem>
                       <SelectItem value="annual">Annual</SelectItem>
-                      <SelectItem value="on-exit">On Exit Only</SelectItem>
+                      {formData.structureType !== 'private-debt' && (
+                        <SelectItem value="on-exit">On Exit Only</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="defaultTaxRate">
-                    Default Tax Rate (%)
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Corporate tax rate for {formData.jurisdiction}</p>
-                          <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                  <Input
-                    id="defaultTaxRate"
-                    type="number"
-                    step="0.1"
-                    placeholder="25.0"
-                    value={formData.defaultTaxRate}
-                    onChange={(e) => updateFormData('defaultTaxRate', e.target.value)}
+                <div className="flex items-center gap-3">
+                  <input
+                    id="sameTaxTreatment"
+                    type="checkbox"
+                    checked={formData.sameTaxTreatment}
+                    onChange={(e) => updateFormData('sameTaxTreatment', e.target.checked)}
+                    className="w-4 h-4 cursor-pointer"
                   />
+                  <Label htmlFor="sameTaxTreatment" className="cursor-pointer text-sm">
+                    The same tax treatment applies to both natural persons and legal entities
+                  </Label>
                 </div>
+
+                {formData.sameTaxTreatment ? (
+                  // Show 2 fields for same treatment
+                  formData.structureType === 'private-debt' ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="vatRate">
+                          VAT Rate (%)
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Value Added Tax rate for {formData.jurisdiction}</p>
+                                <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <Input
+                          id="vatRate"
+                          type="number"
+                          step="0.1"
+                          placeholder="21.0"
+                          value={formData.vatRate}
+                          onChange={(e) => updateFormData('vatRate', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="incomeDebtTaxRate">
+                          Income Tax (%)
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Income tax rate for {formData.jurisdiction}</p>
+                                <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <Input
+                          id="incomeDebtTaxRate"
+                          type="number"
+                          step="0.1"
+                          placeholder="25.0"
+                          value={formData.incomeDebtTaxRate}
+                          onChange={(e) => updateFormData('incomeDebtTaxRate', e.target.value)}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="witholdingDividendTaxRate">
+                          Withholding / Dividend Tax (%)
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Withholding tax rate on dividend distributions for {formData.jurisdiction}</p>
+                                <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <Input
+                          id="witholdingDividendTaxRate"
+                          type="number"
+                          step="0.1"
+                          placeholder="15.0"
+                          value={formData.witholdingDividendTaxRate}
+                          onChange={(e) => updateFormData('witholdingDividendTaxRate', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="incomeEquityTaxRate">
+                          Income Tax (%)
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Income tax rate for {formData.jurisdiction}</p>
+                                <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <Input
+                          id="incomeEquityTaxRate"
+                          type="number"
+                          step="0.1"
+                          placeholder="25.0"
+                          value={formData.incomeEquityTaxRate}
+                          onChange={(e) => updateFormData('incomeEquityTaxRate', e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )
+                ) : (
+                  // Show 4 fields for different treatment (2 for natural persons, 2 for legal entities)
+                  formData.structureType === 'private-debt' ? (
+                    <>
+                      <div className="border-t pt-4">
+                        <h4 className="font-medium text-sm mb-4 text-gray-900">Natural Persons</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="vatRateNaturalPersons">
+                              VAT Rate (%)
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>VAT rate for natural persons in {formData.jurisdiction}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Label>
+                            <Input
+                              id="vatRateNaturalPersons"
+                              type="number"
+                              step="0.1"
+                              placeholder="21.0"
+                              value={formData.vatRateNaturalPersons}
+                              onChange={(e) => updateFormData('vatRateNaturalPersons', e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="incomeDebtTaxRateNaturalPersons">
+                              Income Tax (%)
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Income tax rate for natural persons in {formData.jurisdiction}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Label>
+                            <Input
+                              id="incomeDebtTaxRateNaturalPersons"
+                              type="number"
+                              step="0.1"
+                              placeholder="25.0"
+                              value={formData.incomeDebtTaxRateNaturalPersons}
+                              onChange={(e) => updateFormData('incomeDebtTaxRateNaturalPersons', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="border-t pt-4">
+                        <h4 className="font-medium text-sm mb-4 text-gray-900">Legal Entities</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="vatRateLegalEntities">
+                              VAT Rate (%)
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>VAT rate for legal entities in {formData.jurisdiction}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Label>
+                            <Input
+                              id="vatRateLegalEntities"
+                              type="number"
+                              step="0.1"
+                              placeholder="21.0"
+                              value={formData.vatRateLegalEntities}
+                              onChange={(e) => updateFormData('vatRateLegalEntities', e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="incomeDebtTaxRateLegalEntities">
+                              Income Tax (%)
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Income tax rate for legal entities in {formData.jurisdiction}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Label>
+                            <Input
+                              id="incomeDebtTaxRateLegalEntities"
+                              type="number"
+                              step="0.1"
+                              placeholder="25.0"
+                              value={formData.incomeDebtTaxRateLegalEntities}
+                              onChange={(e) => updateFormData('incomeDebtTaxRateLegalEntities', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="border-t pt-4">
+                        <h4 className="font-medium text-sm mb-4 text-gray-900">Natural Persons</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="witholdingDividendTaxRateNaturalPersons">
+                              Withholding / Dividend Tax (%)
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Withholding tax rate for natural persons in {formData.jurisdiction}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Label>
+                            <Input
+                              id="witholdingDividendTaxRateNaturalPersons"
+                              type="number"
+                              step="0.1"
+                              placeholder="15.0"
+                              value={formData.witholdingDividendTaxRateNaturalPersons}
+                              onChange={(e) => updateFormData('witholdingDividendTaxRateNaturalPersons', e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="incomeEquityTaxRateNaturalPersons">
+                              Income Tax (%)
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Income tax rate for natural persons in {formData.jurisdiction}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Label>
+                            <Input
+                              id="incomeEquityTaxRateNaturalPersons"
+                              type="number"
+                              step="0.1"
+                              placeholder="25.0"
+                              value={formData.incomeEquityTaxRateNaturalPersons}
+                              onChange={(e) => updateFormData('incomeEquityTaxRateNaturalPersons', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="border-t pt-4">
+                        <h4 className="font-medium text-sm mb-4 text-gray-900">Legal Entities</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="witholdingDividendTaxRateLegalEntities">
+                              Withholding / Dividend Tax (%)
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Withholding tax rate for legal entities in {formData.jurisdiction}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Label>
+                            <Input
+                              id="witholdingDividendTaxRateLegalEntities"
+                              type="number"
+                              step="0.1"
+                              placeholder="15.0"
+                              value={formData.witholdingDividendTaxRateLegalEntities}
+                              onChange={(e) => updateFormData('witholdingDividendTaxRateLegalEntities', e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="incomeEquityTaxRateLegalEntities">
+                              Income Tax (%)
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Income tax rate for legal entities in {formData.jurisdiction}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </Label>
+                            <Input
+                              id="incomeEquityTaxRateLegalEntities"
+                              type="number"
+                              step="0.1"
+                              placeholder="25.0"
+                              value={formData.incomeEquityTaxRateLegalEntities}
+                              onChange={(e) => updateFormData('incomeEquityTaxRateLegalEntities', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )
+                )}
 
                 <div className="p-4 bg-blue-50 rounded-lg space-y-2">
                   <h4 className="font-medium text-sm text-blue-900">Investor-Level Tax Configuration</h4>
@@ -3286,143 +3899,125 @@ export default function OnboardingPage() {
                   </ul>
                 </div>
 
-                {additionalCosts && (
-                  <Alert className="border-primary/20 bg-primary/5">
-                    <AlertCircle className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-primary">Pricing Summary</AlertTitle>
-                    <AlertDescription className="text-primary/80 space-y-2">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><strong>Monthly Base Fee:</strong></div>
-                        <div>${additionalCosts.baseMonthlyCost.toLocaleString()}</div>
-
-                        {additionalCosts.additionalAUMCost > 0 && (
-                          <>
-                            <div><strong>+ AUM Overage:</strong></div>
-                            <div>${additionalCosts.additionalAUMCost.toLocaleString()}/month</div>
-                          </>
-                        )}
-
-                        {additionalCosts.additionalInvestorCost > 0 && (
-                          <>
-                            <div><strong>+ Investor Overage:</strong></div>
-                            <div>${additionalCosts.additionalInvestorCost.toLocaleString()}/month</div>
-                          </>
-                        )}
-
-                        <div className="col-span-2 border-t border-primary/30 my-1"></div>
-
-                        <div><strong>Total Monthly:</strong></div>
-                        <div className="font-bold">${additionalCosts.totalMonthlyCost.toLocaleString()}/month</div>
-
-                        <div className="col-span-2 border-t border-primary/30 my-1"></div>
-
-                        <div><strong>One-Time Setup Fee:</strong></div>
-                        <div className="font-bold">${additionalCosts.totalSetupCost.toLocaleString()}</div>
-                      </div>
-
-                      {additionalCosts.additionalIssuanceCost > 0 && (
-                        <p className="text-xs mt-2">
-                          * Includes ${additionalCosts.additionalIssuanceCost.toLocaleString()} for {calculatedIssuances - currentTier!.maxIssuances} additional issuance(s)
-                        </p>
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="p-4 bg-green-50 rounded-lg space-y-4">
-                  <h4 className="font-medium text-sm text-green-900">Capital Call Configuration</h4>
-                  <p className="text-xs text-green-700 mb-3">
-                    Set default parameters for capital calls. These can be adjusted for individual calls.
-                  </p>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="capitalCallNoticePeriod" className="text-xs">
-                        Notice Period (Days)
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="inline-block ml-1 h-3 w-3 text-gray-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Days notice before capital is due</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Label>
-                      <Input
-                        id="capitalCallNoticePeriod"
-                        type="number"
-                        placeholder="10"
-                        value={formData.capitalCallNoticePeriod}
-                        onChange={(e) => updateFormData('capitalCallNoticePeriod', e.target.value)}
-                        className="bg-white"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="capitalCallDefaultPercentage" className="text-xs">
-                        Default Call %
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="inline-block ml-1 h-3 w-3 text-gray-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>% of commitment typically called</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Label>
-                      <Input
-                        id="capitalCallDefaultPercentage"
-                        type="number"
-                        placeholder="25"
-                        value={formData.capitalCallDefaultPercentage}
-                        onChange={(e) => updateFormData('capitalCallDefaultPercentage', e.target.value)}
-                        className="bg-white"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="capitalCallPaymentDeadline" className="text-xs">
-                        Payment Deadline (Days)
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="inline-block ml-1 h-3 w-3 text-gray-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Days to wire funds after call</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </Label>
-                      <Input
-                        id="capitalCallPaymentDeadline"
-                        type="number"
-                        placeholder="15"
-                        value={formData.capitalCallPaymentDeadline}
-                        onChange={(e) => updateFormData('capitalCallPaymentDeadline', e.target.value)}
-                        className="bg-white"
-                      />
-                    </div>
-                  </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="enableCapitalCalls"
+                    type="checkbox"
+                    checked={formData.enableCapitalCalls}
+                    onChange={(e) => updateFormData('enableCapitalCalls', e.target.checked)}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <Label htmlFor="enableCapitalCalls" className="cursor-pointer font-medium">
+                    Capital Calls
+                  </Label>
                 </div>
+
+                {formData.enableCapitalCalls && (
+                  <div className="p-4 bg-green-50 rounded-lg space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-sm text-green-900">Capital Calls</h4>
+                        <p className="text-xs text-green-700 mt-1">
+                          Define capital call schedule. Total must equal 100%.
+                        </p>
+                      </div>
+                      {formData.capitalCalls.length < 4 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            const newCall = {
+                              id: `call-${Date.now()}`,
+                              date: '',
+                              callPercentage: 0
+                            }
+                            updateFormData('capitalCalls', [...formData.capitalCalls, newCall])
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Call
+                        </Button>
+                      )}
+                    </div>
+
+                    {formData.capitalCalls.length === 0 ? (
+                      <p className="text-xs text-green-700 italic">No capital calls added yet. Click "Add Call" to create one.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {formData.capitalCalls.map((call, index) => (
+                          <div key={call.id} className="bg-white rounded-lg p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h5 className="font-medium text-sm text-gray-900">Capital Call {index + 1}</h5>
+                              {formData.capitalCalls.length > 1 && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    updateFormData('capitalCalls', formData.capitalCalls.filter(c => c.id !== call.id))
+                                  }}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor={`call-date-${call.id}`}>Date</Label>
+                                <Input
+                                  id={`call-date-${call.id}`}
+                                  type="date"
+                                  value={call.date}
+                                  onChange={(e) => {
+                                    const updated = formData.capitalCalls.map(c =>
+                                      c.id === call.id ? { ...c, date: e.target.value } : c
+                                    )
+                                    updateFormData('capitalCalls', updated)
+                                  }}
+                                  className="bg-white"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`call-percent-${call.id}`}>Call % (0-100)</Label>
+                                <Input
+                                  id={`call-percent-${call.id}`}
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.1"
+                                  value={call.callPercentage}
+                                  onChange={(e) => {
+                                    const updated = formData.capitalCalls.map(c =>
+                                      c.id === call.id ? { ...c, callPercentage: parseFloat(e.target.value) || 0 } : c
+                                    )
+                                    updateFormData('capitalCalls', updated)
+                                  }}
+                                  className="bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="bg-white rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm text-gray-900">Total Call %:</span>
+                            <span className={`font-bold text-sm ${formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0) === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                              {formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
             {/* STEP 6: Document Upload */}
             {currentStep === 6 && (
               <div className="space-y-6">
-                <Alert className="border-blue-200 bg-blue-50">
-                  <Info className="h-4 w-4 text-blue-600" />
-                  <AlertTitle className="text-blue-900">Document Upload Requirements</AlertTitle>
-                  <AlertDescription className="text-blue-700 text-sm">
-                    Upload relevant documents for your structure. Accepted formats: PDF, DOCX, XLSX. Maximum file size: 10MB per file.
-                  </AlertDescription>
-                </Alert>
-
                 {/* Upload Error Alert */}
                 {uploadError && (
                   <Alert className="border-red-200 bg-red-50">
@@ -3434,14 +4029,14 @@ export default function OnboardingPage() {
                   </Alert>
                 )}
 
-                {/* Fund-Related Documents Section */}
+                {/* Offering-Related Documents Section */}
                 <div className="p-4 bg-primary/5 rounded-lg space-y-4">
                   <div className="flex items-center gap-2 mb-3">
                     <Building2 className="w-5 h-5 text-primary" />
-                    <h4 className="font-medium text-sm text-primary">Fund-Related Documents</h4>
+                    <h4 className="font-medium text-sm text-primary">Offering-Related Documents</h4>
                   </div>
                   <p className="text-xs text-gray-600 mb-3">
-                    Upload documents related to your fund structure (e.g., PPM, LPA, Operating Agreement, Formation Documents)
+                    Upload documents related to your offering structure
                   </p>
 
                   <div className="space-y-3">
@@ -3450,7 +4045,7 @@ export default function OnboardingPage() {
                         <div className="flex flex-col items-center justify-center text-center">
                           <DollarSign className="w-8 h-8 text-gray-400 mb-2" />
                           <p className="text-sm font-medium text-gray-700 mb-1">
-                            Click to upload fund documents
+                            Click to upload offering documents
                           </p>
                           <p className="text-xs text-gray-500">
                             PDF, DOCX, XLSX up to 10MB each
@@ -3524,17 +4119,6 @@ export default function OnboardingPage() {
                       ))}
                     </div>
                   )}
-
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p className="font-medium">Suggested documents:</p>
-                    <ul className="list-disc list-inside space-y-0.5 ml-2">
-                      <li>Private Placement Memorandum (PPM)</li>
-                      <li>Limited Partnership Agreement (LPA)</li>
-                      <li>Operating Agreement</li>
-                      <li>Formation Documents</li>
-                      <li>Subscription Agreement Template</li>
-                    </ul>
-                  </div>
                 </div>
 
                 {/* Investor-Related Documents Section */}
@@ -3544,7 +4128,7 @@ export default function OnboardingPage() {
                     <h4 className="font-medium text-sm text-green-900">Investor-Related Documents</h4>
                   </div>
                   <p className="text-xs text-gray-600 mb-3">
-                    Upload documents for investor onboarding (e.g., KYC forms, subscription agreements, investor questionnaires)
+                    Upload documents for investor onboarding
                   </p>
 
                   <div className="space-y-3">
@@ -3642,10 +4226,11 @@ export default function OnboardingPage() {
                   </div>
                 </div>
 
-                <Alert className="border-yellow-200 bg-yellow-50">
-                  <AlertCircle className="h-4 w-4 text-yellow-600" />
-                  <AlertDescription className="text-yellow-700 text-xs">
-                    <strong>Note:</strong> Document upload is optional during initial setup. You can always upload or update documents later from your dashboard.
+                <Alert className="border-blue-200 bg-blue-50">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <AlertTitle className="text-blue-900">Document Upload</AlertTitle>
+                  <AlertDescription className="text-blue-700 text-sm">
+                    Document upload is mandatory. We will upload your documents to the investment portal this process takes up to 10 days.
                   </AlertDescription>
                 </Alert>
               </div>

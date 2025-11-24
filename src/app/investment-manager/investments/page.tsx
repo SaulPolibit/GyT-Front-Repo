@@ -80,15 +80,15 @@ export default function InvestmentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Investments</h1>
+          <h1 className="text-3xl font-bold">Assets</h1>
           <p className="text-muted-foreground mt-1">
-            {filteredInvestments.length} investment{filteredInvestments.length !== 1 ? 's' : ''}
+            {filteredInvestments.length} asset{filteredInvestments.length !== 1 ? 's' : ''}
           </p>
         </div>
         <Button asChild>
           <Link href="/investment-manager/investments/add">
             <Plus className="h-4 w-4 mr-2" />
-            Add Investment
+            Add Asset
           </Link>
         </Button>
       </div>
@@ -135,7 +135,7 @@ export default function InvestmentsPage() {
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search investments..."
+              placeholder="Search assets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -219,10 +219,10 @@ export default function InvestmentsPage() {
                   </div>
                 </div>
 
-                {/* Investment Type Badge */}
+                {/* Asset Type Badge */}
                 <div className="pt-2 border-t">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Investment Type</span>
+                    <span className="text-muted-foreground">Asset Type</span>
                     <Badge variant="outline" className="text-xs">
                       {investment.investmentType}
                     </Badge>
@@ -249,15 +249,15 @@ export default function InvestmentsPage() {
         <Card className="p-12">
           <div className="text-center">
             <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No investments found</h3>
+            <h3 className="text-lg font-semibold mb-2">No assets found</h3>
             <p className="text-muted-foreground mb-4">
-              {searchQuery ? 'Try adjusting your search' : 'Add your first investment to get started'}
+              {searchQuery ? 'Try adjusting your search' : 'Add your first asset to get started'}
             </p>
             {!searchQuery && (
               <Button asChild>
                 <Link href="/investment-manager/investments/add">
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Investment
+                  Add Asset
                 </Link>
               </Button>
             )}

@@ -53,11 +53,16 @@ export interface Structure {
   hurdleRate?: string
   preferredReturn?: string
   waterfallStructure?: string
+  waterfallScenarios?: Array<{id: string; name: string; managementFee: string; gpSplit: string; irrHurdle: string; preferredReturn: string; isExpanded: boolean}>
   distributionFrequency?: string
   defaultTaxRate?: string
+  debtInterestRate?: string
+  debtGrossInterestRate?: string
   // V3 Additional fields
   plannedInvestments?: string
   financingStrategy?: string
+  equitySubtype?: string
+  debtSubtype?: string
   usState?: string
   usStateOther?: string
   capitalCallNoticePeriod?: string
