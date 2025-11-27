@@ -93,6 +93,7 @@ export interface Structure {
     waterfallAlgorithm: 'american' | 'european' | null
   }[]
   parentStructureId?: string | null              // Link to parent structure
+  parentStructureOwnershipPercentage?: number | null  // Percentage ownership of parent
   childStructureIds?: string[]                   // Array of child structure IDs
   hierarchyLevel?: number                        // Depth in tree (1 = root/master, 2, 3, ...)
   hierarchyPath?: string[]                       // Full path from root to this node
@@ -751,10 +752,10 @@ export function migrateStructures(): void {
         migratedStructure = {
           ...migratedStructure,
           hierarchyMode: false,
-          parentStructureId: null,
-          childStructureIds: [],
-          hierarchyLevel: 0,
-          hierarchyPath: [structure.id],
+          parentStructureId: migratedStructure.parentStructureId ?? null,  // Preserve existing parentStructureId
+          childStructureIds: migratedStructure.childStructureIds ?? [],
+          hierarchyLevel: migratedStructure.hierarchyLevel ?? 0,
+          hierarchyPath: migratedStructure.hierarchyPath ?? [structure.id],
           applyWaterfallAtThisLevel: true,
           applyEconomicTermsAtThisLevel: true,
           waterfallAlgorithm: null,

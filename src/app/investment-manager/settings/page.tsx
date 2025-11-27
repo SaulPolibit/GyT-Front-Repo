@@ -612,6 +612,7 @@ export default function SettingsPage() {
             <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">Sample Data Includes:</p>
             <ul className="text-sm text-amber-800 dark:text-amber-200 space-y-1 ml-4 list-disc">
               <li>3 Fund Structures (Real Estate, Tech, Private Debt)</li>
+              <li>Parent-Child Structure Relationships (hierarchy example with 60% ownership)</li>
               <li>5 Investors with varied fund commitments</li>
               <li>2 Capital Calls with payment history</li>
               <li>3 Distributions showing different scenarios</li>

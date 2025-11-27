@@ -107,7 +107,34 @@ export function seedDemoData() {
     inceptionDate: new Date('2023-03-20'),
   } as any)
 
-  console.log('✅ Created 3 fund structures')
+  // Create a child structure under Alpha Real Estate Fund
+  console.log('📝 Creating child structure with parent ID:', fundAlpha.id)
+  const alphaProjectSA = saveStructure({
+    name: 'Alpha Project 1 - Residential Complex',
+    type: 'sa',
+    subtype: '',
+    jurisdiction: 'United States',
+    usState: 'CA',
+    totalCommitment: 12500000,
+    currency: 'USD',
+    plannedInvestments: '1',
+    investors: 8,
+    status: 'active',
+    createdDate: new Date('2023-02-01'),
+    inceptionDate: new Date('2023-02-01'),
+    parentStructureId: fundAlpha.id,
+    parentStructureOwnershipPercentage: 60,
+    hierarchyLevel: 2,
+  } as any)
+
+  console.log('✅ Saved child structure:', {
+    id: alphaProjectSA.id,
+    name: alphaProjectSA.name,
+    parentStructureId: alphaProjectSA.parentStructureId,
+    parentStructureOwnershipPercentage: alphaProjectSA.parentStructureOwnershipPercentage
+  })
+
+  console.log('✅ Created 3 fund structures + 1 child structure')
 
   // ==================== INVESTORS ====================
   const investor1 = saveInvestor({

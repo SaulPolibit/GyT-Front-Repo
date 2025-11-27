@@ -43,6 +43,12 @@ export default function StructuresPage() {
     migrateStructures()
     // Then load structures
     const loadedStructures = getStructures()
+    console.log('📊 Loaded structures:', loadedStructures.map(s => ({
+      id: s.id,
+      name: s.name,
+      parentStructureId: s.parentStructureId,
+      parentStructureOwnershipPercentage: s.parentStructureOwnershipPercentage
+    })))
     setStructures(loadedStructures)
   }, [])
 
@@ -80,10 +86,8 @@ export default function StructuresPage() {
     return matchesSearch && matchesFilter && matchesStatus
   })
 
-  // For grid view: only show master structures (no children)
-  const masterStructures = filteredStructures.filter((structure) =>
-    !structure.parentStructureId || structure.hierarchyLevel === 1
-  )
+  // For grid view: show all structures (both parent and child)
+  const masterStructures = filteredStructures
 
   // For list view: organize into hierarchies
   const organizedStructures: Array<{master: Structure; children: Structure[]}> = []
@@ -339,6 +343,33 @@ export default function StructuresPage() {
                   </div>
                 </div>
 
+                {/* Parent Structure */}
+                {structure.parentStructureId ? (
+                  <>
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Parent Structure</span>
+                        <span className="font-medium">{structures.find(s => s.id === structure.parentStructureId)?.name || 'Unknown'}</span>
+                      </div>
+                    </div>
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Percentage Owned</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {structure.parentStructureOwnershipPercentage !== null && structure.parentStructureOwnershipPercentage !== undefined ? `${structure.parentStructureOwnershipPercentage}%` : 'Not set'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Parent Structure</span>
+                      <span className="text-xs text-muted-foreground">None</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Structure Type Badge */}
                 <div className="pt-2 border-t">
                   <div className="flex items-center justify-between text-xs">
@@ -374,6 +405,7 @@ export default function StructuresPage() {
                 <TableHead>Location</TableHead>
                 <TableHead>Total Commitment</TableHead>
                 <TableHead>Investors</TableHead>
+                <TableHead>Parent Structure</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -414,6 +446,15 @@ export default function StructuresPage() {
                       <span className="font-semibold">{master.investors}</span>
                     </TableCell>
                     <TableCell>
+                      {master.parentStructureId ? (
+                        <Badge variant="secondary" className="text-xs">
+                          {master.parentStructureOwnershipPercentage !== null && master.parentStructureOwnershipPercentage !== undefined ? `${master.parentStructureOwnershipPercentage}% Owned` : 'Not set'}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={STATUS_VARIANTS[master.status]} className="text-xs">
                         {master.status.charAt(0).toUpperCase() + master.status.slice(1)}
                       </Badge>
@@ -450,6 +491,15 @@ export default function StructuresPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{child.investors}</span>
+                      </TableCell>
+                      <TableCell>
+                        {child.parentStructureId ? (
+                          <Badge variant="secondary" className="text-xs">
+                            {child.parentStructureOwnershipPercentage !== null && child.parentStructureOwnershipPercentage !== undefined ? `${child.parentStructureOwnershipPercentage}% Owned` : 'Not set'}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">

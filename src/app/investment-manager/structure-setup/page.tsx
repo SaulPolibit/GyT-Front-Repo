@@ -23,7 +23,7 @@ import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from '@/hooks/useTranslation'
-import { saveStructure } from '@/lib/structures-storage'
+import { saveStructure, getStructures } from '@/lib/structures-storage'
 import { saveInvestor, getInvestors } from '@/lib/investors-storage'
 import { useRouter } from 'next/navigation'
 
@@ -350,6 +350,9 @@ export default function OnboardingPage() {
   // Form validation error state
   const [validationErrors, setValidationErrors] = useState<string[]>([])
 
+  // Parent structure toggle state
+  const [hasParentStructure, setHasParentStructure] = useState(false)
+
   const [formData, setFormData] = useState({
     // Step 1: Structure Type Selection
     structureType: '',
@@ -456,6 +459,7 @@ export default function OnboardingPage() {
       waterfallAlgorithm: 'american' | 'european' | null
     }[],
     parentStructureId: null as string | null,
+    parentStructureOwnershipPercentage: null as number | null,
     applyWaterfallAtThisLevel: true,
     applyEconomicTermsAtThisLevel: true,
     waterfallAlgorithm: null as 'american' | 'european' | null,
@@ -685,6 +689,10 @@ export default function OnboardingPage() {
         if (formData.structureType && availableSubtypes.length > 0 && !formData.structureSubtype) {
           errors.push('Please select a structure subtype')
         }
+        // Validate parent structure ownership percentage if parent is selected
+        if (formData.parentStructureId && (formData.parentStructureOwnershipPercentage === null || formData.parentStructureOwnershipPercentage === undefined || formData.parentStructureOwnershipPercentage === '')) {
+          errors.push('Please enter the parent structure ownership percentage (0-100%)')
+        }
         break
 
       case 2:
@@ -792,6 +800,13 @@ export default function OnboardingPage() {
     setIsSubmitting(true)
 
     try {
+      // Validate that if parent structure is selected, ownership percentage must be provided
+      if (formData.parentStructureId && (formData.parentStructureOwnershipPercentage === null || formData.parentStructureOwnershipPercentage === undefined || formData.parentStructureOwnershipPercentage === '')) {
+        toast.error('Please enter the parent structure ownership percentage')
+        setIsSubmitting(false)
+        return
+      }
+
       // Save the structure to localStorage
       const newStructure = saveStructure({
         name: formData.structureName,
@@ -846,6 +861,7 @@ export default function OnboardingPage() {
         numberOfLevels: formData.hierarchyLevels, // Pass number of levels for multi-level creation
         hierarchyStructures: formData.hierarchyStructures,
         parentStructureId: formData.parentStructureId,
+        parentStructureOwnershipPercentage: formData.parentStructureOwnershipPercentage,
         childStructureIds: [],
         hierarchyLevel: formData.parentStructureId ? 1 : 1, // Start at level 1 for root structures
         hierarchyPath: [], // Will be updated immediately after save
@@ -1954,222 +1970,87 @@ export default function OnboardingPage() {
                   </div>
                 )}
 
-                {/* Hierarchy Configuration */}
-                {formData.structureSubtype && (
+                {/* Parent Structure Configuration */}
+                {formData.structureType && (availableSubtypes.length === 0 || formData.structureSubtype) && (
                   <div className="space-y-4 pt-6 border-t">
                     <div className="flex items-start space-x-3">
                       <Checkbox
-                        id="hierarchyMode"
-                        checked={formData.hierarchyMode}
-                        onCheckedChange={(checked) => updateFormData('hierarchyMode', checked as boolean)}
+                        id="hasParentStructure"
+                        checked={hasParentStructure}
+                        onCheckedChange={(checked) => {
+                          setHasParentStructure(checked as boolean)
+                          if (!checked) {
+                            updateFormData('parentStructureId', null)
+                            updateFormData('parentStructureOwnershipPercentage', null)
+                          }
+                        }}
                       />
                       <div className="flex-1">
-                        <Label htmlFor="hierarchyMode" className="cursor-pointer font-medium text-base">
-                          Enable Multi-Level Hierarchy
+                        <Label htmlFor="hasParentStructure" className="cursor-pointer font-medium text-base">
+                          This structure has a parent structure
                         </Label>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Check if this structure is part of a larger hierarchy with a parent structure
+                        </p>
                       </div>
                     </div>
 
-                    {formData.hierarchyMode && (
-                      <Alert className="border-primary/30 bg-white">
-                        <Info className="h-4 w-4 text-primary" />
-                        <AlertTitle className="text-primary">Multi-Level Hierarchy Enabled</AlertTitle>
-                        <AlertDescription className="text-primary/80">
-                          <div className="space-y-4 mt-3">
-                            <div className="space-y-2">
-                              <Label htmlFor="hierarchySetupApproach">Setup Approach *</Label>
-                              <RadioGroup
-                                value={formData.hierarchySetupApproach}
-                                onValueChange={(value) => updateFormData('hierarchySetupApproach', value as 'all-at-once' | 'incremental')}
-                              >
-                                <div className="flex items-start space-x-3 space-y-0 rounded-lg border border-primary/20 p-4 hover:bg-primary/5 cursor-pointer">
-                                  <RadioGroupItem value="all-at-once" id="all-at-once" />
-                                  <div className="flex-1">
-                                    <Label htmlFor="all-at-once" className="cursor-pointer font-medium text-sm">
-                                      All-at-Once Configuration
-                                    </Label>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      Define the entire hierarchy structure upfront with all levels and their configurations
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex items-start space-x-3 space-y-0 rounded-lg border border-primary/20 p-4 hover:bg-primary/5 cursor-pointer">
-                                  <RadioGroupItem value="incremental" id="incremental" />
-                                  <div className="flex-1">
-                                    <Label htmlFor="incremental" className="cursor-pointer font-medium text-sm">
-                                      Incremental Setup
-                                    </Label>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      Create this structure now and add child/parent structures later as needed
-                                    </p>
-                                  </div>
-                                </div>
-                              </RadioGroup>
-                            </div>
+                    {hasParentStructure && (
+                      <div className="space-y-4 pl-6 border-l-2 border-primary/30">
+                        {/* Parent Structure Selection */}
+                        <div className="space-y-2">
+                          <Label htmlFor="parentStructure" className="font-medium">
+                            Select Parent Structure *
+                          </Label>
+                          <Select
+                            value={formData.parentStructureId || ''}
+                            onValueChange={(value) => updateFormData('parentStructureId', value || null)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a parent structure..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getStructures()
+                                .map((structure) => (
+                                  <SelectItem key={structure.id} value={structure.id}>
+                                    {structure.name} ({structure.type})
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Select the parent structure that this structure will be linked to
+                          </p>
+                        </div>
 
-                            {formData.hierarchySetupApproach === 'all-at-once' && (
-                              <div className="space-y-3 pt-3 border-t border-primary/20">
-                                <div className="space-y-2">
-                                  <Label htmlFor="hierarchyLevels">Number of Hierarchy Levels *</Label>
-                                  <Select
-                                    value={formData.hierarchyLevels.toString()}
-                                    onValueChange={(value) => updateFormData('hierarchyLevels', parseInt(value))}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {[2, 3].map(num => (
-                                        <SelectItem key={num} value={num.toString()}>
-                                          {num} Levels
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <p className="text-xs text-muted-foreground">
-                                    Example of 3 levels: Master Trust → Investor Trust → Project Trust
-                                  </p>
-                                </div>
+                        {/* Parent Structure Ownership Percentage */}
+                        <div className="space-y-2">
+                          <Label htmlFor="parentOwnershipPercentage" className="font-medium">
+                            Parent Structure Ownership % *
+                          </Label>
+                          <Input
+                            id="parentOwnershipPercentage"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            placeholder="e.g., 50"
+                            value={formData.parentStructureOwnershipPercentage ?? ''}
+                            onChange={(e) => updateFormData('parentStructureOwnershipPercentage', e.target.value ? parseFloat(e.target.value) : null)}
+                            required
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            The percentage ownership that the parent structure has of this new structure (0-100%)
+                          </p>
+                        </div>
 
-                                <Alert className="bg-primary/5 border-primary/30">
-                                  <AlertCircle className="h-4 w-4 text-primary" />
-                                  <AlertDescription className="text-xs text-primary/80">
-                                    <strong>Configure Each Level:</strong> Define where calculations occur in your hierarchy. Income enters at the bottom (property level) and flows upward through each level to investors.
-                                  </AlertDescription>
-                                </Alert>
-
-                                {/* Level-by-Level Configuration */}
-                                {formData.hierarchyStructures.length > 0 && (
-                                  <div className="space-y-3 pt-3 border-t border-primary/20">
-                                    <h4 className="text-sm font-semibold text-primary">Hierarchy Level Configuration</h4>
-                                    {formData.hierarchyStructures.map((structure, index) => (
-                                      <Card key={index} className="border-primary/20 bg-white">
-                                        <CardHeader className="pb-3">
-                                          <div className="flex items-center justify-between">
-                                            <div>
-                                              <CardTitle className="text-sm flex items-center gap-2">
-                                                <Badge variant="outline" className="text-xs">
-                                                  Level {index + 1} of {formData.hierarchyLevels}
-                                                </Badge>
-                                                {structure.name}
-                                              </CardTitle>
-                                            </div>
-                                          </div>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                          {/* Structure Name */}
-                                          <div className="space-y-1.5">
-                                            <Label htmlFor={`level-${index}-name`} className="text-xs">
-                                              Level Name *
-                                            </Label>
-                                            <Input
-                                              id={`level-${index}-name`}
-                                              value={structure.name}
-                                              onChange={(e) => {
-                                                const newStructures = [...formData.hierarchyStructures]
-                                                newStructures[index] = { ...structure, name: e.target.value }
-                                                updateFormData('hierarchyStructures', newStructures)
-                                              }}
-                                              placeholder="e.g., Master Trust, Investor Trust, Project Trust"
-                                              className="h-8 text-xs"
-                                            />
-                                          </div>
-
-                                          {/* Waterfall Configuration */}
-                                          <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
-                                            <div className="flex items-start space-x-2">
-                                              <Checkbox
-                                                id={`level-${index}-waterfall`}
-                                                checked={structure.applyWaterfall}
-                                                onCheckedChange={(checked) => {
-                                                  const newStructures = [...formData.hierarchyStructures]
-                                                  newStructures[index] = {
-                                                    ...structure,
-                                                    applyWaterfall: checked as boolean,
-                                                    waterfallAlgorithm: checked ? 'american' : null
-                                                  }
-                                                  updateFormData('hierarchyStructures', newStructures)
-                                                }}
-                                              />
-                                              <div className="flex-1">
-                                                <Label htmlFor={`level-${index}-waterfall`} className="cursor-pointer text-xs font-medium">
-                                                  Apply Waterfall at This Level
-                                                </Label>
-                                                <p className="text-xs text-muted-foreground mt-0.5">
-                                                  {index === formData.hierarchyLevels - 1
-                                                    ? 'Enable if investors participate at this level (property/investment level)'
-                                                    : 'Calculate distributions using waterfall algorithm before passing to next level'}
-                                                </p>
-                                              </div>
-                                            </div>
-
-                                            {structure.applyWaterfall && (
-                                              <div className="space-y-2 pl-6 pt-2">
-                                                <div className="space-y-1.5">
-                                                  <Label htmlFor={`level-${index}-algorithm`} className="text-xs">
-                                                    Waterfall Algorithm
-                                                  </Label>
-                                                  <RadioGroup
-                                                    value={structure.waterfallAlgorithm || 'american'}
-                                                    onValueChange={(value) => {
-                                                      const newStructures = [...formData.hierarchyStructures]
-                                                      newStructures[index] = {
-                                                        ...structure,
-                                                        waterfallAlgorithm: value as 'american' | 'european'
-                                                      }
-                                                      updateFormData('hierarchyStructures', newStructures)
-                                                    }}
-                                                  >
-                                                    <div className="flex items-center space-x-2">
-                                                      <RadioGroupItem value="american" id={`level-${index}-american`} />
-                                                      <Label htmlFor={`level-${index}-american`} className="cursor-pointer text-xs font-normal">
-                                                        American (deal-by-deal)
-                                                      </Label>
-                                                    </div>
-                                                    <div className="flex items-center space-x-2">
-                                                      <RadioGroupItem value="european" id={`level-${index}-european`} />
-                                                      <Label htmlFor={`level-${index}-european`} className="cursor-pointer text-xs font-normal">
-                                                        European (whole fund)
-                                                      </Label>
-                                                    </div>
-                                                  </RadioGroup>
-                                                </div>
-
-                                                {/* Cascade Calculation Order Info */}
-                                                <Alert className="bg-amber-50 border-amber-200">
-                                                  <Info className="h-3 w-3 text-amber-600" />
-                                                  <AlertDescription className="text-xs text-amber-800">
-                                                    <strong>Cascade Order:</strong> Waterfall will calculate at this level, then distribute to {
-                                                      index === 0
-                                                        ? 'investors'
-                                                        : `Level ${index} before flowing upward`
-                                                    }. Income flows from bottom to top.
-                                                  </AlertDescription>
-                                                </Alert>
-                                              </div>
-                                            )}
-                                          </div>
-
-
-                                        </CardContent>
-                                      </Card>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {formData.hierarchySetupApproach === 'incremental' && (
-                              <Alert className="bg-primary/5 border-primary/30">
-                                <CheckCircle2 className="h-4 w-4 text-primary" />
-                                <AlertDescription className="text-xs text-primary/80">
-                                  <strong>Incremental Mode:</strong> This structure will be created as standalone. You can link it to parent or child structures later from the Structures page.
-                                </AlertDescription>
-                              </Alert>
-                            )}
-                          </div>
-                        </AlertDescription>
-                      </Alert>
+                        <Alert className="bg-blue-50 border-blue-200">
+                          <Info className="h-4 w-4 text-blue-600" />
+                          <AlertDescription className="text-xs text-blue-800">
+                            <strong>Parent-Child Relationship:</strong> The parent structure owns {formData.parentStructureOwnershipPercentage || '0'}% of this structure. This relationship will be maintained for calculations and reporting.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
                     )}
                   </div>
                 )}

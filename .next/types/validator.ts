@@ -83,6 +83,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/investment-manager/demo-waterfall/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/investment-manager/demo-waterfall">> = Specific
+  const handler = {} as typeof import("../../src/app/investment-manager/demo-waterfall/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/investment-manager/documents/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/investment-manager/documents">> = Specific
@@ -515,10 +524,100 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/lp-portal/marketplace/investment/[investmentId]/checkout/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/investment/[investmentId]/checkout">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/investment/[investmentId]/checkout/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/investment/[investmentId]/contracts/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/investment/[investmentId]/contracts">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/investment/[investmentId]/contracts/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/investment/[investmentId]/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/investment/[investmentId]">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/investment/[investmentId]/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/investment/[investmentId]/payment-success/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/investment/[investmentId]/payment-success">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/investment/[investmentId]/payment-success/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/investment/[investmentId]/payment/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/investment/[investmentId]/payment">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/investment/[investmentId]/payment/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/lp-portal/marketplace/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace">> = Specific
   const handler = {} as typeof import("../../src/app/lp-portal/marketplace/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/structure/[structureId]/checkout/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/structure/[structureId]/checkout">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/structure/[structureId]/checkout/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/structure/[structureId]/contracts/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/structure/[structureId]/contracts">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/structure/[structureId]/contracts/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/structure/[structureId]/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/structure/[structureId]">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/structure/[structureId]/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/structure/[structureId]/payment-success/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/structure/[structureId]/payment-success">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/structure/[structureId]/payment-success/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/lp-portal/marketplace/structure/[structureId]/payment/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/lp-portal/marketplace/structure/[structureId]/payment">> = Specific
+  const handler = {} as typeof import("../../src/app/lp-portal/marketplace/structure/[structureId]/payment/page.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
