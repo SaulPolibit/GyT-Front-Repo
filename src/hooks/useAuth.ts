@@ -82,6 +82,13 @@ export function useAuth() {
     setAuthState({ isLoggedIn: false, token: null, user: null, supabase: null })
   }
 
+  // Refresh auth state from localStorage
+  const refreshAuthState = () => {
+    const state = getAuthState()
+    setAuthState(state)
+    console.log('[useAuth] Auth state refreshed from localStorage')
+  }
+
   return {
     isLoggedIn: authState.isLoggedIn,
     user: authState.user,
@@ -90,6 +97,7 @@ export function useAuth() {
     isLoading,
     login: handleLogin,
     logout: handleLogout,
+    refreshAuthState,
     getUserName: () => authState.user ? getUserDisplayName(authState.user) : null,
   }
 }

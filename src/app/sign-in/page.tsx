@@ -17,7 +17,7 @@ export default function SignInPage() {
   const [password, setPassword] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
   const router = useRouter()
-  const { login, isLoggedIn, user } = useAuth()
+  const { login, isLoggedIn, user, refreshAuthState } = useAuth()
 
   // If already logged in, redirect
   React.useEffect(() => {
@@ -85,6 +85,10 @@ export default function SignInPage() {
                   diditData.data.status
                 )
                 console.log('[Sign-In] KYC data updated in localStorage')
+
+                // Refresh auth state to pick up new KYC data
+                refreshAuthState()
+                console.log('[Sign-In] Auth state refreshed with new KYC data')
               }
             } else {
               console.error('[Sign-In] Failed to create DiDit session:', await diditResponse.text())

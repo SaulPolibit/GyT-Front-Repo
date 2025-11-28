@@ -20,7 +20,7 @@ export default function LPLoginPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState('')
   const router = useRouter()
-  const { login, isLoggedIn, user } = useAuth()
+  const { login, isLoggedIn, user, refreshAuthState } = useAuth()
 
   // If already logged in, redirect to portfolio
   React.useEffect(() => {
@@ -90,7 +90,7 @@ export default function LPLoginPage() {
         console.log('[LP Login] KYC Status:', response.user.kycStatus)
 
         // KYC validation for role 3 (investors) without kycId
-        if (!response.user.kycId && response.user.kycStatus !== 'Approved') {
+        if (!response.user.kycId || response.user.kycStatus !== 'Approved') {
           console.log('[LP Login] Retrieving DiDit session for investor...')
           try {
             const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
@@ -113,6 +113,10 @@ export default function LPLoginPage() {
                   diditData.data.status
                 )
                 console.log('[LP Login] KYC data updated in localStorage')
+
+                // Refresh auth state to pick up new KYC data
+                refreshAuthState()
+                console.log('[LP Login] Auth state refreshed with new KYC data')
               }
             } else {
               console.error('[LP Login] Failed to create DiDit session:', await diditResponse.text())
