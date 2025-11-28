@@ -15,37 +15,143 @@ import {
   Landmark,
   FileText,
   AlertCircle,
+  ExternalLink,
+  Download,
 } from "lucide-react"
-import { getStructureById } from "@/lib/structures-storage"
 import type { Structure } from "@/lib/structures-storage"
+import { getAuthToken } from "@/lib/auth-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { useAuth } from "@/hooks/useAuth"
 
 interface Props {
   params: Promise<{ structureId: string }>
 }
 
+interface Document {
+  id: string
+  entityType: string
+  entityId: string
+  documentType: string
+  documentName: string
+  filePath: string
+  fileSize: number
+  mimeType: string
+  uploadedBy: string
+  version: number
+  isActive: boolean
+  tags: string[]
+  metadata: Record<string, any>
+  notes: string
+  userId: string
+  createdAt: string
+  updatedAt: string
+}
+
 export default function MarketplaceStructureDetailPage({ params }: Props) {
   const { structureId } = use(params)
+  const { user } = useAuth()
   const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [refreshKey, setRefreshKey] = React.useState(0)
+  const [documents, setDocuments] = React.useState<Document[]>([])
+  const [documentsLoading, setDocumentsLoading] = React.useState(false)
+  const [documentsError, setDocumentsError] = React.useState<string | null>(null)
+
+  // Check if user can buy (KYC approved)
+  const canBuy = user?.kycStatus === 'Approved'
 
   React.useEffect(() => {
-    const struct = getStructureById(structureId)
-    setStructure(struct)
-    setLoading(false)
-  }, [structureId, refreshKey])
+    const fetchStructure = async () => {
+      setLoading(true)
+      setError(null)
 
-  // Listen for storage events to refresh when data changes
-  React.useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'polibit_structures') {
-        setRefreshKey(prev => prev + 1)
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          setError('No authentication token found')
+          setLoading(false)
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getSingleStructure(structureId)), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch structure: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log('[Structure Detail] API Response:', data)
+
+        // Map API fields to existing structure format
+        const mappedStructure = {
+          ...data.data,
+          currency: data.data.baseCurrency,
+          jurisdiction: data.data.taxJurisdiction,
+          fundTerm: data.data.finalDate,
+        }
+
+        setStructure(mappedStructure)
+      } catch (err) {
+        console.error('[Structure Detail] Error fetching structure:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch structure')
+        setStructure(null)
+      } finally {
+        setLoading(false)
       }
     }
 
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [])
+    fetchStructure()
+  }, [structureId, refreshKey])
+
+  // Fetch documents for this structure
+  React.useEffect(() => {
+    const fetchDocuments = async () => {
+      setDocumentsLoading(true)
+      setDocumentsError(null)
+
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          setDocumentsError('No authentication token found')
+          setDocumentsLoading(false)
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getStructureDocuments(structureId)), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch documents: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log('[Structure Documents] API Response:', data)
+
+        setDocuments(data.data || [])
+      } catch (err) {
+        console.error('[Structure Documents] Error fetching documents:', err)
+        setDocumentsError(err instanceof Error ? err.message : 'Failed to fetch documents')
+      } finally {
+        setDocumentsLoading(false)
+      }
+    }
+
+    fetchDocuments()
+  }, [structureId])
 
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
@@ -104,11 +210,16 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
         </Button>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold mb-2">Structure not found</p>
-            <p className="text-sm text-muted-foreground">
-              The fund structure you're looking for doesn't exist or has been removed.
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <p className="text-lg font-semibold mb-2">
+              {error ? 'Error loading structure' : 'Structure not found'}
             </p>
+            <p className="text-sm text-muted-foreground mb-4">
+              {error || "The fund structure you're looking for doesn't exist or has been removed."}
+            </p>
+            {error && (
+              <Button onClick={() => setRefreshKey(prev => prev + 1)}>Try Again</Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -118,20 +229,43 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Back Button and Actions */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" asChild>
-          <a href="/lp-portal/marketplace">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Marketplace
-          </a>
-        </Button>
-        <div className="flex gap-2">
-          <Button asChild>
-            <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
-              Buy
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" asChild>
+            <a href="/lp-portal/marketplace">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Marketplace
             </a>
           </Button>
+          <div className="flex gap-2">
+            {canBuy ? (
+              <Button asChild>
+                <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
+                  Buy
+                </a>
+              </Button>
+            ) : (
+              <Button disabled title="KYC approval required to buy">
+                Buy
+              </Button>
+            )}
+          </div>
         </div>
+        {!canBuy && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="flex gap-3 py-4">
+              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-900 mb-1">KYC Approval Required</p>
+                <p className="text-sm text-amber-800">
+                  You need to complete and have your KYC approved before you can purchase tokens.
+                  {user?.kycStatus === null && ' Please complete your KYC verification.'}
+                  {user?.kycStatus && user.kycStatus !== 'Approved' && ` Current status: ${user.kycStatus}`}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Header */}
@@ -416,13 +550,57 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
               <CardDescription>Structure-related documents and materials</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">Documents coming soon</p>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Fund documents, prospectus, and legal materials will be available here.
-                </p>
-              </div>
+              {documentsLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                  <p className="text-muted-foreground">Loading documents...</p>
+                </div>
+              ) : documentsError ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+                  <p className="text-lg font-semibold mb-2">Error loading documents</p>
+                  <p className="text-sm text-muted-foreground">{documentsError}</p>
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">No documents available</p>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Documents will appear here once they are uploaded.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{doc.documentName}</p>
+                          <p className="text-sm text-muted-foreground">{doc.documentType}</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span>{(doc.fileSize / 1024).toFixed(0)} KB</span>
+                            <span>•</span>
+                            <span>{new Date(doc.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(doc.filePath, '_blank')}
+                        className="flex items-center gap-2 flex-shrink-0"
+                      >
+                        See
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

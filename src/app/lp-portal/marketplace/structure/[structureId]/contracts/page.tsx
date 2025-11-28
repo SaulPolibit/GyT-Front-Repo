@@ -6,8 +6,10 @@ import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, AlertCircle, Check, Loader2 } from "lucide-react"
-import { getStructureById } from "@/lib/structures-storage"
 import type { Structure } from "@/lib/structures-storage"
+import { getAuthToken } from "@/lib/auth-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { useAuth } from "@/hooks/useAuth"
 
 declare global {
   namespace JSX {
@@ -24,20 +26,78 @@ interface Props {
 export default function ContractsSigningPage({ params }: Props) {
   const { structureId } = use(params)
   const searchParams = useSearchParams()
+  const { user } = useAuth()
   const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [isSigned, setIsSigned] = React.useState(false)
   const [isChecking, setIsChecking] = React.useState(false)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   const tokens = searchParams.get("tokens") || "0"
-  const email = searchParams.get("email") || "investor@demo.polibit.io"
   const amount = searchParams.get("amount") || "0"
 
+  // Get user full name from localStorage
+  const userFullName = user ? `${user.firstName} ${user.lastName}` : "Investor Name"
+  const email = user ? user.email : "investor@demo.polibit.io"
+
+  // Determine which contract template to use based on user country
+  const isMexico = user?.country?.toLowerCase() === 'mexico' ||
+                   user?.country?.toLowerCase() === 'méxico' ||
+                   user?.country?.toLowerCase() === 'mex' ||
+                   user?.country?.toLowerCase() === 'mx'
+  const contractTemplateUrl = isMexico
+    ? process.env.NEXT_PUBLIC_DOCUSEAL_NATIONAL_CONTRACT_TEMPLATE_URL
+    : process.env.NEXT_PUBLIC_DOCUSEAL_INTERNATIONAL_CONTRACT_TEMPLATE_URL
+
   React.useEffect(() => {
-    const struct = getStructureById(structureId)
-    setStructure(struct)
-    setLoading(false)
+    const fetchStructure = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          setError('No authentication token found')
+          setLoading(false)
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getSingleStructure(structureId)), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch structure: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log('[Contracts] API Response:', data)
+
+        // Map API fields to existing structure format
+        const mappedStructure = {
+          ...data.data,
+          currency: data.data.baseCurrency,
+          jurisdiction: data.data.taxJurisdiction,
+          fundTerm: data.data.finalDate,
+        }
+
+        setStructure(mappedStructure)
+      } catch (err) {
+        console.error('[Contracts] Error fetching structure:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch structure')
+        setStructure(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStructure()
   }, [structureId])
 
   // Load DocuSeal script
@@ -196,8 +256,13 @@ export default function ContractsSigningPage({ params }: Props) {
         </Button>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold mb-2">Structure not found</p>
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <p className="text-lg font-semibold mb-2">
+              {error ? 'Error loading structure' : 'Structure not found'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {error || 'The structure you are looking for could not be found.'}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -264,18 +329,18 @@ export default function ContractsSigningPage({ params }: Props) {
             <CardContent className="flex flex-col flex-1 min-h-0 gap-3 pt-0 overflow-y-auto">
               {/* DocuSeal Embed */}
               <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
-                {/* @ts-ignore - DocuSeal is a custom web component */}
+                {/* @ts-expect-error - DocuSeal is a custom web component */}
                 <docuseal-form
-                  data-src="https://docuseal.com/d/tmbNrqj1TzQoPR"
+                  data-src={contractTemplateUrl}
                   data-email={email}
                   data-language="es"
                   data-values={JSON.stringify({
-                    Nombre2: "Martha Mena",
+                    Nombre2: userFullName,
                     Email: email,
                     Email2: email,
-                    Nombre: "Martha Mena",
-                    Nombre4: "Martha Mena",
-                    Nombre3: "Martha Mena",
+                    Nombre: userFullName,
+                    Nombre4: userFullName,
+                    Nombre3: userFullName,
                     Cantidad: tokens,
                     Cantidad2: tokens,
                   })}

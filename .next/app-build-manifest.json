@@ -6,11 +6,35 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
+<<<<<<< Updated upstream
+=======
+    "/lp-portal/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/lp-portal/layout.js"
+    ],
+    "/lp-portal/marketplace/structure/[structureId]/contracts/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/lp-portal/marketplace/structure/[structureId]/contracts/page.js"
+    ],
+    "/lp-portal/marketplace/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/lp-portal/marketplace/page.js"
+    ],
+    "/lp-portal/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/lp-portal/login/page.js"
+    ],
+>>>>>>> Stashed changes
     "/investment-manager/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/investment-manager/layout.js"
     ],
+<<<<<<< Updated upstream
     "/investment-manager/structures/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -35,6 +59,37 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/investment-manager/structure-setup/page.js"
+=======
+    "/investment-manager/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/investment-manager/page.js"
+    ],
+    "/sign-in/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/sign-in/page.js"
+    ],
+    "/lp-portal/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/lp-portal/page.js"
+    ],
+    "/lp-portal/portfolio/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/lp-portal/portfolio/page.js"
+    ],
+    "/lp-portal/marketplace/structure/[structureId]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/lp-portal/marketplace/structure/[structureId]/page.js"
+    ],
+    "/lp-portal/marketplace/structure/[structureId]/checkout/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/lp-portal/marketplace/structure/[structureId]/checkout/page.js"
+>>>>>>> Stashed changes
     ],
     "/_not-found/page": [
       "static/chunks/webpack.js",

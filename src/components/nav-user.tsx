@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   IconCreditCard,
   IconDotsVertical,
@@ -31,14 +32,22 @@ import {
 } from "@/components/ui/sidebar"
 import { useUser } from "@/contexts/UserContext"
 import { useTranslation } from "@/hooks/useTranslation"
+import { useAuth } from "@/hooks/useAuth"
 
 export function NavUser() {
   const { isMobile } = useSidebar()
   const { userData } = useUser()
   const { t } = useTranslation()
+  const router = useRouter()
+  const { logout } = useAuth()
 
   const fullName = `${userData.firstName} ${userData.lastName}`
   const initials = `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`.toUpperCase()
+
+  const handleLogout = () => {
+    logout()
+    router.push('/sign-in')
+  }
 
   return (
     <SidebarMenu>
@@ -100,7 +109,7 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <IconLogout />
               {t.nav.logout}
             </DropdownMenuItem>

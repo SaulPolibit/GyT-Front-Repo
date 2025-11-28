@@ -16,10 +16,11 @@ import {
   FileText,
   Landmark,
 } from "lucide-react"
-import { getStructureById } from "@/lib/structures-storage"
 import { getCurrentInvestorEmail } from "@/lib/lp-portal-helpers"
 import { useToast } from "@/hooks/use-toast"
 import type { Structure } from "@/lib/structures-storage"
+import { getAuthToken } from "@/lib/auth-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -30,32 +31,77 @@ export default function StructureCheckoutPage({ params }: Props) {
   const { toast } = useToast()
   const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [tokenAmount, setTokenAmount] = React.useState<string>('')
   const [pricePerToken, setPricePerToken] = React.useState(1000) // Default $1,000 per token
   const [agreedToTerms, setAgreedToTerms] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   React.useEffect(() => {
-    const struct = getStructureById(structureId)
-    setStructure(struct)
+    const fetchStructure = async () => {
+      setLoading(true)
+      setError(null)
 
-    // Log structure data for debugging
-    console.log('[Structure Checkout] Loaded structure:', {
-      id: struct?.id,
-      name: struct?.name,
-      tokenValue: struct?.tokenValue,
-      minCheckSize: (struct as any)?.minCheckSize,
-      totalCommitment: struct?.totalCommitment,
-    })
+      try {
+        const token = getAuthToken()
 
-    // Set price from structure if available, otherwise use default
-    if (struct?.tokenValue && struct.tokenValue > 0) {
-      setPricePerToken(struct.tokenValue)
-      console.log('[Structure Checkout] Using tokenValue:', struct.tokenValue)
-    } else {
-      console.log('[Structure Checkout] tokenValue not available, using default: 1000')
+        if (!token) {
+          setError('No authentication token found')
+          setLoading(false)
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getSingleStructure(structureId)), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch structure: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log('[Structure Checkout] API Response:', data)
+
+        // Map API fields to existing structure format
+        const mappedStructure = {
+          ...data.data,
+          currency: data.data.baseCurrency,
+          jurisdiction: data.data.taxJurisdiction,
+          fundTerm: data.data.finalDate,
+        }
+
+        setStructure(mappedStructure)
+
+        // Log structure data for debugging
+        console.log('[Structure Checkout] Loaded structure:', {
+          id: mappedStructure?.id,
+          name: mappedStructure?.name,
+          tokenValue: mappedStructure?.tokenValue,
+          minCheckSize: mappedStructure?.minCheckSize,
+          totalCommitment: mappedStructure?.totalCommitment,
+        })
+
+        // Set price from structure if available, otherwise use default
+        if (mappedStructure?.tokenValue && mappedStructure.tokenValue > 0) {
+          setPricePerToken(mappedStructure.tokenValue)
+          console.log('[Structure Checkout] Using tokenValue:', mappedStructure.tokenValue)
+        } else {
+          console.log('[Structure Checkout] tokenValue not available, using default: 1000')
+        }
+      } catch (err) {
+        console.error('[Structure Checkout] Error fetching structure:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch structure')
+        setStructure(null)
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
+
+    fetchStructure()
   }, [structureId])
 
   const formatCurrency = (value: number) => {
@@ -125,8 +171,13 @@ export default function StructureCheckoutPage({ params }: Props) {
         </Button>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold mb-2">Structure not found</p>
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <p className="text-lg font-semibold mb-2">
+              {error ? 'Error loading structure' : 'Structure not found'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {error || 'The structure you are looking for could not be found.'}
+            </p>
           </CardContent>
         </Card>
       </div>

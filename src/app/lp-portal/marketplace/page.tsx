@@ -24,8 +24,9 @@ import {
   MapPin,
   Users,
 } from "lucide-react"
-import { getStructures } from "@/lib/structures-storage"
 import type { Structure } from "@/lib/structures-storage"
+import { getAuthToken } from "@/lib/auth-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 
 export default function MarketplacePage() {
   const [structures, setStructures] = React.useState<Structure[]>([])
@@ -34,32 +35,58 @@ export default function MarketplacePage() {
   const [statusFilter, setStatusFilter] = React.useState('all')
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid')
   const [refreshKey, setRefreshKey] = React.useState(0)
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    const allStructures = getStructures()
-    setStructures(allStructures)
-  }, [refreshKey])
+    const fetchStructures = async () => {
+      setIsLoading(true)
+      setError(null)
 
-  // Listen for storage events to refresh when data changes
-  React.useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'polibit_structures') {
-        setRefreshKey(prev => prev + 1)
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          setError('No authentication token found')
+          setIsLoading(false)
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAllStructures), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch structures: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log('[Marketplace] API Response:', data)
+
+        // Map API fields to existing structure format
+        const mappedStructures = data.data.map((item: any) => ({
+          ...item,
+          currency: item.baseCurrency,
+          jurisdiction: item.taxJurisdiction,
+          fundTerm: item.finalDate,
+        }))
+
+        setStructures(mappedStructures)
+      } catch (err) {
+        console.error('[Marketplace] Error fetching structures:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch structures')
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    const handleFocus = () => {
-      setRefreshKey(prev => prev + 1)
-    }
+    fetchStructures()
+  }, [refreshKey])
 
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('focus', handleFocus)
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('focus', handleFocus)
-    }
-  }, [])
 
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
@@ -236,7 +263,24 @@ export default function MarketplacePage() {
       </div>
 
       {/* Structures Grid/List */}
-      {filteredStructures.length === 0 ? (
+      {isLoading ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+            <p className="text-lg font-semibold mb-2">Loading structures...</p>
+            <p className="text-sm text-muted-foreground">Please wait</p>
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Landmark className="h-12 w-12 text-destructive mb-4" />
+            <p className="text-lg font-semibold mb-2">Error loading structures</p>
+            <p className="text-sm text-muted-foreground mb-4">{error}</p>
+            <Button onClick={() => setRefreshKey(prev => prev + 1)}>Try Again</Button>
+          </CardContent>
+        </Card>
+      ) : filteredStructures.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Landmark className="h-12 w-12 text-muted-foreground mb-4" />
@@ -276,7 +320,9 @@ export default function MarketplacePage() {
                 {/* Type and Subtype */}
                 <div className="flex gap-2 flex-wrap">
                   <Badge variant="outline" className="text-xs">{getTypeLabel(structure.type)}</Badge>
-                  <Badge variant="outline" className="text-xs">{structure.subtype}</Badge>
+                  {structure.subtype && structure.subtype.trim() !== '' && (
+                    <Badge variant="outline" className="text-xs">{structure.subtype}</Badge>
+                  )}
                   <Badge variant="outline" className="text-xs">{structure.currency}</Badge>
                 </div>
 

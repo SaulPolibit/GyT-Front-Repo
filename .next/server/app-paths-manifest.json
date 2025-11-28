@@ -1,8 +1,18 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
+<<<<<<< Updated upstream
   "/investment-manager/structures/page": "app/investment-manager/structures/page.js",
   "/investment-manager/settings/page": "app/investment-manager/settings/page.js",
   "/investment-manager/structure-setup/page": "app/investment-manager/structure-setup/page.js",
   "/investment-manager/structures/[id]/page": "app/investment-manager/structures/[id]/page.js",
   "/investment-manager/reports/page": "app/investment-manager/reports/page.js"
+=======
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/lp-portal/marketplace/structure/[structureId]/contracts/page": "app/lp-portal/marketplace/structure/[structureId]/contracts/page.js",
+  "/lp-portal/portfolio/page": "app/lp-portal/portfolio/page.js",
+  "/lp-portal/marketplace/page": "app/lp-portal/marketplace/page.js",
+  "/lp-portal/marketplace/structure/[structureId]/page": "app/lp-portal/marketplace/structure/[structureId]/page.js",
+  "/lp-portal/login/page": "app/lp-portal/login/page.js",
+  "/lp-portal/marketplace/structure/[structureId]/checkout/page": "app/lp-portal/marketplace/structure/[structureId]/checkout/page.js"
+>>>>>>> Stashed changes
 }

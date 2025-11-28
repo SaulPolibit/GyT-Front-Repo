@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { User, LogOut, Settings } from "lucide-react"
 
 import {
@@ -25,9 +26,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { getInvestorByEmail, getCurrentInvestorEmail, getInvestorAvatar } from "@/lib/lp-portal-helpers"
+import { useAuth } from "@/hooks/useAuth"
 
 export function LPNavUser() {
   const { isMobile } = useSidebar()
+  const router = useRouter()
+  const { logout } = useAuth()
   const [investorData, setInvestorData] = React.useState({
     name: 'Investor',
     email: 'investor@example.com',
@@ -55,6 +59,11 @@ export function LPNavUser() {
       })
     }
   }, [])
+
+  const handleLogout = () => {
+    logout()
+    router.push('/lp-portal/login')
+  }
 
   return (
     <SidebarMenu>
@@ -108,11 +117,9 @@ export function LPNavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/sign-in">
-                <LogOut className="mr-2 h-4 w-4" />
-                Log out
-              </Link>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

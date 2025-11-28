@@ -1,8 +1,11 @@
 {
+<<<<<<< Updated upstream
   "app/investment-manager/structure-setup/page.tsx -> @/lib/structures-storage": {
     "id": "app/investment-manager/structure-setup/page.tsx -> @/lib/structures-storage",
     "files": []
   },
+=======
+>>>>>>> Stashed changes
   "lib/structures-storage.ts -> ./capital-calls-storage": {
     "id": "lib/structures-storage.ts -> ./capital-calls-storage",
     "files": [
