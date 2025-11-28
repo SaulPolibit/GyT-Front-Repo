@@ -151,3 +151,27 @@ export function getUserDisplayName(user: ApiUser): string {
   const lastName = user.lastName || ''
   return `${firstName} ${lastName}`.trim() || user.email
 }
+
+// Update user KYC data in localStorage
+export function updateUserKycData(kycId: string, kycUrl: string, kycStatus: string): void {
+  if (typeof window === 'undefined') return
+
+  try {
+    const authState = getAuthState()
+    if (!authState.user) {
+      console.error('[Auth] Cannot update KYC data: No user found')
+      return
+    }
+
+    // Update user object with KYC data
+    authState.user.kycId = kycId
+    authState.user.kycUrl = kycUrl
+    authState.user.kycStatus = kycStatus
+
+    // Save back to localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(authState))
+    console.log('[Auth] KYC data updated in localStorage:', { kycId, kycUrl, kycStatus })
+  } catch (error) {
+    console.error('[Auth] Error updating KYC data:', error)
+  }
+}

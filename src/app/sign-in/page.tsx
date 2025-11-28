@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
-import { getRedirectPathForRole } from "@/lib/auth-storage"
+import { getRedirectPathForRole, updateUserKycData } from "@/lib/auth-storage"
 import { toast } from "sonner"
 import Link from "next/link"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
@@ -54,9 +54,9 @@ export default function SignInPage() {
 
         toast.success(`Welcome back!`)
 
-        // Check if KYC status is null and create DiDit session
-        if (response.user.kycStatus === null) {
-          console.log('[Sign-In] KYC Status is null, creating DiDit session...')
+        // KYC validation only for role 3 (investors/customers) without kycId
+        if (response.user.role === 3 && !response.user.kycId && response.user.kycStatus === null) {
+          console.log('[Sign-In] Creating DiDit session for new user...')
           try {
             const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
               method: 'POST',
@@ -69,42 +69,21 @@ export default function SignInPage() {
             if (diditResponse.ok) {
               const diditData = await diditResponse.json()
               console.log('[Sign-In] DiDit session created:', diditData)
+
+              // Update user KYC data in localStorage
+              if (diditData.data?.sessionId && diditData.data?.url) {
+                updateUserKycData(
+                  diditData.data.sessionId,
+                  diditData.data.url,
+                  'Pending'
+                )
+                console.log('[Sign-In] KYC data updated in localStorage')
+              }
             } else {
               console.error('[Sign-In] Failed to create DiDit session:', await diditResponse.text())
             }
           } catch (diditError) {
             console.error('[Sign-In] Error creating DiDit session:', diditError)
-          }
-        }
-        // If KYC exists but is not approved, get DiDit session and open KYC URL
-        else if (response.user.kycId && response.user.kycStatus !== 'Approved') {
-          console.log('[Sign-In] KYC pending, getting DiDit session...')
-          try {
-            const diditSessionResponse = await fetch(
-              getApiUrl(API_CONFIG.endpoints.getDiditSession(response.user.kycId)),
-              {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${response.token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            )
-
-            if (diditSessionResponse.ok) {
-              const diditSessionData = await diditSessionResponse.json()
-              console.log('[Sign-In] DiDit session retrieved:', diditSessionData)
-            } else {
-              console.error('[Sign-In] Failed to get DiDit session:', await diditSessionResponse.text())
-            }
-          } catch (diditError) {
-            console.error('[Sign-In] Error getting DiDit session:', diditError)
-          }
-
-          // Open KYC URL in new tab
-          console.log('[Sign-In] Opening KYC URL:', response.user.kycUrl)
-          if (response.user.kycUrl) {
-            window.open(`https://${response.user.kycUrl}`, '_blank')
           }
         }
 

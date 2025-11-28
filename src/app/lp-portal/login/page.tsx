@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { getInvestorByEmail, setCurrentInvestorEmail } from "@/lib/lp-portal-helpers"
 import { useAuth } from "@/hooks/useAuth"
-import { getRedirectPathForRole, getUserRoleType } from "@/lib/auth-storage"
+import { getRedirectPathForRole, getUserRoleType, updateUserKycData } from "@/lib/auth-storage"
 import { toast } from "sonner"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 
@@ -58,9 +58,9 @@ export default function LPLoginPage() {
 
         console.log('[LP Login] KYC Status:', response.user.kycStatus)
 
-        // Check if KYC status is null and create DiDit session
-        if (response.user.kycStatus === null) {
-          console.log('[LP Login] KYC Status is null, creating DiDit session...')
+        // KYC validation for role 3 (investors) without kycId
+        if (!response.user.kycId && response.user.kycStatus === null) {
+          console.log('[LP Login] Creating DiDit session for new investor...')
           try {
             const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
               method: 'POST',
@@ -73,42 +73,21 @@ export default function LPLoginPage() {
             if (diditResponse.ok) {
               const diditData = await diditResponse.json()
               console.log('[LP Login] DiDit session created:', diditData)
+
+              // Update user KYC data in localStorage
+              if (diditData.data?.sessionId && diditData.data?.url) {
+                updateUserKycData(
+                  diditData.data.sessionId,
+                  diditData.data.url,
+                  'Pending'
+                )
+                console.log('[LP Login] KYC data updated in localStorage')
+              }
             } else {
               console.error('[LP Login] Failed to create DiDit session:', await diditResponse.text())
             }
           } catch (diditError) {
             console.error('[LP Login] Error creating DiDit session:', diditError)
-          }
-        }
-        // If KYC exists but is not approved, get DiDit session and open KYC URL
-        else if (response.user.kycId && response.user.kycStatus !== 'Approved') {
-          console.log('[LP Login] KYC pending, getting DiDit session...')
-          try {
-            const diditSessionResponse = await fetch(
-              getApiUrl(API_CONFIG.endpoints.getDiditSession(response.user.kycId)),
-              {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${response.token}`,
-                  'Content-Type': 'application/json',
-                },
-              }
-            )
-
-            if (diditSessionResponse.ok) {
-              const diditSessionData = await diditSessionResponse.json()
-              console.log('[LP Login] DiDit session retrieved:', diditSessionData)
-            } else {
-              console.error('[LP Login] Failed to get DiDit session:', await diditSessionResponse.text())
-            }
-          } catch (diditError) {
-            console.error('[LP Login] Error getting DiDit session:', diditError)
-          }
-
-          // Open KYC URL in new tab
-          console.log('[LP Login] Opening KYC URL:', response.user.kycUrl)
-          if (response.user.kycUrl) {
-            window.open(`https://${response.user.kycUrl}`, '_blank')
           }
         }
 
