@@ -48,6 +48,12 @@ export default function LPLoginPage() {
       // Login via API
       const response = await login(email, password)
 
+      // If login failed, response will be null and error is already shown by useAuth
+      if (!response) {
+        setIsLoading(false)
+        return
+      }
+
       if (response && response.success) {
         // Check if user is a customer (role 3)
         if (response.user.role !== 3) {

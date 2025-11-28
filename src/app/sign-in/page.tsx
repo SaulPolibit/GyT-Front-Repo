@@ -48,6 +48,12 @@ export default function SignInPage() {
       // Login via API
       const response = await login(email, password)
 
+      // If login failed, response will be null and error is already shown by useAuth
+      if (!response) {
+        setIsLoading(false)
+        return
+      }
+
       if (response && response.success) {
         console.log('[Sign-In] Login successful, user role:', response.user.role)
         console.log('[Sign-In] KYC Status:', response.user.kycStatus)
@@ -55,8 +61,8 @@ export default function SignInPage() {
         toast.success(`Welcome back!`)
 
         // KYC validation only for role 3 (investors/customers) without kycId
-        if (response.user.role === 3 && !response.user.kycId && response.user.kycStatus === null) {
-          console.log('[Sign-In] Creating DiDit session for new user...')
+        if (response.user.role === 3 && response.user.kycStatus !== 'Approved') {
+          console.log('[Sign-In] Retrieving DiDit session for user...')
           try {
             const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
               method: 'POST',
@@ -75,7 +81,7 @@ export default function SignInPage() {
                 updateUserKycData(
                   diditData.data.sessionId,
                   diditData.data.url,
-                  'Pending'
+                  diditData.data.status
                 )
                 console.log('[Sign-In] KYC data updated in localStorage')
               }

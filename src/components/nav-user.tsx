@@ -30,19 +30,22 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { useUser } from "@/contexts/UserContext"
 import { useTranslation } from "@/hooks/useTranslation"
 import { useAuth } from "@/hooks/useAuth"
 
 export function NavUser() {
   const { isMobile } = useSidebar()
-  const { userData } = useUser()
   const { t } = useTranslation()
   const router = useRouter()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
 
-  const fullName = `${userData.firstName} ${userData.lastName}`
-  const initials = `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`.toUpperCase()
+  // Use auth user data or fallback
+  const fullName = user ? `${user.firstName} ${user.lastName}` : 'User'
+  const email = user?.email || 'user@example.com'
+  const avatar = user?.profileImage || null
+  const initials = user
+    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
+    : 'U'
 
   const handleLogout = () => {
     logout()
@@ -59,13 +62,13 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={userData.avatar} alt={fullName} />
+                <AvatarImage src={avatar || undefined} alt={fullName} />
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{fullName}</span>
                 <span className="text-muted-foreground truncate text-xs">
-                  {userData.email}
+                  {email}
                 </span>
               </div>
               <IconDotsVertical className="ml-auto size-4" />
@@ -80,13 +83,13 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={userData.avatar} alt={fullName} />
+                  <AvatarImage src={avatar || undefined} alt={fullName} />
                   <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{fullName}</span>
                   <span className="text-muted-foreground truncate text-xs">
-                    {userData.email}
+                    {email}
                   </span>
                 </div>
               </div>
