@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { getRedirectPathForRole } from "@/lib/auth-storage"
 import { toast } from "sonner"
 import Link from "next/link"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 
 export default function SignInPage() {
   const [email, setEmail] = React.useState('')
@@ -57,7 +58,7 @@ export default function SignInPage() {
         if (response.user.kycStatus === null) {
           console.log('[Sign-In] KYC Status is null, creating DiDit session...')
           try {
-            const diditResponse = await fetch('https://api-polibit-demo-t.vercel.app/api/custom/didit/session', {
+            const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${response.token}`,
@@ -80,7 +81,7 @@ export default function SignInPage() {
           console.log('[Sign-In] KYC pending, getting DiDit session...')
           try {
             const diditSessionResponse = await fetch(
-              `https://api-polibit-demo-t.vercel.app/api/custom/didit/session/${response.user.kycId}`,
+              getApiUrl(API_CONFIG.endpoints.getDiditSession(response.user.kycId)),
               {
                 method: 'GET',
                 headers: {

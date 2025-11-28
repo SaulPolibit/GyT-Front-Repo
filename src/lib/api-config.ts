@@ -3,7 +3,7 @@
 export const API_CONFIG = {
   // Base URL for API requests
   // Set via NEXT_PUBLIC_API_URL environment variable
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api-polibit-demo-t.vercel.app',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || '',
 
   endpoints: {
     login: '/api/custom/login',
