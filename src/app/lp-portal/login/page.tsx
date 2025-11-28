@@ -48,13 +48,14 @@ export default function LPLoginPage() {
       // Login via API
       const response = await login(email, password)
 
-      // If login failed, response will be null and error is already shown by useAuth
-      if (!response) {
+      // If login failed, response will be null and error message already shown by useAuth
+      if (!response || !response.success) {
+        console.log('[LP Login] Login failed')
         setIsLoading(false)
         return
       }
 
-      if (response && response.success) {
+      if (response.success) {
         // Check if user is a customer (role 3)
         if (response.user.role !== 3) {
           toast.error('This login is for investors only. Please use the main sign-in page.')
@@ -65,8 +66,8 @@ export default function LPLoginPage() {
         console.log('[LP Login] KYC Status:', response.user.kycStatus)
 
         // KYC validation for role 3 (investors) without kycId
-        if (!response.user.kycId && response.user.kycStatus === null) {
-          console.log('[LP Login] Creating DiDit session for new investor...')
+        if (!response.user.kycId && response.user.kycStatus !== 'Approved') {
+          console.log('[LP Login] Retrieving DiDit session for investor...')
           try {
             const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
               method: 'POST',
@@ -85,7 +86,7 @@ export default function LPLoginPage() {
                 updateUserKycData(
                   diditData.data.sessionId,
                   diditData.data.url,
-                  'Pending'
+                  diditData.data.status
                 )
                 console.log('[LP Login] KYC data updated in localStorage')
               }

@@ -48,13 +48,14 @@ export default function SignInPage() {
       // Login via API
       const response = await login(email, password)
 
-      // If login failed, response will be null and error is already shown by useAuth
-      if (!response) {
+      // If login failed, response will be null and error message already shown by useAuth
+      if (!response || !response.success) {
+        console.log('[Sign-In] Login failed')
         setIsLoading(false)
         return
       }
 
-      if (response && response.success) {
+      if (response.success) {
         console.log('[Sign-In] Login successful, user role:', response.user.role)
         console.log('[Sign-In] KYC Status:', response.user.kycStatus)
 

@@ -51,7 +51,9 @@ export function useAuth() {
       const data: LoginResponse = await response.json()
 
       if (!data.success) {
-        throw new Error(data.message || 'Login failed')
+        console.error('[useAuth] Login failed:', data.message)
+        toast.error(data.message || 'Login failed')
+        return null
       }
 
       console.log('[useAuth] Login successful, saving response')
