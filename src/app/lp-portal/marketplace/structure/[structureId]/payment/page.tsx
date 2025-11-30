@@ -166,9 +166,9 @@ export default function PaymentPage({ params }: Props) {
 
         console.log('[Payment] Verify signature response:', data)
 
-        // Extract first submission ID from recentSubmissions
-        if (data.recentSubmissions && data.recentSubmissions.length > 0) {
-          const firstSubmission = data.recentSubmissions[0]
+        // Extract first submission ID from availableSubmissions
+        if (data.availableSubmissions && data.availableSubmissions.length > 0) {
+          const firstSubmission = data.availableSubmissions[0]
           setSubmissionId(firstSubmission.id)
           console.log('[Payment] Submission ID saved:', firstSubmission.id)
         }

@@ -9,6 +9,413 @@
 	},
 	"item": [
 		{
+			"name": "login",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n   //\"email\": \"saul@polibit.io\",\n    //\"password\": \"saul.polibit123*\"\n    \"email\": \"user@polibit.io\",\n    \"password\": \"saul.polibit123*\"\n\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/custom/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create user",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"user@polibit.io\",\n    \"password\": \"saul.polibit123*\",\n    \"firstName\": \"firstName\",\n    \"lastName\": \"lastName\",\n    \"role\": 0\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/custom/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "MFA Enroll",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"supabaseAccessToken\": \"eyJhbGciOiJIUzI1NiIsImtpZCI6IndYRHV1aFBXQzFzZlg5aW4iLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3NyZWR2ZnpxdHpiam1vYmlqanR3LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3NzQ0MGQ1OS03NGFlLTQ5YzctOWViOS02YjI2Mzk5MjQxM2IiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYzNjA5MjA0LCJpYXQiOjE3NjM2MDU2MDQsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6InNhdWxAcG9saWJpdC5pbyIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmaXJzdF9uYW1lIjoic2F1bCIsImxhc3RfbmFtZSI6IiIsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiNzc0NDBkNTktNzRhZS00OWM3LTllYjktNmIyNjM5OTI0MTNiIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NjM2MDU2MDR9XSwic2Vzc2lvbl9pZCI6IjVhZWI5NzJhLWQwZmQtNGU3OC04ZDNlLThjZjA0MDlmY2FkNCIsImlzX2Fub255bW91cyI6ZmFsc2V9.nBXEma6Q1pfLAoV-TQWRt8BQFO4jnMl2HR7uK1NCagI\",\n    \"supabaseRefreshToken\": \"gewswv2xu3j6\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/custom/mfa/enroll",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"mfa",
+								"enroll"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "MFA Unenroll",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"factorId\": \"05667296-7207-4993-811a-718b647c6176\",\n    \"supabaseAccessToken\": \"eyJhbGciOiJIUzI1NiIsImtpZCI6IndYRHV1aFBXQzFzZlg5aW4iLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3NyZWR2ZnpxdHpiam1vYmlqanR3LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3NzQ0MGQ1OS03NGFlLTQ5YzctOWViOS02YjI2Mzk5MjQxM2IiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYzNjUxODcyLCJpYXQiOjE3NjM2NDgyNzIsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6InNhdWxAcG9saWJpdC5pbyIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmaXJzdF9uYW1lIjoic2F1bCIsImxhc3RfbmFtZSI6IiIsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiNzc0NDBkNTktNzRhZS00OWM3LTllYjktNmIyNjM5OTI0MTNiIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NjM2NDgyNzJ9XSwic2Vzc2lvbl9pZCI6Ijg2MGUxNzZmLWU2ZDUtNDdiMy1hMjExLTcyODA3MTUxZDRlYyIsImlzX2Fub255bW91cyI6ZmFsc2V9.w8Kn623CvLL8G3XWal9P6HvtO8yDZ5rgTh6P4745imA\",\n    \"supabaseRefreshToken\": \"rqulhqzioeco\",\n    \"userId\": \"77440d59-74ae-49c7-9eb9-6b263992413b\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/custom/mfa/unenroll",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"mfa",
+								"unenroll"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify MFA code",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"factorId\": \"3bd7717f-60d3-42c6-b575-ed0b7f9990cc\",\n    \"code\": \"saul.polibit123*\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/custom/mfa/verify",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"mfa",
+								"verify"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify MFA Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/custom/mfa/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"mfa",
+								"status"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Didit",
+			"item": [
+				{
+					"name": "Get didit token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/custom/didit/token",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"didit",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create DiDit Session",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/custom/didit/session",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"didit",
+								"session"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Complete DiDit KYC verification flow",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE\",\n    \"sessionID\": \"056ae31f-fa02-45b0-a106-1cfdbc457c54\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/custom/didit/verify",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"didit",
+								"verify"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get DiDit Session",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/custom/didit/session/3091ed64-6697-4c47-9339-ea570765c849",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"didit",
+								"session",
+								"3091ed64-6697-4c47-9339-ea570765c849"
+							],
+							"query": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzY0MTI1OTAzLCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjQyMTIzMDN9.MEYCIQDTsjKHek_DAwxbvSlDHXfJQa2qQJdzKCtcoVlk2XcD0gIhAJ5PAvnZG_TjWMnePbaAgUshODMN1jDKp6MCJwh7LtwN",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get DiDit Session PDF",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/custom/didit/session/056ae31f-fa02-45b0-a106-1cfdbc457c54/pdf?token=eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"didit",
+								"session",
+								"056ae31f-fa02-45b0-a106-1cfdbc457c54",
+								"pdf"
+							],
+							"query": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Generate and save KYC PDF report",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE\",\n    \"sessionID\": \"056ae31f-fa02-45b0-a106-1cfdbc457c54\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/custom/didit/kyc-pdf",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"custom",
+								"didit",
+								"kyc-pdf"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "PortalHQ",
 			"item": [
 				{
@@ -523,6 +930,16 @@
 						}
 					],
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "GET",
 						"header": [],
 						"url": {
@@ -533,6 +950,105 @@
 							"path": [
 								"docuseal",
 								"submissions"
+							]
+						},
+						"description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
+					},
+					"response": []
+				},
+				{
+					"name": "Get my docuseal submissions",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/docuseal/my-submissions",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"docuseal",
+								"my-submissions"
+							]
+						},
+						"description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
+					},
+					"response": []
+				},
+				{
+					"name": "Get DocuSeal Submissions by user email",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/docuseal/submissions?q=saul@polibit.io&templateId=433831",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"docuseal",
+								"submissions"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "saul@polibit.io"
+								},
+								{
+									"key": "templateId",
+									"value": "433831",
+									"description": "433831 extranjero| 433800 nacional"
+								}
 							]
 						},
 						"description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
@@ -592,17 +1108,27 @@
 						}
 					],
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/docuseal/submissions/3010503",
+							"raw": "{{base_url}}/docuseal/submissions/4391578",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"docuseal",
 								"submissions",
-								"3010503"
+								"4391578"
 							]
 						},
 						"description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
@@ -646,191 +1172,6 @@
 							]
 						},
 						"description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Didit",
-			"item": [
-				{
-					"name": "Get didit token",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/custom/didit/token",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"didit",
-								"token"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Create DiDit Session",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/didit/session",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"didit",
-								"session"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get DiDit Session Copy",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/didit/session/26287ac8-aeed-4f02-8c42-73ff24addf72?token=eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"didit",
-								"session",
-								"26287ac8-aeed-4f02-8c42-73ff24addf72"
-							],
-							"query": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get DiDit Session PDF",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/didit/session/056ae31f-fa02-45b0-a106-1cfdbc457c54/pdf?token=eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"didit",
-								"session",
-								"056ae31f-fa02-45b0-a106-1cfdbc457c54",
-								"pdf"
-							],
-							"query": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Generate and save KYC PDF report",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE\",\n    \"sessionID\": \"056ae31f-fa02-45b0-a106-1cfdbc457c54\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/didit/kyc-pdf",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"didit",
-								"kyc-pdf"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Generate Complete DiDit KYC verification flow",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"eyJhbGciOiAiUlMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiaHR0cHM6Ly9hdXRoLmRpZGl0Lm1lLyIsICJpYXQiOiAxNzYxMTAzMTU5LCAic3ViIjogIjAyODgzYjgyLWM4NTYtNDljOS1iYWJjLTZjOTMwN2MyYTMxMiIsICJjbGllbnRfaWQiOiAieWlWMERPbzVyNDFuSWdaZU43akZaUSIsICJvcmdhbml6YXRpb25faWQiOiAiYjM1NWI1ZjgtMWRlYS00NzFiLThjYmUtNDI2MDUyOTkyOTZkIiwgImNsYWltcyI6IFsicmVhZDpuYW1lcyIsICJyZWFkOmdlbmRlciIsICJyZWFkOmJpcnRoZGF0ZSIsICJyZWFkOnBpY3R1cmUiLCAicmVhZDplbWFpbCIsICJyZWFkOnBob25lIiwgInJlYWQ6ZmFjZWJvb2tfYWNjb3VudCIsICJyZWFkOmluc3RhZ3JhbV9hY2NvdW50IiwgInJlYWQ6Z29vZ2xlX2FjY291bnQiLCAicmVhZDpzcG90aWZ5X2FjY291bnQiLCAicmVhZDpsaW5rZWRpbl9hY2NvdW50IiwgInJlYWQ6cHJlZmVyZW5jZXMiLCAicmVhZDppc192ZXJpZmllZCIsICJyZWFkOmlzX292ZXJfMTgiLCAicmVhZDppc19vdmVyXzIxIiwgInJlYWQ6c29jaWFscyIsICJyZWFkOmFkZHJlc3MiLCAicmVhZDp4X2FjY291bnQiLCAicmVhZDpkb2N1bWVudF9kZXRhaWwiLCAicmVhZDp1c2VyX2lkIiwgInJlYWQ6YmFua19hY2NvdW50IiwgInJlYWQ6dGlrdG9rX2FjY291bnQiXSwgImV4cCI6IDE3NjExODk1NTl9.MEUCICWMtBO4Zxf9an1xKWxLre12EGBXabmolYA7Dwl7WNq1AiEA61rVgviSaivQVjkI3KL5xyHUORGw7NgAZwDWXihahPE\",\n    \"sessionID\": \"056ae31f-fa02-45b0-a106-1cfdbc457c54\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/didit/verify",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"didit",
-								"verify"
-							]
-						}
 					},
 					"response": []
 				}
@@ -1429,181 +1770,6 @@
 							"response": []
 						}
 					]
-				}
-			]
-		},
-		{
-			"name": "login",
-			"item": [
-				{
-					"name": "Login",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"email\": \"saul@polibit.io\",\n    \"password\": \"saul.polibit123*\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/login",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"login"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "MFA Enroll",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{bearer_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"supabaseAccessToken\": \"eyJhbGciOiJIUzI1NiIsImtpZCI6IndYRHV1aFBXQzFzZlg5aW4iLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3NyZWR2ZnpxdHpiam1vYmlqanR3LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3NzQ0MGQ1OS03NGFlLTQ5YzctOWViOS02YjI2Mzk5MjQxM2IiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYzNjA5MjA0LCJpYXQiOjE3NjM2MDU2MDQsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6InNhdWxAcG9saWJpdC5pbyIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmaXJzdF9uYW1lIjoic2F1bCIsImxhc3RfbmFtZSI6IiIsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiNzc0NDBkNTktNzRhZS00OWM3LTllYjktNmIyNjM5OTI0MTNiIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NjM2MDU2MDR9XSwic2Vzc2lvbl9pZCI6IjVhZWI5NzJhLWQwZmQtNGU3OC04ZDNlLThjZjA0MDlmY2FkNCIsImlzX2Fub255bW91cyI6ZmFsc2V9.nBXEma6Q1pfLAoV-TQWRt8BQFO4jnMl2HR7uK1NCagI\",\n    \"supabaseRefreshToken\": \"gewswv2xu3j6\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/mfa/enroll",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"mfa",
-								"enroll"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "MFA Unenroll",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{bearer_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"factorId\": \"05667296-7207-4993-811a-718b647c6176\",\n    \"supabaseAccessToken\": \"eyJhbGciOiJIUzI1NiIsImtpZCI6IndYRHV1aFBXQzFzZlg5aW4iLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3NyZWR2ZnpxdHpiam1vYmlqanR3LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI3NzQ0MGQ1OS03NGFlLTQ5YzctOWViOS02YjI2Mzk5MjQxM2IiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzYzNjUxODcyLCJpYXQiOjE3NjM2NDgyNzIsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6InNhdWxAcG9saWJpdC5pbyIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmaXJzdF9uYW1lIjoic2F1bCIsImxhc3RfbmFtZSI6IiIsInBob25lX3ZlcmlmaWVkIjpmYWxzZSwic3ViIjoiNzc0NDBkNTktNzRhZS00OWM3LTllYjktNmIyNjM5OTI0MTNiIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NjM2NDgyNzJ9XSwic2Vzc2lvbl9pZCI6Ijg2MGUxNzZmLWU2ZDUtNDdiMy1hMjExLTcyODA3MTUxZDRlYyIsImlzX2Fub255bW91cyI6ZmFsc2V9.w8Kn623CvLL8G3XWal9P6HvtO8yDZ5rgTh6P4745imA\",\n    \"supabaseRefreshToken\": \"rqulhqzioeco\",\n    \"userId\": \"77440d59-74ae-49c7-9eb9-6b263992413b\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/mfa/unenroll",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"mfa",
-								"unenroll"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Verify MFA code",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{bearer_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"factorId\": \"3bd7717f-60d3-42c6-b575-ed0b7f9990cc\",\n    \"code\": \"saul.polibit123*\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{base_url}}/custom/mfa/verify",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"mfa",
-								"verify"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Verify MFA Status",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{bearer_token}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/custom/mfa/status",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"custom",
-								"mfa",
-								"status"
-							]
-						}
-					},
-					"response": []
 				}
 			]
 		},
@@ -3117,7 +3283,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ5MjE3ZmZiLWE3OTQtNDZkOC04ZTNiLWMxNzBjNmM0NmE5MiIsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3NjI4MzIwNTAsImV4cCI6MTc2MjkxODQ1MH0.nc_rNTHfXIwv5einZc-UqUWNCFcP88m3DJCbslQkoBg",
+											"value": "{{bearer_token}}",
 											"type": "string"
 										}
 									]
@@ -3125,13 +3291,13 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/structures/6eabf961-2ba2-49f1-9506-745f57c895ba",
+									"raw": "{{base_url}}/structures/78080146-21dd-4f4d-8ff8-49d9d953dd59",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
 										"structures",
-										"6eabf961-2ba2-49f1-9506-745f57c895ba"
+										"78080146-21dd-4f4d-8ff8-49d9d953dd59"
 									]
 								}
 							},
@@ -4739,7 +4905,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ5MjE3ZmZiLWE3OTQtNDZkOC04ZTNiLWMxNzBjNmM0NmE5MiIsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3NjI4MzIwNTAsImV4cCI6MTc2MjkxODQ1MH0.nc_rNTHfXIwv5einZc-UqUWNCFcP88m3DJCbslQkoBg",
+											"value": "{{bearer_token}}",
 											"type": "string"
 										}
 									]
@@ -4752,17 +4918,17 @@
 										{
 											"key": "file",
 											"type": "file",
-											"src": "/Users/saulibarraluevano/Downloads/CR250465320250731.pdf"
+											"src": "/Users/saulibarraluevano/Downloads/session-2a81967f-5d58-4fca-a292-fb531761de32.pdf"
 										},
 										{
 											"key": "entityType",
-											"value": "Investor",
+											"value": "Structure",
 											"description": "Structure | Investor | Investment | CapitalCall | Distribution",
 											"type": "text"
 										},
 										{
 											"key": "entityId",
-											"value": "397deeb5-597f-4562-9368-68ac793b3c43",
+											"value": "78080146-21dd-4f4d-8ff8-49d9d953dd59",
 											"type": "text"
 										},
 										{
@@ -4904,15 +5070,15 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/documents/entity/Investment/b7871b5c-bc2c-4b6f-91e7-055490ba0082",
+									"raw": "{{base_url}}/documents/entity/Structure/78080146-21dd-4f4d-8ff8-49d9d953dd59",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
 										"documents",
 										"entity",
-										"Investment",
-										"b7871b5c-bc2c-4b6f-91e7-055490ba0082"
+										"Structure",
+										"78080146-21dd-4f4d-8ff8-49d9d953dd59"
 									]
 								}
 							},
@@ -5387,6 +5553,497 @@
 											"key": "status",
 											"value": "sent"
 										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Payments",
+					"item": [
+						{
+							"name": "Create Payment",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": "/Users/saulibarraluevano/Downloads/Calendario2025_PJCDMX.jpg"
+										},
+										{
+											"key": "email",
+											"value": "saul@polibit.io",
+											"type": "text"
+										},
+										{
+											"key": "submissionId",
+											"value": "werwerwer",
+											"type": "text"
+										},
+										{
+											"key": "amount",
+											"value": "100",
+											"type": "text"
+										},
+										{
+											"key": "structureId",
+											"value": "12df",
+											"type": "text"
+										},
+										{
+											"key": "contractId",
+											"value": "wwer",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/payments",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Payment",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": "/Users/saulibarraluevano/Downloads/Calendario2025_PJCDMX.jpg"
+										},
+										{
+											"key": "email",
+											"value": "saul@polibit.io",
+											"type": "text"
+										},
+										{
+											"key": "submissionId",
+											"value": "kertya",
+											"type": "text"
+										},
+										{
+											"key": "amount",
+											"value": "200",
+											"type": "text"
+										},
+										{
+											"key": "structureId",
+											"value": "qwe21as",
+											"type": "text"
+										},
+										{
+											"key": "contractId",
+											"value": "jopad",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/037c15b1-69db-4ea6-afbc-547d0561f0ca",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"037c15b1-69db-4ea6-afbc-547d0561f0ca"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Payment Status",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"status\": \"completed\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/037c15b1-69db-4ea6-afbc-547d0561f0ca/status",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"037c15b1-69db-4ea6-afbc-547d0561f0ca",
+										"status"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Payment transaction Hash",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"transactionHash\": \"asdasdadasd\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/037c15b1-69db-4ea6-afbc-547d0561f0ca/transaction",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"037c15b1-69db-4ea6-afbc-547d0561f0ca",
+										"transaction"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payments",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{base_url}}/payments",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Single Payment",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/037c15b1-69db-4ea6-afbc-547d0561f0ca",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"037c15b1-69db-4ea6-afbc-547d0561f0ca"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payments By Mail",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/email/saul@polibit.io",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"email",
+										"saul@polibit.io"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payments By submissionId",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/submission/werwerwer",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"submission",
+										"werwerwer"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payments By Transaction ID",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/transaction/null",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"transaction",
+										"null"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payments By Structure ID",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/structure/12df",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"structure",
+										"12df"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payments By contract ID",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/contract/wwer",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"contract",
+										"wwer"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Payments By Status",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{bearer_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "{{base_url}}/payments/status/pending",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"payments",
+										"status",
+										"pending"
 									]
 								}
 							},
