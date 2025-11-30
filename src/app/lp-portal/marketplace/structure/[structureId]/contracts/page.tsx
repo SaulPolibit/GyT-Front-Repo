@@ -217,7 +217,7 @@ export default function ContractsSigningPage({ params }: Props) {
     setIsChecking(true)
     try {
       // Call API to verify signature
-      const response = await fetch('https://api-polibit-demo-t.vercel.app/api/docuseal/verifyUserSignature')
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.verifyUserSignature))
       const data = await response.json()
 
       console.log("Signature verification response:", data)
