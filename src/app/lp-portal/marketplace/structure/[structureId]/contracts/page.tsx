@@ -32,6 +32,7 @@ export default function ContractsSigningPage({ params }: Props) {
   const [error, setError] = React.useState<string | null>(null)
   const [isSigned, setIsSigned] = React.useState(false)
   const [isChecking, setIsChecking] = React.useState(false)
+  const [isVerified, setIsVerified] = React.useState(false)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   const tokens = searchParams.get("tokens") || "0"
@@ -215,16 +216,24 @@ export default function ContractsSigningPage({ params }: Props) {
   const handleCheckSigningStatus = async () => {
     setIsChecking(true)
     try {
-      // Simulate checking with DocuSeal API
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      console.log("Signature verified!")
+      // Call API to verify signature
+      const response = await fetch('https://api-polibit-demo-t.vercel.app/api/docuseal/verifyUserSignature')
+      const data = await response.json()
 
-      // Automatically redirect to payment page after verification
-      setTimeout(() => {
-        window.location.href = `/lp-portal/marketplace/structure/${structureId}/payment?tokens=${tokens}&email=${encodeURIComponent(email)}&amount=${amount}`
-      }, 500)
+      console.log("Signature verification response:", data)
+
+      // Check if signature is verified
+      if (data.passed === true) {
+        console.log("Signature verified!")
+        setIsVerified(true)
+      } else {
+        console.log("Signature not verified yet")
+        setIsVerified(false)
+      }
     } catch (error) {
       console.error("Failed to verify signature:", error)
+      setIsVerified(false)
+    } finally {
       setIsChecking(false)
     }
   }
@@ -399,7 +408,7 @@ export default function ContractsSigningPage({ params }: Props) {
                   <Button
                     className="flex-1"
                     size="lg"
-                    disabled={!isSigned || isChecking}
+                    disabled={!isSigned || !isVerified || isChecking}
                     onClick={handleProceedToPayment}
                   >
                     {isChecking ? (
