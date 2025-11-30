@@ -125,7 +125,7 @@ export default function PaymentPage({ params }: Props) {
     }
 
     fetchStructure()
-  }, [structureId, logout, router])
+  }, [structureId])
 
   const formatCurrency = (value: string | number) => {
     const num = typeof value === "string" ? parseInt(value) : value
