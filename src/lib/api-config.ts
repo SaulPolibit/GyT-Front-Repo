@@ -15,6 +15,7 @@ export const API_CONFIG = {
     getSingleStructure: (structureId: string) => `/api/structures/${structureId}`,
     getStructureDocuments: (structureId: string) => `/api/documents/entity/Structure/${structureId}`,
     verifyUserSignature: '/api/docuseal/verifyUserSignature',
+    createPayment: '/api/payments',
     // Add other endpoints as needed
   }
 }

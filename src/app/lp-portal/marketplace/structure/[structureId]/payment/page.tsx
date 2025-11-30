@@ -54,7 +54,7 @@ export default function PaymentPage({ params }: Props) {
   const { structureId } = use(params)
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const { toast } = useToast()
   const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -71,6 +71,7 @@ export default function PaymentPage({ params }: Props) {
   const [receiptFileName, setReceiptFileName] = React.useState("")
   const [isConnectingMetaMask, setIsConnectingMetaMask] = React.useState(false)
   const [isMetaMaskConnected, setIsMetaMaskConnected] = React.useState(false)
+  const [submissionId, setSubmissionId] = React.useState<string | null>(null)
 
   const tokens = searchParams.get("tokens") || "0"
   const email = searchParams.get("email") || "investor@demo.polibit.io"
@@ -136,6 +137,49 @@ export default function PaymentPage({ params }: Props) {
     fetchStructure()
   }, [structureId])
 
+  // Fetch submission ID from verifyUserSignature endpoint
+  React.useEffect(() => {
+    const fetchSubmissionId = async () => {
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          console.log("[Payment] No auth token found")
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.verifyUserSignature), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        const data = await response.json()
+
+        // Check for invalid or expired token error
+        if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
+          console.log("[Payment] Token invalid or expired")
+          return
+        }
+
+        console.log('[Payment] Verify signature response:', data)
+
+        // Extract first submission ID from recentSubmissions
+        if (data.recentSubmissions && data.recentSubmissions.length > 0) {
+          const firstSubmission = data.recentSubmissions[0]
+          setSubmissionId(firstSubmission.id)
+          console.log('[Payment] Submission ID saved:', firstSubmission.id)
+        }
+      } catch (error) {
+        console.error('[Payment] Error fetching submission ID:', error)
+      }
+    }
+
+    fetchSubmissionId()
+  }, [])
+
   const formatCurrency = (value: string | number) => {
     const num = typeof value === "string" ? parseInt(value) : value
     return `$${num.toLocaleString("en-US", {
@@ -162,8 +206,56 @@ export default function PaymentPage({ params }: Props) {
 
     setIsProcessing(true)
     try {
-      // Simulate payment processing
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Handle bank transfer payment via API
+      if (paymentMethod === "bank-transfer" && bankTransferReceipt) {
+        const token = getAuthToken()
+
+        if (!token) {
+          throw new Error('Authentication token not found. Please log in again.')
+        }
+
+        if (!submissionId) {
+          throw new Error('Submission ID not found. Please refresh the page and try again.')
+        }
+
+        // Create FormData for file upload
+        const formData = new FormData()
+        formData.append('file', bankTransferReceipt)
+        formData.append('amount', amount)
+        formData.append('structureId', structureId)
+        formData.append('email', user?.email || email)
+        formData.append('contractId', 'dummy-contract-id') // Dummy data as contract model doesn't exist yet
+        formData.append('submissionId', submissionId)
+
+        console.log('[Payment] Creating payment with bank transfer receipt')
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.createPayment), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        })
+
+        const data = await response.json()
+
+        // Check for invalid or expired token error
+        if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
+          console.log("Token invalid or expired, logging out...")
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
+
+        if (!data.success) {
+          throw new Error(data.message || 'Payment creation failed')
+        }
+
+        console.log('[Payment] Payment created successfully:', data)
+      } else {
+        // Simulate payment processing for other methods
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+      }
 
       // Get current investor
       const investorEmail = getCurrentInvestorEmail()
