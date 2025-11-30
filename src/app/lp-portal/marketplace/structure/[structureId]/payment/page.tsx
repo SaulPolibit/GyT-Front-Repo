@@ -3,6 +3,13 @@
 import * as React from "react"
 import { use } from "react"
 import { useSearchParams } from "next/navigation"
+
+// MetaMask types
+declare global {
+  interface Window {
+    ethereum?: any
+  }
+}
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -62,6 +69,8 @@ export default function PaymentPage({ params }: Props) {
   const [bankTransferReceipt, setBankTransferReceipt] = React.useState<File | null>(null)
   const [usdcWalletAddress, setUsdcWalletAddress] = React.useState("")
   const [receiptFileName, setReceiptFileName] = React.useState("")
+  const [isConnectingMetaMask, setIsConnectingMetaMask] = React.useState(false)
+  const [isMetaMaskConnected, setIsMetaMaskConnected] = React.useState(false)
 
   const tokens = searchParams.get("tokens") || "0"
   const email = searchParams.get("email") || "investor@demo.polibit.io"
@@ -230,6 +239,77 @@ export default function PaymentPage({ params }: Props) {
       return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`
     }
     return cleaned
+  }
+
+  const connectMetaMask = async () => {
+    setIsConnectingMetaMask(true)
+    try {
+      // Check if MetaMask is installed
+      if (typeof window.ethereum === 'undefined') {
+        toast({
+          title: "MetaMask Not Found",
+          description: "Please install MetaMask extension to connect your wallet.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Request account access
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts'
+      })
+
+      if (accounts && accounts.length > 0) {
+        const address = accounts[0]
+        setUsdcWalletAddress(address)
+        setIsMetaMaskConnected(true)
+
+        toast({
+          title: "Wallet Connected",
+          description: `Connected to ${address.slice(0, 6)}...${address.slice(-4)}`,
+          variant: "default",
+        })
+
+        // Try to switch to Polygon network
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x89' }], // Polygon Mainnet
+          })
+        } catch (switchError: any) {
+          // If network doesn't exist, add it
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x89',
+                  chainName: 'Polygon Mainnet',
+                  nativeCurrency: {
+                    name: 'MATIC',
+                    symbol: 'MATIC',
+                    decimals: 18
+                  },
+                  rpcUrls: ['https://polygon-rpc.com/'],
+                  blockExplorerUrls: ['https://polygonscan.com/']
+                }]
+              })
+            } catch (addError) {
+              console.error('Error adding Polygon network:', addError)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('MetaMask connection error:', error)
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect to MetaMask. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsConnectingMetaMask(false)
+    }
   }
 
   if (loading) {
@@ -454,19 +534,59 @@ export default function PaymentPage({ params }: Props) {
             <Card>
               <CardHeader>
                 <CardTitle>USDC Payment Details</CardTitle>
-                <CardDescription>Send USDC to the provided wallet address</CardDescription>
+                <CardDescription>Connect your wallet or enter your Polygon address</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* MetaMask Connect Button */}
+                <div className="flex justify-center">
+                  <Button
+                    type="button"
+                    variant={isMetaMaskConnected ? "outline" : "default"}
+                    onClick={connectMetaMask}
+                    disabled={isConnectingMetaMask || isMetaMaskConnected}
+                    className="w-full sm:w-auto"
+                  >
+                    {isConnectingMetaMask ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : isMetaMaskConnected ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        MetaMask Connected
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="h-4 w-4 mr-2" />
+                        Connect MetaMask
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or enter manually</span>
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="usdc-address">Your Wallet Address</Label>
+                  <Label htmlFor="usdc-address">Your Wallet Address (Polygon)</Label>
                   <Input
                     id="usdc-address"
                     placeholder="0x742d35Cc6634C0532925a3b844Bc51e39552b97e"
                     value={usdcWalletAddress}
                     onChange={(e) => setUsdcWalletAddress(e.target.value)}
+                    disabled={isMetaMaskConnected}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Enter your Ethereum/Polygon wallet address where USDC will be received
+                    {isMetaMaskConnected
+                      ? "Your connected wallet address"
+                      : "Enter your Polygon wallet address where USDC will be received"}
                   </p>
                 </div>
 
