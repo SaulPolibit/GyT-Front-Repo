@@ -217,8 +217,24 @@ export default function ContractsSigningPage({ params }: Props) {
   const handleCheckSigningStatus = async () => {
     setIsChecking(true)
     try {
+      // Get auth token from localStorage
+      const token = getAuthToken()
+
+      if (!token) {
+        console.log("No auth token found, logging out...")
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
+
       // Call API to verify signature
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.verifyUserSignature))
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.verifyUserSignature), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
       const data = await response.json()
 
       console.log("Signature verification response:", data)
