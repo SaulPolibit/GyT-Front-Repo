@@ -196,6 +196,7 @@ export default function ContractsSigningPage({ params }: Props) {
       if (data.passed === true) {
         console.log("Signature verified!")
         setIsVerified(true)
+        setIsSigned(true) // Mark as signed when API confirms verification
       } else {
         console.log("Signature not verified yet")
         setIsVerified(false)
