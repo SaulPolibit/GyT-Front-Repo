@@ -34,6 +34,10 @@ import { createInvestmentSubscription, updateInvestmentSubscriptionStatus } from
 import { addFundOwnershipToInvestor } from "@/lib/investors-storage"
 import type { Structure } from "@/lib/structures-storage"
 import { useToast } from "@/hooks/use-toast"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
+import { useAuth } from "@/hooks/useAuth"
+import { useRouter } from "next/navigation"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -42,9 +46,12 @@ interface Props {
 export default function PaymentPage({ params }: Props) {
   const { structureId } = use(params)
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { logout } = useAuth()
   const { toast } = useToast()
   const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
   const [cardNumber, setCardNumber] = React.useState("")
   const [cardName, setCardName] = React.useState("")
   const [cardExpiry, setCardExpiry] = React.useState("")
@@ -61,10 +68,64 @@ export default function PaymentPage({ params }: Props) {
   const amount = searchParams.get("amount") || "0"
 
   React.useEffect(() => {
-    const struct = getStructureById(structureId)
-    setStructure(struct)
-    setLoading(false)
-  }, [structureId])
+    const fetchStructure = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          console.log("No auth token found, logging out...")
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getSingleStructure(structureId)), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        const data = await response.json()
+
+        // Check for invalid or expired token error
+        if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
+          console.log("Token invalid or expired, logging out...")
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
+
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to fetch structure')
+        }
+
+        console.log('[Payment] API Response:', data)
+
+        // Map API fields to existing structure format
+        const mappedStructure = {
+          ...data.data,
+          currency: data.data.baseCurrency,
+          jurisdiction: data.data.taxJurisdiction,
+          fundTerm: data.data.finalDate,
+        }
+
+        setStructure(mappedStructure)
+      } catch (err) {
+        console.error('[Payment] Error fetching structure:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch structure')
+        setStructure(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStructure()
+  }, [structureId, logout, router])
 
   const formatCurrency = (value: string | number) => {
     const num = typeof value === "string" ? parseInt(value) : value
@@ -198,8 +259,13 @@ export default function PaymentPage({ params }: Props) {
         </Button>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-semibold mb-2">Structure not found</p>
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <p className="text-lg font-semibold mb-2">
+              {error ? 'Error loading structure' : 'Structure not found'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {error || 'The structure you are looking for could not be found.'}
+            </p>
           </CardContent>
         </Card>
       </div>
