@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { use, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, AlertCircle, Check, Loader2 } from "lucide-react"
@@ -26,7 +26,8 @@ interface Props {
 export default function ContractsSigningPage({ params }: Props) {
   const { structureId } = use(params)
   const searchParams = useSearchParams()
-  const { user } = useAuth()
+  const router = useRouter()
+  const { user, logout } = useAuth()
   const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -221,6 +222,14 @@ export default function ContractsSigningPage({ params }: Props) {
       const data = await response.json()
 
       console.log("Signature verification response:", data)
+
+      // Check for invalid or expired token error
+      if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
+        console.log("Token invalid or expired, logging out...")
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       // Check if signature is verified
       if (data.passed === true) {

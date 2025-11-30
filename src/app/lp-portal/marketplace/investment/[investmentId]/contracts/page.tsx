@@ -9,6 +9,8 @@ import { ArrowLeft, AlertCircle, Check, Loader2 } from "lucide-react"
 import { getInvestmentById } from "@/lib/investments-storage"
 import type { Investment } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { useAuth } from "@/hooks/useAuth"
+import { useRouter } from "next/navigation"
 
 declare global {
   namespace JSX {
@@ -25,6 +27,8 @@ interface Props {
 export default function ContractsSigningPage({ params }: Props) {
   const { investmentId } = use(params)
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { logout } = useAuth()
   const [investment, setInvestment] = React.useState<Investment | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [isSigned, setIsSigned] = React.useState(false)
@@ -162,6 +166,14 @@ export default function ContractsSigningPage({ params }: Props) {
       const data = await response.json()
 
       console.log("Signature verification response:", data)
+
+      // Check for invalid or expired token error
+      if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
+        console.log("Token invalid or expired, logging out...")
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       // Check if signature is verified
       if (data.passed === true) {
