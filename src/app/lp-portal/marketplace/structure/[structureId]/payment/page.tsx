@@ -35,10 +35,6 @@ import {
   File,
   Loader2,
 } from "lucide-react"
-import { getStructureById } from "@/lib/structures-storage"
-import { getCurrentInvestorEmail, getInvestorByEmail } from "@/lib/lp-portal-helpers"
-import { createInvestmentSubscription, updateInvestmentSubscriptionStatus } from "@/lib/investment-subscriptions-storage"
-import { addFundOwnershipToInvestor } from "@/lib/investors-storage"
 import type { Structure } from "@/lib/structures-storage"
 import { useToast } from "@/hooks/use-toast"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
@@ -255,42 +251,6 @@ export default function PaymentPage({ params }: Props) {
       } else {
         // Simulate payment processing for other methods
         await new Promise((resolve) => setTimeout(resolve, 2000))
-      }
-
-      // Get current investor
-      const investorEmail = getCurrentInvestorEmail()
-      const investor = investorEmail ? getInvestorByEmail(investorEmail) : null
-
-      if (!investor) {
-        throw new Error('Investor not found. Please log in again.')
-      }
-
-      // Create investment subscription (records the purchase request)
-      const subscription = createInvestmentSubscription({
-        structureId: structure.id,
-        investorId: investor.id,
-        fundId: structure.id,
-        requestedAmount: parseInt(amount),
-        currency: 'USD',
-        status: 'pending',
-      })
-
-      console.log('Subscription created:', subscription.id)
-
-      // Auto-approve the subscription and link investor to fund
-      updateInvestmentSubscriptionStatus(subscription.id, 'approved', 'Auto-approved via marketplace purchase')
-
-      // Add fund ownership to investor (this is what shows in their portfolio!)
-      const ownershipAdded = addFundOwnershipToInvestor(
-        investor.id,
-        structure.id,
-        parseInt(amount) // commitment amount
-      )
-
-      if (!ownershipAdded) {
-        console.warn('Could not add fund ownership - investor may already have this fund')
-      } else {
-        console.log('Investor linked to fund successfully')
       }
 
       setPaymentComplete(true)
