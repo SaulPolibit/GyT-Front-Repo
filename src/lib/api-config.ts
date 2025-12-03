@@ -16,6 +16,15 @@ export const API_CONFIG = {
     getStructureDocuments: (structureId: string) => `/api/documents/entity/Structure/${structureId}`,
     verifyUserSignature: '/api/docuseal/verifyUserSignature',
     createPayment: '/api/payments',
+
+    // Investors API
+    searchInvestors: (query: string) => `/api/investors/search?q=${encodeURIComponent(query)}`,
+    getInvestorWithStructures: (investorId: string) => `/api/investors/${investorId}/with-structures`,
+    getInvestorById: (investorId: string) => `/api/investors/${investorId}`,
+
+    // Capital Calls API
+    getCapitalCallsByInvestor: (investorId: string) => `/api/capital-calls/investor/${investorId}`,
+
     // Add other endpoints as needed
   }
 }

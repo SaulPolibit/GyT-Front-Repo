@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,53 +25,156 @@ import {
   Landmark,
   AlertCircle,
 } from "lucide-react"
-import {
-  getInvestorByEmail,
-  getCurrentInvestorEmail,
-  getInvestorStructures,
-} from "@/lib/lp-portal-helpers"
-import { useAuth } from "@/hooks/useAuth"
+import { getCurrentUser, getAuthToken, logout } from "@/lib/auth-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+
+interface InvestorStructure {
+  id: string
+  name: string
+  type: string
+  commitment: number
+  calledCapital: number
+  currentValue: number
+  ownershipPercent: number
+  unrealizedGain: number
+}
+
+interface StructureInvestor {
+  structure: {
+    id: string
+    name: string
+    type: string
+  }
+}
 
 export default function PortfolioPage() {
-  const { user } = useAuth()
-  const [currentEmail, setCurrentEmail] = React.useState('')
-  const [structures, setStructures] = React.useState<any[]>([])
+  const router = useRouter()
+  const [structures, setStructures] = React.useState<InvestorStructure[]>([])
   const [searchQuery, setSearchQuery] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState('all')
   const [statusFilter, setStatusFilter] = React.useState('all')
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid')
-  const [refreshKey, setRefreshKey] = React.useState(0)
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
 
-  React.useEffect(() => {
-    const email = getCurrentInvestorEmail()
-    setCurrentEmail(email)
+  const fetchPortfolioData = React.useCallback(async () => {
+    const user = getCurrentUser()
 
-    const investor = getInvestorByEmail(email)
-    if (investor) {
-      setStructures(getInvestorStructures(investor))
+    if (!user?.email) {
+      setError('No user found. Please log in.')
+      setIsLoading(false)
+      return
     }
-  }, [refreshKey])
 
-  // Listen for storage events to refresh when data changes
-  React.useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'polibit_investors') {
-        setRefreshKey(prev => prev + 1)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        throw new Error('No authentication token found')
       }
-    }
 
-    const handleFocus = () => {
-      setRefreshKey(prev => prev + 1)
-    }
+      // Step 1: Search for investor by email
+      console.log('[Portfolio] Searching for investor:', user.email)
+      const searchResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.searchInvestors(user.email)),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
 
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('focus', handleFocus)
+      // Handle 401 Unauthorized - session expired or invalid
+      if (searchResponse.status === 401) {
+        console.log('[Portfolio] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('focus', handleFocus)
+      if (!searchResponse.ok) {
+        throw new Error(`Failed to search investor: ${searchResponse.statusText}`)
+      }
+
+      const searchData = await searchResponse.json()
+      console.log('[Portfolio] Search response:', searchData)
+
+      if (!searchData.success || !searchData.data || searchData.data.length === 0) {
+        // No investor found - show empty portfolio
+        console.log('[Portfolio] No investor found for this user')
+        setStructures([])
+        setIsLoading(false)
+        return
+      }
+
+      const investor = searchData.data[0] // First matching investor
+      console.log('[Portfolio] Found investor:', investor.id)
+
+      // Step 2: Get investor with structures
+      const investorResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.getInvestorWithStructures(investor.id)),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (investorResponse.status === 401) {
+        console.log('[Portfolio] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
+
+      if (!investorResponse.ok) {
+        throw new Error(`Failed to fetch investor structures: ${investorResponse.statusText}`)
+      }
+
+      const investorData = await investorResponse.json()
+      console.log('[Portfolio] Investor with structures:', investorData)
+
+      if (!investorData.success || !investorData.data) {
+        throw new Error('Invalid response from server')
+      }
+
+      // Step 3: Map structures to portfolio format
+      // TODO: These values need to come from a join table between investors and structures
+      // For now, using placeholder values until the backend provides investor-specific data
+      const mappedStructures: InvestorStructure[] = investorData.data.structure_investors?.map((si: StructureInvestor) => {
+        const structure = si.structure
+        return {
+          id: structure.id,
+          name: structure.name,
+          type: structure.type,
+          // TODO: Get actual investor-specific values from backend
+          commitment: 0, // Placeholder - should come from structure_investors join table
+          calledCapital: 0, // Placeholder
+          currentValue: 0, // Placeholder
+          ownershipPercent: 0, // Placeholder
+          unrealizedGain: 0, // Placeholder
+        }
+      }) || []
+
+      setStructures(mappedStructures)
+    } catch (err) {
+      console.error('[Portfolio] Error fetching portfolio:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch portfolio data')
+    } finally {
+      setIsLoading(false)
     }
-  }, [])
+  }, [router])
+
+  React.useEffect(() => {
+    fetchPortfolioData()
+  }, [fetchPortfolioData])
 
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -96,7 +200,7 @@ export default function PortfolioPage() {
     return matchesSearch && matchesType && matchesStatus
   })
 
-  const getStatusBadge = (structure: any) => {
+  const getStatusBadge = (structure: InvestorStructure) => {
     if (structure.commitment === 0) {
       return <Badge variant="secondary">Pending</Badge>
     }
@@ -111,6 +215,7 @@ export default function PortfolioPage() {
   }
 
   // Check if user needs to complete KYC
+  const user = getCurrentUser()
   if (user && user.kycStatus !== 'Approved' && user.kycUrl) {
     return (
       <div className="space-y-6 p-4 md:p-6 h-screen flex flex-col">
@@ -144,6 +249,49 @@ export default function PortfolioPage() {
               title="KYC Verification"
               allow="camera; microphone"
             />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
+          <p className="text-muted-foreground">
+            Overview of your investment structures and performance
+          </p>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+            <p className="text-lg font-semibold mb-2">Loading your portfolio...</p>
+            <p className="text-sm text-muted-foreground">Please wait</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Portfolio</h1>
+          <p className="text-muted-foreground">
+            Overview of your investment structures and performance
+          </p>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Building2 className="h-12 w-12 text-destructive mb-4" />
+            <p className="text-lg font-semibold mb-2">Error loading portfolio</p>
+            <p className="text-sm text-muted-foreground mb-4">{error}</p>
+            <Button onClick={fetchPortfolioData}>Try Again</Button>
           </CardContent>
         </Card>
       </div>
@@ -342,6 +490,23 @@ export default function PortfolioPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* TODO Notice */}
+      {structures.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="py-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-blue-900">
+                  <strong>Note:</strong> Portfolio metrics (commitment, called capital, ownership, etc.) are currently showing placeholder values.
+                  The backend API needs to provide investor-specific financial data through the structure_investors relationship.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )
