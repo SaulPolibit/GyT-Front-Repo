@@ -21,6 +21,7 @@ export const API_CONFIG = {
     searchInvestors: (query: string) => `/api/investors/search?q=${encodeURIComponent(query)}`,
     getInvestorWithStructures: (investorId: string) => `/api/investors/${investorId}/with-structures`,
     getInvestorById: (investorId: string) => `/api/investors/${investorId}`,
+    getInvestorCommitments: (investorId: string) => `/api/investors/${investorId}/commitments`,
 
     // Capital Calls API
     getCapitalCallsByInvestor: (investorId: string) => `/api/capital-calls/investor/${investorId}`,
