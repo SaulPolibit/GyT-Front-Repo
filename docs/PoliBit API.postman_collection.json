@@ -1,11 +1,11 @@
 {
 	"info": {
-		"_postman_id": "8c6c9d80-5627-4cbf-9fbe-ffdb1b5077d4",
-		"name": "PoliBit API",
+		"_postman_id": "58d96034-959b-4a1b-ad76-80b46546e9b0",
+		"name": "PoliBit API Vercel",
 		"description": "# 🚀 Get started here\n\nThis template guides you through CRUD operations (GET, POST, PUT, DELETE), variables, and tests.\n\n## 🔖 **How to use this template**\n\n#### **Step 1: Send requests**\n\nRESTful APIs allow you to perform CRUD operations using the POST, GET, PUT, and DELETE HTTP methods.\n\nThis collection contains each of these [request](https://learning.postman.com/docs/sending-requests/requests/) types. Open each request and click \"Send\" to see what happens.\n\n#### **Step 2: View responses**\n\nObserve the response tab for status code (200 OK), response time, and size.\n\n#### **Step 3: Send new Body data**\n\nUpdate or add new data in \"Body\" in the POST request. Typically, Body data is also used in PUT request.\n\n```\n{\n    \"name\": \"Add your name in the body\"\n}\n\n ```\n\n#### **Step 4: Update the variable**\n\nVariables enable you to store and reuse values in Postman. We have created a [variable](https://learning.postman.com/docs/sending-requests/variables/) called `base_url` with the sample request [https://postman-api-learner.glitch.me](https://postman-api-learner.glitch.me). Replace it with your API endpoint to customize this collection.\n\n#### **Step 5: Add tests in the \"Scripts\" tab**\n\nAdding tests to your requests can help you confirm that your API is working as expected. You can write test scripts in JavaScript and view the output in the \"Test Results\" tab.\n\n<img src=\"https://content.pstmn.io/fa30ea0a-373d-4545-a668-e7b283cca343/aW1hZ2UucG5n\" alt=\"\" height=\"1530\" width=\"2162\">\n\n## 💪 Pro tips\n\n- Use folders to group related requests and organize the collection.\n    \n- Add more [scripts](https://learning.postman.com/docs/writing-scripts/intro-to-scripts/) to verify if the API works as expected and execute workflows.\n    \n\n## 💡Related templates\n\n[API testing basics](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=e9a37a28-055b-49cd-8c7e-97494a21eb54&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)  \n[API documentation](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=e9c28f47-1253-44af-a2f3-20dce4da1f18&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)  \n[Authorization methods](https://go.postman.co/redirect/workspace?type=personal&collectionTemplateId=31a9a6ed-4cdf-4ced-984c-d12c9aec1c27&sourceTemplateId=ddb19591-3097-41cf-82af-c84273e56719)",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "5647415",
-		"_collection_link": "https://restless-robot-5086.postman.co/workspace/MyWorkspace~95e8b046-0c60-4ae1-9ed1-88be0e11d451/collection/5647415-8c6c9d80-5627-4cbf-9fbe-ffdb1b5077d4?action=share&source=collection_link&creator=5647415"
+		"_collection_link": "https://restless-robot-5086.postman.co/workspace/MyWorkspace~95e8b046-0c60-4ae1-9ed1-88be0e11d451/collection/5647415-58d96034-959b-4a1b-ad76-80b46546e9b0?action=share&source=collection_link&creator=5647415"
 	},
 	"item": [
 		{
@@ -18,7 +18,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n   //\"email\": \"saul@polibit.io\",\n    //\"password\": \"saul.polibit123*\"\n    \"email\": \"user@polibit.io\",\n    \"password\": \"saul.polibit123*\"\n\n}",
+							"raw": "{\n    \"email\": \"saul@polibit.io\",\n    \"password\": \"saul.polibit123*\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -55,7 +55,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"email\": \"user@polibit.io\",\n    \"password\": \"saul.polibit123*\",\n    \"firstName\": \"firstName\",\n    \"lastName\": \"lastName\",\n    \"role\": 0\n}",
+							"raw": "{\n    \"email\": \"saul@polibit.io\",\n    \"password\": \"saul.polibit123*\",\n    \"firstName\": \"firstName\",\n    \"lastName\": \"lastName\",\n    \"role\": 3\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -437,7 +437,14 @@
 					],
 					"request": {
 						"auth": {
-							"type": "noauth"
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
 						},
 						"method": "GET",
 						"header": [
@@ -957,6 +964,109 @@
 					"response": []
 				},
 				{
+					"name": "verify User DocuSeal Signature Submissions",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/docuseal/verifyUserSignature",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"docuseal",
+								"verifyUserSignature"
+							]
+						},
+						"description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
+					},
+					"response": []
+				},
+				{
+					"name": "DocuSeal WebHook",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{bearer_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "x-polibit-signature",
+								"value": "2900f56566097c95876078f8ebed731a374a888d7f5a5a518e2e5d9f518775d8",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"event_type\": \"submission.created\",\n    \"timestamp\": \"2025-11-29T02:19:33Z\",\n    \"data\": {\n      \"id\": 1642440,\n      \"email\": \"saul.ibarra@cimat.mx\",\n      \"phone\": null,\n      \"name\": null,\n      \"ua\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36\",\n      \"ip\": \"187.233.189.71\",\n      \"sent_at\": \"2025-02-18T00:49:48.054Z\",\n      \"opened_at\": \"2025-02-18T00:50:37.415Z\",\n      \"declined_at\": null,\n      \"completed_at\": \"2025-02-18T00:50:55.227Z\",\n      \"created_at\": \"2025-02-18T00:49:07.962Z\",\n      \"updated_at\": \"2025-02-18T00:50:55.229Z\",\n      \"external_id\": null,\n      \"metadata\": {},\n      \"status\": \"completed\",\n      \"application_key\": null,\n      \"decline_reason\": null,\n      \"preferences\": {\n        \"send_email\": true\n      },\n      \"values\": [\n        {\n          \"field\": \"Signature Field 2\",\n          \"value\": \"https://docuseal.com/file/WyIxNWIxOWNjNS0xMTViLTQ1OGUtYjUyYy0xMTg0M2FmNWM2YTciLCJibG9iIl0=--397183cafb9bb7c9fe78005086593fd1b3215a8aac5d33637640dbde92df55dd/signature.png\"\n        }\n      ],\n      \"role\": \"Contracted\",\n      \"documents\": [\n        {\n          \"name\": \"POLIBIT_-_Contrato_IAS_SAUL_ALONSO_IBARRA_LUEVANO\",\n          \"url\": \"https://docuseal.com/file/WyIxYjg0ODExMS00ZDZlLTRlN2MtYTRiYy0xZTk3MTIwNDJhNzUiLCJibG9iIl0=--40f5e5a6598a19b1a333be8b835b3eb6f1d06ec7d164acd5179a2ba382fcaf12/POLIBIT_-_Contrato_IAS_SAUL_ALONSO_IBARRA_LUEVANO.pdf\"\n        }\n      ],\n      \"template\": {\n        \"id\": 622007,\n        \"name\": \"Template Demo\",\n        \"external_id\": null,\n        \"created_at\": \"2025-02-18T00:45:45.718Z\",\n        \"updated_at\": \"2025-02-18T00:48:19.404Z\",\n        \"folder_name\": \"Default\"\n      },\n      \"audit_log_url\": \"https://docuseal.com/file/WyI3YWNhOTg1Zi1hMjNjLTQ5YzQtYTdiMi1kZDc3ZGM5MWRjYzQiLCJibG9iIl0=--309dc31e9a843d0369c3838fb78d944a75aab254d395b9a1c6d1c0d49a752364/Audit%20Log%20-%20Template%20Demo.pdf\",\n      \"submission_url\": \"https://docuseal.com/e/XMKZB3giskzHio\",\n      \"submission\": {\n        \"id\": 1231241,\n        \"audit_log_url\": \"https://docuseal.com/file/WyI3YWNhOTg1Zi1hMjNjLTQ5YzQtYTdiMi1kZDc3ZGM5MWRjYzQiLCJibG9iIl0=--309dc31e9a843d0369c3838fb78d944a75aab254d395b9a1c6d1c0d49a752364/Audit%20Log%20-%20Template%20Demo.pdf\",\n        \"combined_document_url\": null,\n        \"status\": \"completed\",\n        \"url\": \"https://docuseal.com/e/XMKZB3giskzHio\",\n        \"variables\": {},\n        \"created_at\": \"2025-02-18T00:49:07.955Z\"\n      }\n    }\n  }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/docuseal/webhook",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"docuseal",
+								"webhook"
+							]
+						},
+						"description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
+					},
+					"response": []
+				},
+				{
 					"name": "Get my docuseal submissions",
 					"event": [
 						{
@@ -1191,7 +1301,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MDU2YTY2OWExOGNhNjBkNTNlM2U4MSIsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3NjE5NjI2MDcsImV4cCI6MTc2MjA0OTAwN30.Zi_Zpag3n25sPX4iQwkA7j_VjzPK02sSSwkeZmcbzjs",
+											"value": "{{bearer_token}}",
 											"type": "string"
 										}
 									]
@@ -2128,7 +2238,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MDU2YTY2OWExOGNhNjBkNTNlM2U4MSIsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3NjIzODgyNDIsImV4cCI6MTc2MjQ3NDY0Mn0.HLdC3H3UFW1XzcR7xDKLBVe-V2VKnA5KGx4Vu4bB77Y",
+											"value": "{{bearer_token}}",
 											"type": "string"
 										}
 									]
@@ -2983,7 +3093,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MDU2YTY2OWExOGNhNjBkNTNlM2U4MSIsImVtYWlsIjoic2F1bEBwb2xpYml0LmlvIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3NjIxNDQ3MTAsImV4cCI6MTc2MjIzMTExMH0.Swp0Zo_9-srlqIET37wxSTs-_RwpOR6c_qX2OQ6gaJ8",
+									"value": "{{bearer_token}}",
 									"type": "string"
 								}
 							]
@@ -5553,497 +5663,6 @@
 											"key": "status",
 											"value": "sent"
 										}
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Payments",
-					"item": [
-						{
-							"name": "Create Payment",
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "file",
-											"type": "file",
-											"src": "/Users/saulibarraluevano/Downloads/Calendario2025_PJCDMX.jpg"
-										},
-										{
-											"key": "email",
-											"value": "saul@polibit.io",
-											"type": "text"
-										},
-										{
-											"key": "submissionId",
-											"value": "werwerwer",
-											"type": "text"
-										},
-										{
-											"key": "amount",
-											"value": "100",
-											"type": "text"
-										},
-										{
-											"key": "structureId",
-											"value": "12df",
-											"type": "text"
-										},
-										{
-											"key": "contractId",
-											"value": "wwer",
-											"type": "text"
-										}
-									]
-								},
-								"url": {
-									"raw": "{{base_url}}/payments",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Payment",
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "PUT",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": [
-										{
-											"key": "file",
-											"type": "file",
-											"src": "/Users/saulibarraluevano/Downloads/Calendario2025_PJCDMX.jpg"
-										},
-										{
-											"key": "email",
-											"value": "saul@polibit.io",
-											"type": "text"
-										},
-										{
-											"key": "submissionId",
-											"value": "kertya",
-											"type": "text"
-										},
-										{
-											"key": "amount",
-											"value": "200",
-											"type": "text"
-										},
-										{
-											"key": "structureId",
-											"value": "qwe21as",
-											"type": "text"
-										},
-										{
-											"key": "contractId",
-											"value": "jopad",
-											"type": "text"
-										}
-									]
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/037c15b1-69db-4ea6-afbc-547d0561f0ca",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"037c15b1-69db-4ea6-afbc-547d0561f0ca"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Payment Status",
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "PATCH",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"status\": \"completed\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/037c15b1-69db-4ea6-afbc-547d0561f0ca/status",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"037c15b1-69db-4ea6-afbc-547d0561f0ca",
-										"status"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Payment transaction Hash",
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "PATCH",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"transactionHash\": \"asdasdadasd\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/037c15b1-69db-4ea6-afbc-547d0561f0ca/transaction",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"037c15b1-69db-4ea6-afbc-547d0561f0ca",
-										"transaction"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Payments",
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": []
-								},
-								"url": {
-									"raw": "{{base_url}}/payments",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Single Payment",
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": []
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/037c15b1-69db-4ea6-afbc-547d0561f0ca",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"037c15b1-69db-4ea6-afbc-547d0561f0ca"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Payments By Mail",
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": []
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/email/saul@polibit.io",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"email",
-										"saul@polibit.io"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Payments By submissionId",
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": []
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/submission/werwerwer",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"submission",
-										"werwerwer"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Payments By Transaction ID",
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": []
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/transaction/null",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"transaction",
-										"null"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Payments By Structure ID",
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": []
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/structure/12df",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"structure",
-										"12df"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Payments By contract ID",
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": []
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/contract/wwer",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"contract",
-										"wwer"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Payments By Status",
-							"protocolProfileBehavior": {
-								"disableBodyPruning": true
-							},
-							"request": {
-								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "{{bearer_token}}",
-											"type": "string"
-										}
-									]
-								},
-								"method": "GET",
-								"header": [],
-								"body": {
-									"mode": "formdata",
-									"formdata": []
-								},
-								"url": {
-									"raw": "{{base_url}}/payments/status/pending",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"payments",
-										"status",
-										"pending"
 									]
 								}
 							},

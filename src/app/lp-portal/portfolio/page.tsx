@@ -47,9 +47,43 @@ interface StructureInvestor {
   }
 }
 
+interface CapitalCall {
+  id: string
+  structureId: string
+  structureName: string
+  callNumber: string
+  callDate: string
+  dueDate: string
+  allocatedAmount: number
+  paidAmount: number
+  outstanding: number
+  status: string
+  purpose: string
+}
+
+interface CapitalCallsData {
+  investorId: string
+  investorName: string
+  investorEmail: string
+  summary: {
+    totalCalled: number
+    totalPaid: number
+    outstanding: number
+    totalCalls: number
+  }
+  structures: Array<{
+    id: string
+    name: string
+    type: string
+    status: string
+  }>
+  capitalCalls: CapitalCall[]
+}
+
 export default function PortfolioPage() {
   const router = useRouter()
   const [structures, setStructures] = React.useState<InvestorStructure[]>([])
+  const [capitalCallsData, setCapitalCallsData] = React.useState<CapitalCallsData | null>(null)
   const [searchQuery, setSearchQuery] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState('all')
   const [statusFilter, setStatusFilter] = React.useState('all')
@@ -164,6 +198,36 @@ export default function PortfolioPage() {
       }) || []
 
       setStructures(mappedStructures)
+
+      // Step 4: Fetch capital calls data
+      try {
+        console.log('[Portfolio] Fetching capital calls for investor:', investor.id)
+        const capitalCallsResponse = await fetch(
+          getApiUrl(API_CONFIG.endpoints.getInvestorCapitalCalls(investor.id)),
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (capitalCallsResponse.ok) {
+          const capitalCallsResponseData = await capitalCallsResponse.json()
+          console.log('[Portfolio] Capital calls response:', capitalCallsResponseData)
+
+          if (capitalCallsResponseData.success && capitalCallsResponseData.data) {
+            setCapitalCallsData(capitalCallsResponseData.data)
+          }
+        } else {
+          console.warn('[Portfolio] Failed to fetch capital calls:', capitalCallsResponse.statusText)
+          // Don't throw error - capital calls are optional data
+        }
+      } catch (capitalCallsError) {
+        console.warn('[Portfolio] Error fetching capital calls:', capitalCallsError)
+        // Don't throw error - capital calls are optional data
+      }
     } catch (err) {
       console.error('[Portfolio] Error fetching portfolio:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch portfolio data')
@@ -489,6 +553,154 @@ export default function PortfolioPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Capital Calls Section */}
+      {capitalCallsData && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Capital Calls</h2>
+            <p className="text-muted-foreground">
+              Track your capital call obligations and payment history
+            </p>
+          </div>
+
+          {/* Capital Calls Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Called</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(capitalCallsData.summary.totalCalled)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {capitalCallsData.summary.totalCalls} call{capitalCallsData.summary.totalCalls !== 1 ? 's' : ''}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(capitalCallsData.summary.totalPaid)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {capitalCallsData.summary.totalCalled > 0
+                    ? `${((capitalCallsData.summary.totalPaid / capitalCallsData.summary.totalCalled) * 100).toFixed(1)}% of total`
+                    : 'No calls yet'
+                  }
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${capitalCallsData.summary.outstanding > 0 ? 'text-amber-600' : ''}`}>
+                  {formatCurrency(capitalCallsData.summary.outstanding)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {capitalCallsData.summary.outstanding > 0 ? 'Requires payment' : 'All paid'}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Structures</CardTitle>
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{capitalCallsData.structures.length}</div>
+                <p className="text-xs text-muted-foreground">With capital calls</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Capital Calls Table */}
+          {capitalCallsData.capitalCalls.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Capital Call History</CardTitle>
+                <CardDescription>
+                  All capital calls across your investment structures
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4 font-medium text-sm">Call Number</th>
+                        <th className="text-left py-3 px-4 font-medium text-sm">Structure</th>
+                        <th className="text-left py-3 px-4 font-medium text-sm">Call Date</th>
+                        <th className="text-left py-3 px-4 font-medium text-sm">Due Date</th>
+                        <th className="text-right py-3 px-4 font-medium text-sm">Allocated</th>
+                        <th className="text-right py-3 px-4 font-medium text-sm">Paid</th>
+                        <th className="text-right py-3 px-4 font-medium text-sm">Outstanding</th>
+                        <th className="text-center py-3 px-4 font-medium text-sm">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-sm">Purpose</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {capitalCallsData.capitalCalls.map((call) => (
+                        <tr key={call.id} className="border-b hover:bg-muted/50">
+                          <td className="py-3 px-4 text-sm font-medium">{call.callNumber}</td>
+                          <td className="py-3 px-4 text-sm">{call.structureName}</td>
+                          <td className="py-3 px-4 text-sm">
+                            {new Date(call.callDate).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            {new Date(call.dueDate).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-right font-medium">
+                            {formatCurrency(call.allocatedAmount)}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-right">
+                            {formatCurrency(call.paidAmount)}
+                          </td>
+                          <td className={`py-3 px-4 text-sm text-right font-medium ${call.outstanding > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {formatCurrency(call.outstanding)}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <Badge
+                              variant={
+                                call.status === 'Paid' ? 'default' :
+                                call.status === 'Partially Paid' ? 'secondary' :
+                                'outline'
+                              }
+                            >
+                              {call.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-muted-foreground">
+                            {call.purpose}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <DollarSign className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-semibold mb-2">No capital calls yet</p>
+                <p className="text-sm text-muted-foreground">
+                  Capital calls will appear here when they are issued
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
