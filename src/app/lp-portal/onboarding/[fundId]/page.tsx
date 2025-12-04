@@ -21,14 +21,10 @@ import {
   ArrowRight,
   Upload,
 } from "lucide-react"
-import {
-  getInvestorByEmail,
-  getCurrentInvestorEmail,
-  updateStructureOnboardingStatus,
-} from "@/lib/lp-portal-helpers"
-import { getStructures } from "@/lib/structures-storage"
 import { useBreadcrumb } from "@/contexts/lp-breadcrumb-context"
 import { toast } from "sonner"
+import { getCurrentUser, getAuthToken } from '@/lib/auth-storage'
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
 
 type OnboardingStep = 'KYC/KYB' | 'Contracts' | 'Commitment' | 'Complete'
 
@@ -95,75 +91,188 @@ export default function OnboardingPage() {
   })
 
   React.useEffect(() => {
-    const email = getCurrentInvestorEmail()
-    const investor = getInvestorByEmail(email)
+    const loadOnboardingData = async () => {
+      try {
+        console.log('[Onboarding] Starting to load data for fundId:', fundId)
 
-    if (!investor) {
-      toast.error('Investor not found')
-      router.push('/lp-portal')
-      return
+        const user = getCurrentUser()
+        console.log('[Onboarding] Current user:', user)
+
+        if (!user?.email) {
+          console.error('[Onboarding] No user email found')
+          toast.error('User not found. Please log in.')
+          router.push('/lp-portal/login')
+          return
+        }
+
+        const token = getAuthToken()
+        if (!token) {
+          console.error('[Onboarding] No auth token found')
+          toast.error('Authentication required')
+          router.push('/lp-portal/login')
+          return
+        }
+
+        // Step 1: Search for investor by email
+        console.log('[Onboarding] Searching for investor:', user.email)
+        const searchResponse = await fetch(
+          getApiUrl(API_CONFIG.endpoints.searchInvestors(user.email)),
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        console.log('[Onboarding] Search response status:', searchResponse.status)
+
+        if (!searchResponse.ok) {
+          console.error('[Onboarding] Search failed with status:', searchResponse.status)
+          toast.error('Failed to load investor data')
+          router.push('/lp-portal')
+          return
+        }
+
+        const searchData = await searchResponse.json()
+        console.log('[Onboarding] Search data:', searchData)
+
+        if (!searchData.success || !searchData.data || searchData.data.length === 0) {
+          console.error('[Onboarding] No investor found in search results')
+          toast.error('Investor not found')
+          router.push('/lp-portal')
+          return
+        }
+
+        const investor = searchData.data[0]
+        console.log('[Onboarding] Found investor:', investor.id)
+        setInvestorId(investor.id)
+
+        // Step 2: Get investor commitments (which includes structures)
+        console.log('[Onboarding] Fetching investor commitments for:', investor.id)
+        const commitmentsResponse = await fetch(
+          getApiUrl(API_CONFIG.endpoints.getInvestorCommitments(investor.id)),
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        console.log('[Onboarding] Commitments response status:', commitmentsResponse.status)
+
+        if (!commitmentsResponse.ok) {
+          console.error('[Onboarding] Failed to fetch investor commitments')
+          toast.error('Failed to load structure data')
+          router.push('/lp-portal')
+          return
+        }
+
+        const commitmentsData = await commitmentsResponse.json()
+        console.log('[Onboarding] Commitments data:', commitmentsData)
+
+        if (!commitmentsData.success || !commitmentsData.data) {
+          console.error('[Onboarding] Invalid commitments data response')
+          toast.error('Structure not found')
+          router.push('/lp-portal')
+          return
+        }
+
+        const structures = commitmentsData.data.structures || []
+        console.log('[Onboarding] Structures:', structures)
+        console.log('[Onboarding] Looking for fundId:', fundId)
+
+        const structure = structures.find((s: any) => s.id === fundId)
+        console.log('[Onboarding] Found structure:', structure)
+
+        if (!structure) {
+          console.error('[Onboarding] Structure not found for fundId:', fundId)
+          toast.error('Structure not found')
+          router.push('/lp-portal')
+          return
+        }
+
+        console.log('[Onboarding] Setting fund name:', structure.name)
+        setFundName(structure.name)
+        setCommitment(structure.commitment || 0)
+
+        // Store investor details for KYC prefill
+        const investorDetails = investor
+
+        // Load structure data for token information
+        const structureResponse = await fetch(
+          getApiUrl(API_CONFIG.endpoints.getSingleStructure(fundId)),
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (structureResponse.ok) {
+          const structureData = await structureResponse.json()
+          if (structureData.success && structureData.data) {
+            const struct = structureData.data
+            if (struct.tokenValue) {
+              setStructureData({
+                tokenName: struct.tokenName || 'Tokens',
+                tokenSymbol: struct.tokenSymbol || 'TKN',
+                tokenValue: struct.tokenValue,
+                minTokens: struct.minTokensPerInvestor || 1,
+                maxTokens: struct.maxTokensPerInvestor || 1000,
+              })
+              setPaymentsData(prev => ({ ...prev, tokensToPurchase: struct.minTokensPerInvestor || 1 }))
+            }
+          }
+        }
+
+        // Set custom breadcrumb for this fund
+        setCustomBreadcrumb(`/lp-portal/onboarding/${fundId}`, structure.name)
+
+        // Set current step based on THIS fund's onboarding status
+        const status = structure.onboardingStatus
+
+        // Check if investor has completed KYC/KYB for any other fund
+        const hasCompletedKYC = structures.some(
+          (s: any) => s.id !== fundId && s.onboardingStatus && s.onboardingStatus !== 'Pending'
+        )
+
+        if (status === 'KYC/KYB') setCurrentStep('KYC/KYB')
+        else if (status === 'Contracts') setCurrentStep('Contracts')
+        else if (status === 'Commitment') setCurrentStep('Commitment')
+        else if (status === 'Active') setCurrentStep('Complete')
+        else if (hasCompletedKYC) {
+          setCurrentStep('Contracts')
+        } else {
+          setCurrentStep('KYC/KYB')
+        }
+
+        // Pre-fill KYC data from investor
+        setKycData({
+          fullName: investorDetails.name || '',
+          dateOfBirth: '',
+          nationality: '',
+          idNumber: '',
+          address: investorDetails.address || '',
+          taxId: investorDetails.taxId || '',
+          sourceOfFunds: '',
+          occupation: '',
+        })
+      } catch (error) {
+        console.error('[Onboarding] Error loading onboarding data:', error)
+        toast.error('Failed to load onboarding data')
+        router.push('/lp-portal')
+      }
     }
 
-    const ownership = investor.fundOwnerships.find(o => o.fundId === fundId)
-    if (!ownership) {
-      toast.error('Structure not found')
-      router.push('/lp-portal')
-      return
-    }
+    console.log('[Onboarding] Effect triggered for fundId:', fundId)
 
-    setInvestorId(investor.id)
-    setFundName(ownership.fundName)
-    setCommitment(ownership.commitment)
-
-    // Load structure data for token information
-    const allStructures = getStructures()
-    const structure = allStructures.find(s => s.id === fundId)
-    if (structure && structure.tokenValue) {
-      setStructureData({
-        tokenName: structure.tokenName || 'Tokens',
-        tokenSymbol: structure.tokenSymbol || 'TKN',
-        tokenValue: structure.tokenValue,
-        minTokens: structure.minTokensPerInvestor || 1,
-        maxTokens: structure.maxTokensPerInvestor || 1000,
-      })
-      // Set default tokens to minimum
-      setPaymentsData(prev => ({ ...prev, tokensToPurchase: structure.minTokensPerInvestor || 1 }))
-    }
-
-    // Set custom breadcrumb for this fund
-    setCustomBreadcrumb(`/lp-portal/onboarding/${fundId}`, ownership.fundName)
-
-    // Set current step based on THIS fund's onboarding status (not global investor status)
-    const status = ownership.onboardingStatus
-
-    // Check if investor has completed KYC/KYB for any other fund
-    const hasCompletedKYC = investor.fundOwnerships.some(
-      fo => fo.fundId !== fundId && fo.onboardingStatus && fo.onboardingStatus !== 'Pending'
-    )
-
-    if (status === 'KYC/KYB') setCurrentStep('KYC/KYB')
-    else if (status === 'Contracts') setCurrentStep('Contracts')
-    else if (status === 'Commitment') setCurrentStep('Commitment')
-    else if (status === 'Active') setCurrentStep('Complete')
-    else if (hasCompletedKYC) {
-      // If investor already completed KYC for another fund, skip to Contracts
-      setCurrentStep('Contracts')
-    } else {
-      // New investor, start from KYC/KYB
-      setCurrentStep('KYC/KYB')
-    }
-
-    // Pre-fill KYC data from investor
-    setKycData({
-      fullName: investor.name,
-      dateOfBirth: '',
-      nationality: '',
-      idNumber: '',
-      address: investor.address ? `${investor.address.street}, ${investor.address.city}, ${investor.address.state} ${investor.address.zipCode}` : '',
-      taxId: investor.taxId || '',
-      sourceOfFunds: '',
-      occupation: '',
-    })
+    loadOnboardingData()
 
     // Cleanup breadcrumb on unmount
     return () => {
@@ -185,37 +294,31 @@ export default function OnboardingPage() {
     return ((stepIndex + 1) / STEPS.length) * 100
   }
 
-  const handleKycSubmit = () => {
+  const handleKycSubmit = async () => {
     if (!kycData.fullName || !kycData.dateOfBirth || !kycData.nationality || !kycData.idNumber) {
       toast.error('Please fill in all required fields')
       return
     }
 
-    const success = updateStructureOnboardingStatus(investorId, fundId, 'Contracts')
-    if (success) {
-      toast.success('KYC/KYB verification completed')
-      setCurrentStep('Contracts')
-    } else {
-      toast.error('Failed to update onboarding status')
-    }
+    // TODO: Implement API endpoint to update onboarding status
+    // For now, just move to next step in UI
+    toast.success('KYC/KYB verification completed')
+    setCurrentStep('Contracts')
   }
 
-  const handleContractsSubmit = () => {
+  const handleContractsSubmit = async () => {
     if (!contractsData.subscriptionAgreementSigned || !contractsData.lpaSigned) {
       toast.error('Please sign all required documents')
       return
     }
 
-    const success = updateStructureOnboardingStatus(investorId, fundId, 'Commitment')
-    if (success) {
-      toast.success('Contracts signed successfully')
-      setCurrentStep('Commitment')
-    } else {
-      toast.error('Failed to update onboarding status')
-    }
+    // TODO: Implement API endpoint to update onboarding status
+    // For now, just move to next step in UI
+    toast.success('Contracts signed successfully')
+    setCurrentStep('Commitment')
   }
 
-  const handlePaymentsSubmit = () => {
+  const handlePaymentsSubmit = async () => {
     if (!paymentsData.tokensToPurchase || paymentsData.tokensToPurchase === 0) {
       toast.error('Please select the number of tokens to purchase')
       return
@@ -232,8 +335,9 @@ export default function OnboardingPage() {
                                paymentsData.paymentMethod === 'ach' ? 'Bank Account (ACH)' :
                                'Crypto (Bridge by Stripe)'
 
-    toast.info(`Saving commitment and payment preferences...`)
+    toast.info('Saving commitment and payment preferences...')
 
+    // TODO: Implement API endpoint to update commitment and onboarding status
     // In production:
     // 1. Save commitment amount and token allocation
     // 2. Save preferred payment method for future capital calls
@@ -241,54 +345,33 @@ export default function OnboardingPage() {
     // 4. When capital call is issued, investor will be notified to complete payment
 
     setTimeout(() => {
-      // Calculate ownership percentage based on tokens purchased
-      const allStructures = getStructures()
-      const structure = allStructures.find(s => s.id === fundId)
-
-      if (!structure || !structure.totalTokens) {
+      if (!structureData) {
         toast.error('Structure data not found')
         return
       }
 
-      const ownershipPercent = (paymentsData.tokensToPurchase / structure.totalTokens) * 100
-      const totalAmount = paymentsData.tokensToPurchase * (structureData?.tokenValue || 0)
+      // Calculate ownership percentage based on tokens purchased
+      // Note: This requires totalTokens from the structure
+      const ownershipPercent = 0 // Will be calculated once API provides total tokens
 
-      // Update investor ownership and onboarding status in a single operation
-      // Note: During onboarding, we only save the commitment and payment preferences
-      // Actual token purchase happens during capital calls
-      const success = updateStructureOnboardingStatus(
-        investorId,
-        fundId,
-        'Active',
-        {
-          ownershipPercent: 0, // No ownership until capital is called and tokens are purchased
-          commitment: totalAmount,
-          calledCapital: 0,
-          uncalledCapital: totalAmount,
-        }
-      )
-      if (success) {
-        // Create completion summary
-        setCompletionSummary({
-          investorName: kycData.fullName,
-          kycCompleted: true,
-          contractsSigned: [
-            contractsData.subscriptionAgreementSigned ? 'Subscription Agreement' : '',
-            contractsData.lpaSigned ? 'Limited Partnership Agreement' : '',
-            contractsData.investorQuestionnaireSigned ? 'Investor Questionnaire' : '',
-            contractsData.accreditationVerified ? 'Accredited Investor Verification' : '',
-          ].filter(Boolean),
-          tokensPurchased: paymentsData.tokensToPurchase,
-          totalAmount,
-          paymentMethod: paymentMethodLabel,
-          ownershipPercent,
-        })
+      // Create completion summary
+      setCompletionSummary({
+        investorName: kycData.fullName,
+        kycCompleted: true,
+        contractsSigned: [
+          contractsData.subscriptionAgreementSigned ? 'Subscription Agreement' : '',
+          contractsData.lpaSigned ? 'Limited Partnership Agreement' : '',
+          contractsData.investorQuestionnaireSigned ? 'Investor Questionnaire' : '',
+          contractsData.accreditationVerified ? 'Accredited Investor Verification' : '',
+        ].filter(Boolean),
+        tokensPurchased: paymentsData.tokensToPurchase,
+        totalAmount,
+        paymentMethod: paymentMethodLabel,
+        ownershipPercent,
+      })
 
-        toast.success(`Payment preferences saved! Onboarding complete.`)
-        setCurrentStep('Complete')
-      } else {
-        toast.error('Failed to complete onboarding')
-      }
+      toast.success('Payment preferences saved! Onboarding complete.')
+      setCurrentStep('Complete')
     }, 1500)
   }
 

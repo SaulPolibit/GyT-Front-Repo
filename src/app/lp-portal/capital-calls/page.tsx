@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { IconTrendingDown, IconFileText, IconSend, IconClock, IconCircleCheck, IconAlertCircle, IconCircleX, IconDownload, IconEye } from '@tabler/icons-react'
-import { getCapitalCalls, type CapitalCall } from '@/lib/capital-calls-storage'
-import { getInvestorByEmail, getCurrentInvestorEmail } from '@/lib/lp-portal-helpers'
+import { IconTrendingDown, IconFileText, IconSend, IconClock, IconCircleCheck, IconAlertCircle, IconCircleX, IconEye } from '@tabler/icons-react'
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
+import { getAuthState } from '@/lib/auth-storage'
 
 interface InvestorCapitalCall {
   id: string
@@ -32,7 +32,7 @@ export default function LPCapitalCallsPage() {
     totalOutstanding: 0,
     totalCalls: 0
   })
-  const [investorName, setInvestorName] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadData()
@@ -57,63 +57,82 @@ export default function LPCapitalCallsPage() {
     }
   }, [])
 
-  const loadData = () => {
-    const email = getCurrentInvestorEmail()
-    const investor = getInvestorByEmail(email)
+  const loadData = async () => {
+    setLoading(true)
 
-    if (!investor) return
+    try {
+      // Get auth token from localStorage
+      const authState = getAuthState()
 
-    setInvestorName(investor.name)
+      if (!authState.isLoggedIn || !authState.token) {
+        console.error('No auth token found')
+        setLoading(false)
+        return
+      }
 
-    const allCapitalCalls = getCapitalCalls()
+      const token = authState.token
 
-    // Filter capital calls for structures the investor is involved in
-    const investorStructureIds = investor.fundOwnerships.map(fo => fo.fundId)
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
 
-    const investorCalls: InvestorCapitalCall[] = allCapitalCalls
-      .filter(call => investorStructureIds.includes(call.fundId))
-      .map(call => {
-        // Find investor's allocation in this capital call
-        const myAllocation = call.investorAllocations.find(alloc => alloc.investorId === investor.id)
-
-        if (!myAllocation) return null as any
-
-        return {
-          id: call.id,
-          fundName: call.fundName,
-          fundId: call.fundId,
-          callNumber: call.callNumber,
-          callDate: call.callDate,
-          dueDate: call.dueDate,
-          status: myAllocation.status,
-          currency: call.currency,
-          myCallAmount: Number(myAllocation.callAmount) || 0,
-          myPaidAmount: Number(myAllocation.amountPaid) || 0,
-          myOutstandingAmount: myAllocation.amountOutstanding !== undefined ? Number(myAllocation.amountOutstanding) : Number(myAllocation.callAmount) || 0,
-          totalCallAmount: call.totalCallAmount,
-          purpose: call.purpose
-        }
+      // Fetch capital calls summary
+      const summaryResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getMyCapitalCallsSummary), {
+        headers
       })
-      .filter((call): call is InvestorCapitalCall => call !== null)
-      .sort((a, b) => new Date(b.callDate).getTime() - new Date(a.callDate).getTime())
 
-    setCapitalCalls(investorCalls)
+      if (!summaryResponse.ok) {
+        console.error('Failed to fetch capital calls summary:', summaryResponse.status)
+        throw new Error('Failed to fetch capital calls summary')
+      }
 
-    // Calculate summary
-    const totalCalled = investorCalls.reduce((sum, call) => sum + call.myCallAmount, 0)
-    const totalPaid = investorCalls.reduce((sum, call) => sum + call.myPaidAmount, 0)
-    const totalOutstanding = investorCalls.reduce((sum, call) => sum + call.myOutstandingAmount, 0)
+      const summaryData = await summaryResponse.json()
+      console.log('Summary response:', summaryData)
 
-    setSummary({
-      totalCalled,
-      totalPaid,
-      totalOutstanding,
-      totalCalls: investorCalls.length
-    })
+      if (summaryData.success && summaryData.data) {
+        setSummary({
+          totalCalled: summaryData.data.totalCalled || 0,
+          totalPaid: summaryData.data.totalPaid || 0,
+          totalOutstanding: summaryData.data.outstanding || 0,
+          totalCalls: summaryData.data.totalCalls || 0
+        })
+      }
+
+      // Fetch capital calls list
+      const callsResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getMyCapitalCalls), {
+        headers
+      })
+
+      if (!callsResponse.ok) {
+        console.error('Failed to fetch capital calls list:', callsResponse.status)
+        throw new Error('Failed to fetch capital calls')
+      }
+
+      const callsData = await callsResponse.json()
+      console.log('Capital calls response:', callsData)
+
+      if (callsData.success) {
+        // Ensure data is an array
+        const calls = Array.isArray(callsData.data) ? callsData.data : []
+        console.log('Setting capital calls:', calls)
+        setCapitalCalls(calls)
+      } else {
+        console.error('API returned success: false', callsData)
+        setCapitalCalls([])
+      }
+
+    } catch (error) {
+      console.error('Error loading capital calls data:', error)
+      setCapitalCalls([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', icon: any }> = {
+    type IconComponent = React.ComponentType<{ className?: string }>
+    const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', icon: IconComponent }> = {
       'Draft': { variant: 'secondary', icon: IconFileText },
       'Sent': { variant: 'default', icon: IconSend },
       'Pending': { variant: 'outline', icon: IconClock },
@@ -164,6 +183,15 @@ export default function LPCapitalCallsPage() {
         </p>
       </div>
 
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-sm text-muted-foreground">Loading capital calls...</p>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -207,7 +235,7 @@ export default function LPCapitalCallsPage() {
             <IconTrendingDown className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No Capital Calls</h3>
             <p className="text-sm text-muted-foreground text-center max-w-md">
-              You don't have any capital calls yet. Capital calls will appear here when your fund managers request capital.
+              You don&apos;t have any capital calls yet. Capital calls will appear here when your fund managers request capital.
             </p>
           </CardContent>
         </Card>
@@ -304,6 +332,8 @@ export default function LPCapitalCallsPage() {
             )
           })}
         </div>
+      )}
+        </>
       )}
 
     </div>
