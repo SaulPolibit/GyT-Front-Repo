@@ -7,46 +7,73 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { IconArrowLeft, IconDownload, IconCircleCheck, IconBuildingBank } from '@tabler/icons-react'
-import { getCapitalCalls } from '@/lib/capital-calls-storage'
-import { getInvestorByEmail, getCurrentInvestorEmail } from '@/lib/lp-portal-helpers'
-import { generateCapitalCallReceiptPDF } from '@/lib/capital-call-receipt-generator'
-import { getFirmSettings } from '@/lib/firm-settings-storage'
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
+import { getCurrentUser, getAuthToken } from '@/lib/auth-storage'
 
 export default function CapitalCallSummaryPage() {
   const router = useRouter()
   const params = useParams()
   const [capitalCall, setCapitalCall] = useState<any>(null)
-  const [investorAllocation, setInvestorAllocation] = useState<any>(null)
-  const [investorName, setInvestorName] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const email = getCurrentInvestorEmail()
-    const investor = getInvestorByEmail(email)
+    loadCapitalCallData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.id])
 
-    if (!investor) {
+  const loadCapitalCallData = async () => {
+    setLoading(true)
+
+    try {
+      const user = getCurrentUser()
+      const token = getAuthToken()
+
+      if (!user || !token) {
+        console.error('[Summary] No user or token found')
+        router.push('/lp-portal/capital-calls')
+        return
+      }
+
+      // Fetch capital calls from API
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getMyCapitalCalls), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        console.error('[Summary] Failed to fetch capital calls:', response.status)
+        router.push('/lp-portal/capital-calls')
+        return
+      }
+
+      const responseData = await response.json()
+
+      if (!responseData.success || !responseData.data) {
+        console.error('[Summary] Invalid API response')
+        router.push('/lp-portal/capital-calls')
+        return
+      }
+
+      // Find the specific capital call by ID
+      const calls = responseData.data.capitalCalls || []
+      const call = calls.find((c: any) => c.id === params.id)
+
+      if (!call) {
+        console.error('[Summary] Capital call not found:', params.id)
+        router.push('/lp-portal/capital-calls')
+        return
+      }
+
+      setCapitalCall(call)
+    } catch (error) {
+      console.error('[Summary] Error loading capital call:', error)
       router.push('/lp-portal/capital-calls')
-      return
+    } finally {
+      setLoading(false)
     }
-
-    const allCapitalCalls = getCapitalCalls()
-    const call = allCapitalCalls.find(c => c.id === params.id)
-
-    if (!call) {
-      router.push('/lp-portal/capital-calls')
-      return
-    }
-
-    const allocation = call.investorAllocations.find(a => a.investorId === investor.id)
-
-    if (!allocation) {
-      router.push('/lp-portal/capital-calls')
-      return
-    }
-
-    setCapitalCall(call)
-    setInvestorAllocation(allocation)
-    setInvestorName(investor.name)
-  }, [params.id, router])
+  }
 
   const formatCurrency = (amount: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('en-US', {
@@ -65,53 +92,18 @@ export default function CapitalCallSummaryPage() {
     })
   }
 
-  const handleDownloadPDF = () => {
-    if (!capitalCall || !investorAllocation) return
-
-    const firmSettings = getFirmSettings()
-
-    generateCapitalCallReceiptPDF({
-      capitalCall: {
-        id: capitalCall.id,
-        fundName: capitalCall.fundName,
-        callNumber: capitalCall.callNumber,
-        callDate: capitalCall.callDate,
-        dueDate: capitalCall.dueDate,
-        purpose: capitalCall.purpose,
-        useOfProceeds: capitalCall.useOfProceeds,
-        currency: capitalCall.currency,
-      },
-      investorAllocation: {
-        investorName: investorName,
-        investorType: investorAllocation.investorType,
-        callAmount: investorAllocation.callAmount,
-        amountPaid: investorAllocation.amountPaid,
-        amountOutstanding: investorAllocation.amountOutstanding,
-        status: investorAllocation.status,
-        paidDate: investorAllocation.paidDate,
-        paymentMethod: investorAllocation.paymentMethod,
-        transactionReference: investorAllocation.transactionReference,
-        bankDetails: investorAllocation.bankDetails,
-        commitment: investorAllocation.commitment,
-        calledCapitalToDate: investorAllocation.calledCapitalToDate,
-        uncalledCapital: investorAllocation.uncalledCapital,
-      },
-      investorName: investorName,
-      firmName: firmSettings.firmName,
-    })
-  }
-
-  if (!capitalCall || !investorAllocation) {
+  if (loading || !capitalCall) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading transaction details...</p>
         </div>
       </div>
     )
   }
 
-  const isPaid = investorAllocation.status === 'Paid'
+  const isPaid = capitalCall.status === 'Paid'
 
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-4xl mx-auto">
@@ -124,16 +116,10 @@ export default function CapitalCallSummaryPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Transaction Summary</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Capital Call #{capitalCall.callNumber} - {capitalCall.fundName}
+              {capitalCall.callNumber} - {capitalCall.structureName}
             </p>
           </div>
         </div>
-        {isPaid && (
-          <Button onClick={handleDownloadPDF}>
-            <IconDownload className="w-4 h-4 mr-2" />
-            Download PDF
-          </Button>
-        )}
       </div>
 
       {/* Payment Status Banner */}
@@ -145,7 +131,7 @@ export default function CapitalCallSummaryPage() {
               <div>
                 <p className="font-semibold text-green-900 dark:text-green-100">Payment Completed</p>
                 <p className="text-sm text-green-700 dark:text-green-300 mt-0.5">
-                  Your payment was successfully processed on {formatDate(investorAllocation.paidDate || capitalCall.callDate)}
+                  Your payment was successfully processed
                 </p>
               </div>
             </div>
@@ -164,11 +150,11 @@ export default function CapitalCallSummaryPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Fund</p>
-                <p className="text-sm font-medium">{capitalCall.fundName}</p>
+                <p className="text-sm font-medium">{capitalCall.structureName}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Call Number</p>
-                <p className="text-sm font-medium">#{capitalCall.callNumber}</p>
+                <p className="text-sm font-medium">{capitalCall.callNumber}</p>
               </div>
             </div>
 
@@ -189,137 +175,42 @@ export default function CapitalCallSummaryPage() {
 
             <div>
               <p className="text-xs text-muted-foreground mb-1">Purpose</p>
-              <p className="text-sm">{capitalCall.purpose}</p>
+              <p className="text-sm">{capitalCall.purpose || 'N/A'}</p>
             </div>
 
-            {capitalCall.useOfProceeds && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Use of Proceeds</p>
-                  <Badge variant="outline">{capitalCall.useOfProceeds}</Badge>
-                </div>
-              </>
-            )}
+            <Separator />
+
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Status</p>
+              <Badge variant={isPaid ? 'default' : 'secondary'}>{capitalCall.status}</Badge>
+            </div>
           </CardContent>
         </Card>
 
         {/* Payment Details */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Payment Details</CardTitle>
+            <CardTitle className="text-lg">Payment Summary</CardTitle>
             <CardDescription>Your payment information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Investor</span>
-                <span className="text-sm font-medium">{investorName}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Investor Type</span>
-                <Badge variant="outline">{investorAllocation.investorType}</Badge>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Call Amount</span>
-                <span className="text-sm font-semibold">{formatCurrency(investorAllocation.callAmount, capitalCall.currency)}</span>
+                <span className="text-sm text-muted-foreground">Allocated Amount</span>
+                <span className="text-sm font-semibold">{formatCurrency(capitalCall.allocatedAmount)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Amount Paid</span>
-                <span className="text-sm font-semibold text-green-600">{formatCurrency(investorAllocation.amountPaid, capitalCall.currency)}</span>
+                <span className="text-sm font-semibold text-green-600">{formatCurrency(capitalCall.paidAmount)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Outstanding</span>
-                <span className="text-sm font-semibold text-orange-600">{formatCurrency(investorAllocation.amountOutstanding, capitalCall.currency)}</span>
+                <span className="text-sm font-semibold text-orange-600">{formatCurrency(capitalCall.outstanding)}</span>
               </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Status</span>
-                <Badge variant={isPaid ? 'default' : 'secondary'}>{investorAllocation.status}</Badge>
-              </div>
-              {isPaid && investorAllocation.paidDate && (
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Payment Date</span>
-                  <span className="text-sm font-medium">{formatDate(investorAllocation.paidDate)}</span>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Transaction Details (if paid) */}
-      {isPaid && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Transaction Information</CardTitle>
-            <CardDescription>Payment method and transaction details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {investorAllocation.paymentMethod && (
-                <div className="flex items-start gap-3">
-                  <IconBuildingBank className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Payment Method</p>
-                    <p className="text-sm font-medium">{investorAllocation.paymentMethod}</p>
-                  </div>
-                </div>
-              )}
-
-              {investorAllocation.transactionReference && (
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Transaction Reference</p>
-                  <p className="text-sm font-mono">{investorAllocation.transactionReference}</p>
-                </div>
-              )}
-            </div>
-
-            {investorAllocation.bankDetails && (
-              <>
-                <Separator />
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Bank Details</p>
-                  <p className="text-sm">{investorAllocation.bankDetails}</p>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Commitment Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Commitment Overview</CardTitle>
-          <CardDescription>Your capital commitment to this fund</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Total Commitment</p>
-              <p className="text-lg font-semibold">{formatCurrency(investorAllocation.commitment, capitalCall.currency)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Called to Date</p>
-              <p className="text-lg font-semibold text-orange-600">{formatCurrency(investorAllocation.calledCapitalToDate || investorAllocation.amountPaid, capitalCall.currency)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Uncalled Capital</p>
-              <p className="text-lg font-semibold text-green-600">{formatCurrency(investorAllocation.uncalledCapital || (investorAllocation.commitment - investorAllocation.amountPaid), capitalCall.currency)}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Action Buttons */}
       <div className="flex justify-start items-center">
