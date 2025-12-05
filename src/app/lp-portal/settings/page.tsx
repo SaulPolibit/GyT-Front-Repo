@@ -21,7 +21,6 @@ import {
   CreditCard,
   Bell,
   Shield,
-  Settings as SettingsIcon,
   Plus,
   Trash2,
   Check,
@@ -221,12 +220,11 @@ export default function LPSettingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="payment">Payment</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="legal">Legal Info</TabsTrigger>
-          <TabsTrigger value="preferences">Preferences</TabsTrigger>
         </TabsList>
 
         {/* Payment Methods Tab */}
@@ -873,140 +871,6 @@ export default function LPSettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Preferences Tab */}
-        <TabsContent value="preferences" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <SettingsIcon className="h-5 w-5" />
-                Portal Preferences
-              </CardTitle>
-              <CardDescription>
-                Customize your portal experience
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Language & Region */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">Language & Region</h3>
-
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label>Language</Label>
-                    <Select defaultValue="en">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Español</SelectItem>
-                        <SelectItem value="fr">Français</SelectItem>
-                        <SelectItem value="de">Deutsch</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Time Zone</Label>
-                    <Select defaultValue="pst">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pst">Pacific Time (PT)</SelectItem>
-                        <SelectItem value="mst">Mountain Time (MT)</SelectItem>
-                        <SelectItem value="cst">Central Time (CT)</SelectItem>
-                        <SelectItem value="est">Eastern Time (ET)</SelectItem>
-                        <SelectItem value="utc">UTC</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Display Settings */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">Display Settings</h3>
-
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label>Default Currency Display</Label>
-                    <Select defaultValue="usd">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="usd">USD ($)</SelectItem>
-                        <SelectItem value="eur">EUR (€)</SelectItem>
-                        <SelectItem value="gbp">GBP (£)</SelectItem>
-                        <SelectItem value="jpy">JPY (¥)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Date Format</Label>
-                    <Select defaultValue="mdy">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mdy">MM/DD/YYYY</SelectItem>
-                        <SelectItem value="dmy">DD/MM/YYYY</SelectItem>
-                        <SelectItem value="ymd">YYYY-MM-DD</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Number Format</Label>
-                    <Select defaultValue="us">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="us">1,234.56 (US)</SelectItem>
-                        <SelectItem value="eu">1.234,56 (EU)</SelectItem>
-                        <SelectItem value="in">1,23,456.78 (Indian)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Document Settings */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">Document Settings</h3>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Auto-download reports</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Automatically download reports when they become available
-                    </p>
-                  </div>
-                  <Switch />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">E-signature preference</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Use electronic signatures for document signing
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </div>
-
-              <Button>Save Preferences</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   )
