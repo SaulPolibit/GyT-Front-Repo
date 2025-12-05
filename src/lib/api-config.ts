@@ -35,6 +35,9 @@ export const API_CONFIG = {
     enableAllNotifications: '/api/notifications/settings/enable-all',
     disableAllNotifications: '/api/notifications/settings/disable-all',
 
+    // User profile
+    updateUserProfile: '/api/custom/user/profile',
+
     // Add other endpoints as needed
   }
 }

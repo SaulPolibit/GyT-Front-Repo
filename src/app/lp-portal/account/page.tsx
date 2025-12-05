@@ -9,19 +9,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Camera, Save } from "lucide-react"
-import { getInvestorByEmail, getCurrentInvestorEmail, getInvestorAvatar, setInvestorAvatar } from "@/lib/lp-portal-helpers"
-import { getInvestors, updateInvestor } from "@/lib/investors-storage"
+import { getCurrentUser, getAuthToken } from "@/lib/auth-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
 
 export default function AccountPage() {
-  const [currentEmail, setCurrentEmail] = React.useState('')
-  const [currentInvestorId, setCurrentInvestorId] = React.useState('')
+  const [loading, setLoading] = React.useState(true)
   const [formData, setFormData] = React.useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     avatarUrl: '',
-    languagePreference: 'english',
+    languagePreference: 'en',
   })
   const [passwordData, setPasswordData] = React.useState({
     currentPassword: '',
@@ -31,62 +31,92 @@ export default function AccountPage() {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
-    const email = getCurrentInvestorEmail()
-    setCurrentEmail(email)
-
-    const investor = getInvestorByEmail(email)
-    if (investor) {
-      setCurrentInvestorId(investor.id)
-      const savedAvatar = getInvestorAvatar(investor.id)
-      setFormData({
-        name: investor.name,
-        email: investor.email,
-        phone: investor.phone || '',
-        avatarUrl: savedAvatar || '',
-        languagePreference: 'english',
-      })
-    } else {
-      // Set default values if no investor found
-      setFormData({
-        name: 'Investor',
-        email: email,
-        phone: '',
-        avatarUrl: '',
-        languagePreference: 'english',
-      })
-    }
+    loadUserData()
   }, [])
 
-  const handleProfileUpdate = () => {
-    const investor = getInvestorByEmail(currentEmail)
-    if (!investor) {
-      toast.error('No investor profile found. Please contact your fund administrator to set up your account.')
+  const loadUserData = () => {
+    const user = getCurrentUser()
+
+    if (user) {
+      // Parse full name into first and last name
+      const nameParts = user.name?.split(' ') || ['', '']
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+
+      setFormData({
+        firstName,
+        lastName,
+        email: user.email || '',
+        phone: user.phoneNumber || '',
+        avatarUrl: '',
+        languagePreference: user.appLanguage || 'en',
+      })
+    }
+
+    setLoading(false)
+  }
+
+  const handleProfileUpdate = async () => {
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required. Please log in again.')
       return
     }
 
-    const updated = updateInvestor(investor.id, {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone || undefined,
-    })
-
-    if (updated) {
-      // Save avatar separately
-      if (formData.avatarUrl) {
-        setInvestorAvatar(investor.id, formData.avatarUrl)
+    try {
+      const payload: any = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        appLanguage: formData.languagePreference,
       }
 
-      toast.success('Profile updated successfully')
-      if (formData.email !== currentEmail) {
-        localStorage.setItem('polibit_current_investor_email', formData.email)
-        setCurrentEmail(formData.email)
+      // Only include phone if it's not empty
+      if (formData.phone) {
+        payload.address = formData.phone // Using address field for phone number as per API spec
       }
-    } else {
+
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.updateUserProfile), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile')
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Update localStorage with new user data
+        const currentUser = getCurrentUser()
+        if (currentUser) {
+          const updatedUser = {
+            ...currentUser,
+            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            email: formData.email,
+            phoneNumber: formData.phone,
+            appLanguage: formData.languagePreference,
+          }
+          localStorage.setItem('polibit_user', JSON.stringify(updatedUser))
+        }
+
+        toast.success('Profile updated successfully')
+      } else {
+        toast.error(result.message || 'Failed to update profile')
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error)
       toast.error('Failed to update profile')
     }
   }
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword) {
       toast.error('Please fill in all password fields')
       return
@@ -102,12 +132,47 @@ export default function AccountPage() {
       return
     }
 
-    toast.success('Password changed successfully')
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    })
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required. Please log in again.')
+      return
+    }
+
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.updateUserProfile), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          oldPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to change password')
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Password changed successfully')
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        })
+      } else {
+        toast.error(result.message || 'Failed to change password')
+      }
+    } catch (error: any) {
+      console.error('Error changing password:', error)
+      toast.error(error.message || 'Failed to change password')
+    }
   }
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,11 +208,24 @@ export default function AccountPage() {
     fileInputRef.current?.click()
   }
 
-  const getInitials = (name: string) => {
-    const parts = name.split(' ')
-    return parts.length > 1
-      ? `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase()
-      : name.substring(0, 2).toUpperCase()
+  const getInitials = (firstName: string, lastName: string) => {
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+    } else if (firstName) {
+      return firstName.substring(0, 2).toUpperCase()
+    }
+    return 'U'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading account details...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -170,8 +248,8 @@ export default function AccountPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={formData.avatarUrl || '/avatars/investor.jpg'} alt={formData.name} />
-                <AvatarFallback>{getInitials(formData.name)}</AvatarFallback>
+                <AvatarImage src={formData.avatarUrl || '/avatars/investor.jpg'} alt={`${formData.firstName} ${formData.lastName}`} />
+                <AvatarFallback>{getInitials(formData.firstName, formData.lastName)}</AvatarFallback>
               </Avatar>
               <div>
                 <input
@@ -193,14 +271,26 @@ export default function AccountPage() {
 
             <Separator />
 
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="John Doe"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  placeholder="John"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  placeholder="Doe"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -251,8 +341,8 @@ export default function AccountPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="english">English</SelectItem>
-                    <SelectItem value="spanish">Español</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="es">Español</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
