@@ -591,7 +591,7 @@ export default function LPSettingsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Investor Type</Label>
-                  <Input value={investor.type.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())} disabled />
+                  <Input value={investor.type ? investor.type.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : 'Individual'} disabled />
                 </div>
 
                 {investor.entityName && (
@@ -609,12 +609,12 @@ export default function LPSettingsPage() {
 
                 <div className="space-y-2">
                   <Label>Legal Name</Label>
-                  <Input value={investor.name} disabled />
+                  <Input value={investor.name || 'N/A'} disabled />
                 </div>
 
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <Input value={investor.email} disabled />
+                  <Input value={investor.email || 'N/A'} disabled />
                 </div>
 
                 <div className="space-y-2">
@@ -687,7 +687,7 @@ export default function LPSettingsPage() {
 
                 <div className="space-y-2">
                   <Label>Tax Classification</Label>
-                  <Select defaultValue={investor.type === 'individual' ? 'individual' : 'entity'}>
+                  <Select defaultValue={investor.type === 'individual' || !investor.type ? 'individual' : 'entity'}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
