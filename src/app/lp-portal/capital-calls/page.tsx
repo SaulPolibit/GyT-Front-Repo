@@ -10,17 +10,15 @@ import { getAuthState } from '@/lib/auth-storage'
 
 interface InvestorCapitalCall {
   id: string
-  fundName: string
-  fundId: string
-  callNumber: number
+  structureName: string
+  structureId: string
+  callNumber: string
   callDate: string
   dueDate: string
   status: string
-  currency: string
-  myCallAmount: number
-  myPaidAmount: number
-  myOutstandingAmount: number
-  totalCallAmount: number
+  allocatedAmount: number
+  paidAmount: number
+  outstanding: number
   purpose: string
 }
 
@@ -238,10 +236,10 @@ export default function LPCapitalCallsPage() {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <CardTitle className="text-lg font-semibold">
-                        {call.fundName}
+                        {call.structureName}
                       </CardTitle>
                       <CardDescription className="text-sm">
-                        Call #{call.callNumber}
+                        {call.callNumber}
                       </CardDescription>
                     </div>
                     {getStatusBadge(overdue && call.status !== 'Paid' ? 'Overdue' : call.status)}
@@ -262,15 +260,15 @@ export default function LPCapitalCallsPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">My Amount</span>
-                      <span className="text-sm font-semibold">{formatCurrency(call.myCallAmount, call.currency)}</span>
+                      <span className="text-sm font-semibold">{formatCurrency(call.allocatedAmount)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Paid</span>
-                      <span className="text-sm font-medium text-green-600">{formatCurrency(call.myPaidAmount, call.currency)}</span>
+                      <span className="text-sm font-medium text-green-600">{formatCurrency(call.paidAmount)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Outstanding</span>
-                      <span className="text-sm font-medium text-orange-600">{formatCurrency(call.myOutstandingAmount, call.currency)}</span>
+                      <span className="text-sm font-medium text-orange-600">{formatCurrency(call.outstanding)}</span>
                     </div>
                   </div>
 
