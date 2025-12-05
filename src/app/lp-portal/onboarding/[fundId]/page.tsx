@@ -203,6 +203,7 @@ export default function OnboardingPage() {
         const investorDetails = investor
 
         // Load structure data for token information
+        console.log('[Onboarding] Fetching structure details for:', fundId)
         const structureResponse = await fetch(
           getApiUrl(API_CONFIG.endpoints.getSingleStructure(fundId)),
           {
@@ -214,21 +215,63 @@ export default function OnboardingPage() {
           }
         )
 
+        console.log('[Onboarding] Structure response status:', structureResponse.status)
+
         if (structureResponse.ok) {
-          const structureData = await structureResponse.json()
-          if (structureData.success && structureData.data) {
-            const struct = structureData.data
+          const structureDataResponse = await structureResponse.json()
+          console.log('[Onboarding] Structure data response:', structureDataResponse)
+
+          if (structureDataResponse.success && structureDataResponse.data) {
+            const struct = structureDataResponse.data
+            console.log('[Onboarding] Structure details:', struct)
+            console.log('[Onboarding] Has tokenValue:', !!struct.tokenValue)
+
             if (struct.tokenValue) {
-              setStructureData({
+              const tokenData = {
                 tokenName: struct.tokenName || 'Tokens',
                 tokenSymbol: struct.tokenSymbol || 'TKN',
                 tokenValue: struct.tokenValue,
                 minTokens: struct.minTokensPerInvestor || 1,
                 maxTokens: struct.maxTokensPerInvestor || 1000,
-              })
+              }
+              console.log('[Onboarding] Setting token data:', tokenData)
+              setStructureData(tokenData)
               setPaymentsData(prev => ({ ...prev, tokensToPurchase: struct.minTokensPerInvestor || 1 }))
+            } else {
+              console.warn('[Onboarding] Structure has no tokenValue, using defaults')
+              // Set default values if structure doesn't have token information
+              setStructureData({
+                tokenName: 'Units',
+                tokenSymbol: 'UNIT',
+                tokenValue: 1000,
+                minTokens: 1,
+                maxTokens: 1000,
+              })
+              setPaymentsData(prev => ({ ...prev, tokensToPurchase: 1 }))
             }
+          } else {
+            console.warn('[Onboarding] Invalid structure data, using defaults')
+            // Set default values if API response is invalid
+            setStructureData({
+              tokenName: 'Units',
+              tokenSymbol: 'UNIT',
+              tokenValue: 1000,
+              minTokens: 1,
+              maxTokens: 1000,
+            })
+            setPaymentsData(prev => ({ ...prev, tokensToPurchase: 1 }))
           }
+        } else {
+          console.error('[Onboarding] Failed to fetch structure details')
+          // Set default values if API call fails
+          setStructureData({
+            tokenName: 'Units',
+            tokenSymbol: 'UNIT',
+            tokenValue: 1000,
+            minTokens: 1,
+            maxTokens: 1000,
+          })
+          setPaymentsData(prev => ({ ...prev, tokensToPurchase: 1 }))
         }
 
         // Set custom breadcrumb for this fund
@@ -372,6 +415,13 @@ export default function OnboardingPage() {
 
       toast.success('Payment preferences saved! Onboarding complete.')
       setCurrentStep('Complete')
+
+      // Store completion in sessionStorage to hide warning on commitments page
+      const completedOnboardings = JSON.parse(sessionStorage.getItem('completedOnboardings') || '[]')
+      if (!completedOnboardings.includes(fundId)) {
+        completedOnboardings.push(fundId)
+        sessionStorage.setItem('completedOnboardings', JSON.stringify(completedOnboardings))
+      }
     }, 1500)
   }
 

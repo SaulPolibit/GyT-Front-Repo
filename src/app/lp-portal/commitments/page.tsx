@@ -36,9 +36,13 @@ export default function LPCommitmentsPage() {
   const [activeFunds, setActiveFunds] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [completedOnboardings, setCompletedOnboardings] = useState<string[]>([])
 
   useEffect(() => {
     loadData()
+    // Load completed onboardings from sessionStorage
+    const completed = JSON.parse(sessionStorage.getItem('completedOnboardings') || '[]')
+    setCompletedOnboardings(completed)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -332,7 +336,7 @@ export default function LPCommitmentsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {commitment.onboardingStatus !== 'Active' || commitment.commitment === 0 ? (
+                {(commitment.onboardingStatus !== 'Active' && commitment.onboardingStatus !== 'Complete' || commitment.commitment === 0) && !completedOnboardings.includes(commitment.fundId) ? (
                   <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-800">
                     <IconAlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
                     <div>
@@ -356,6 +360,18 @@ export default function LPCommitmentsPage() {
                           <IconArrowRight className="w-3 h-3 ml-1" />
                         </a>
                       </Button>
+                    </div>
+                  </div>
+                ) : completedOnboardings.includes(commitment.fundId) && commitment.onboardingStatus !== 'Active' && commitment.onboardingStatus !== 'Complete' ? (
+                  <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                    <IconAlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        Onboarding Complete
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                        Your onboarding is complete. The fund manager will review and activate your commitment.
+                      </p>
                     </div>
                   </div>
                 ) : (
