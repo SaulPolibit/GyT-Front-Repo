@@ -28,6 +28,12 @@ export const API_CONFIG = {
     getMyCapitalCallsSummary: '/api/investors/me/capital-calls-summary',
     getMyCapitalCalls: '/api/investors/me/capital-calls',
 
+    // Notification settings
+    getNotificationSettings: '/api/notifications/settings',
+    updateNotificationSettings: '/api/notifications/settings',
+    enableAllNotifications: '/api/notifications/settings/enable-all',
+    disableAllNotifications: '/api/notifications/settings/disable-all',
+
     // Add other endpoints as needed
   }
 }

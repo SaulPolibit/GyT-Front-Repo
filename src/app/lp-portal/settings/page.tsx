@@ -95,6 +95,27 @@ export default function LPSettingsPage() {
 
       const investorData = searchData.data[0]
       setInvestor(investorData)
+
+      // Load notification settings
+      const notifResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.getNotificationSettings),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (notifResponse.ok) {
+        const notifData = await notifResponse.json()
+        if (notifData.success && notifData.data) {
+          setEmailNotifications(notifData.data.emailNotifications ?? true)
+          setSmsNotifications(notifData.data.smsNotifications ?? false)
+          setPortalNotifications(notifData.data.pushNotifications ?? true)
+        }
+      }
     } catch (error) {
       console.error('[Settings] Error loading investor data:', error)
       toast.error('Failed to load investor data')
@@ -111,8 +132,39 @@ export default function LPSettingsPage() {
     toast.success("Payment method removed")
   }
 
-  const handleUpdateNotifications = () => {
-    toast.success("Notification preferences updated")
+  const handleUpdateNotifications = async () => {
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.updateNotificationSettings),
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            emailNotifications,
+            smsNotifications,
+            pushNotifications: portalNotifications,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to update notification settings')
+      }
+
+      toast.success("Notification preferences updated")
+    } catch (error) {
+      console.error('[Settings] Error updating notifications:', error)
+      toast.error('Failed to update notification preferences')
+    }
   }
 
   const handleEnable2FA = () => {
