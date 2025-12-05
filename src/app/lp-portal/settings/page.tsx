@@ -544,13 +544,13 @@ export default function LPSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Two-Factor Authentication */}
+              {/* Multi-Factor Authentication */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="text-base">Two-Factor Authentication (2FA)</Label>
+                    <Label className="text-base">Multi-Factor Authentication (MFA)</Label>
                     <p className="text-sm text-muted-foreground">
-                      Add an extra layer of security to your account
+                      Add an extra layer of security to your account with two-factor authentication
                     </p>
                   </div>
                   <Switch checked={twoFactorEnabled} onCheckedChange={handleEnable2FA} />
@@ -561,91 +561,14 @@ export default function LPSettingsPage() {
                     <div className="flex items-start gap-3">
                       <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                       <div className="text-sm">
-                        <p className="font-medium text-green-900 dark:text-green-100">2FA is enabled</p>
+                        <p className="font-medium text-green-900 dark:text-green-100">MFA is enabled</p>
                         <p className="text-green-700 dark:text-green-300 mt-1">
-                          You'll be asked for a verification code when signing in
+                          You&apos;ll be asked for a verification code when signing in
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
-              </div>
-
-              <Separator />
-
-              {/* Password */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">Password</h3>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Change your password</p>
-                    <p className="text-xs text-muted-foreground">Last changed 3 months ago</p>
-                  </div>
-                  <Button variant="outline">Change Password</Button>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Active Sessions */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">Active Sessions</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">Current Session</p>
-                        <Badge variant="default" className="text-xs">Active</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Chrome on Mac • San Francisco, CA
-                      </p>
-                      <p className="text-xs text-muted-foreground">Last activity: Just now</p>
-                    </div>
-                    <Badge variant="outline" className="text-xs">This device</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium">Mobile Session</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Safari on iPhone • San Francisco, CA
-                      </p>
-                      <p className="text-xs text-muted-foreground">Last activity: 2 hours ago</p>
-                    </div>
-                    <Button variant="outline" size="sm">Revoke</Button>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Login History */}
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold">Recent Login Activity</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center justify-between py-2 border-b">
-                    <div>
-                      <p className="font-medium">Login successful</p>
-                      <p className="text-xs text-muted-foreground">Chrome on Mac • 192.168.1.1</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Today at 2:30 PM</p>
-                  </div>
-                  <div className="flex items-center justify-between py-2 border-b">
-                    <div>
-                      <p className="font-medium">Login successful</p>
-                      <p className="text-xs text-muted-foreground">Safari on iPhone • 192.168.1.5</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Yesterday at 9:15 AM</p>
-                  </div>
-                  <div className="flex items-center justify-between py-2">
-                    <div>
-                      <p className="font-medium">Login successful</p>
-                      <p className="text-xs text-muted-foreground">Chrome on Mac • 192.168.1.1</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">3 days ago</p>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>
