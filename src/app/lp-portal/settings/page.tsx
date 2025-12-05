@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,11 +35,14 @@ import {
   Phone,
   Globe,
 } from "lucide-react"
-import { getInvestorByEmail, getCurrentInvestorEmail } from "@/lib/lp-portal-helpers"
+import { getCurrentUser, getAuthToken } from "@/lib/auth-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
 
 export default function LPSettingsPage() {
+  const router = useRouter()
   const [investor, setInvestor] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
   const [activeTab, setActiveTab] = React.useState("payment")
 
   // Notification settings
@@ -48,12 +52,56 @@ export default function LPSettingsPage() {
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
 
   React.useEffect(() => {
-    const email = getCurrentInvestorEmail()
-    const inv = getInvestorByEmail(email)
-    if (inv) {
-      setInvestor(inv)
-    }
+    loadInvestorData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const loadInvestorData = async () => {
+    setLoading(true)
+
+    try {
+      const user = getCurrentUser()
+      const token = getAuthToken()
+
+      if (!user?.email || !token) {
+        console.error('[Settings] No user or token found')
+        router.push('/lp-portal/login')
+        return
+      }
+
+      // Search for investor by email
+      const searchResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.searchInvestors(user.email)),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!searchResponse.ok) {
+        throw new Error('Failed to fetch investor data')
+      }
+
+      const searchData = await searchResponse.json()
+
+      if (!searchData.success || !searchData.data || searchData.data.length === 0) {
+        console.error('[Settings] No investor found')
+        router.push('/lp-portal/portfolio')
+        return
+      }
+
+      const investorData = searchData.data[0]
+      setInvestor(investorData)
+    } catch (error) {
+      console.error('[Settings] Error loading investor data:', error)
+      toast.error('Failed to load investor data')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSavePaymentMethod = () => {
     toast.success("Payment method saved successfully")
@@ -72,11 +120,14 @@ export default function LPSettingsPage() {
     toast.success(twoFactorEnabled ? "2FA disabled" : "2FA enabled")
   }
 
-  if (!investor) {
+  if (loading || !investor) {
     return (
       <div className="space-y-6 p-4 md:p-6">
         <h1 className="text-2xl font-semibold">Settings</h1>
-        <p>Loading...</p>
+        <div className="flex items-center gap-3">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          <p>Loading investor data...</p>
+        </div>
       </div>
     )
   }
