@@ -150,8 +150,13 @@ export default function LPSettingsPage() {
           },
           body: JSON.stringify({
             emailNotifications,
-            smsNotifications,
+            portfolioNotifications: emailNotifications, // Portfolio updates via email
+            reportNotifications: emailNotifications, // Quarterly reports and K-1s
+            investorActivityNotifications: emailNotifications, // Capital calls and distributions
+            systemUpdateNotifications: emailNotifications, // General announcements
+            marketingEmailNotifications: emailNotifications, // Marketing emails
             pushNotifications: portalNotifications,
+            smsNotifications,
           }),
         }
       )
