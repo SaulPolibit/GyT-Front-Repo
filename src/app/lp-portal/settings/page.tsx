@@ -55,6 +55,15 @@ export default function LPSettingsPage() {
   const [reportDeliveryFormat, setReportDeliveryFormat] = React.useState('both')
   const [notificationFrequency, setNotificationFrequency] = React.useState('immediate')
 
+  // Legal info - editable fields
+  const [phoneNumber, setPhoneNumber] = React.useState('')
+  const [addressLine1, setAddressLine1] = React.useState('')
+  const [addressLine2, setAddressLine2] = React.useState('')
+  const [city, setCity] = React.useState('')
+  const [state, setState] = React.useState('')
+  const [postalCode, setPostalCode] = React.useState('')
+  const [country, setCountry] = React.useState('')
+
   React.useEffect(() => {
     loadInvestorData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,7 +107,36 @@ export default function LPSettingsPage() {
       }
 
       const investorData = searchData.data[0]
-      setInvestor(investorData)
+
+      // Load full investor profile
+      const profileResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.getInvestorById(investorData.id)),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json()
+        if (profileData.success && profileData.data) {
+          setInvestor(profileData.data)
+
+          // Set legal info fields
+          setPhoneNumber(profileData.data.phoneNumber || '')
+          setAddressLine1(profileData.data.addressLine1 || '')
+          setAddressLine2(profileData.data.addressLine2 || '')
+          setCity(profileData.data.city || '')
+          setState(profileData.data.state || '')
+          setPostalCode(profileData.data.postalCode || '')
+          setCountry(profileData.data.country || '')
+        }
+      } else {
+        setInvestor(investorData)
+      }
 
       // Load notification settings
       const notifResponse = await fetch(
@@ -194,6 +232,45 @@ export default function LPSettingsPage() {
   const handleEnable2FA = () => {
     setTwoFactorEnabled(!twoFactorEnabled)
     toast.success(twoFactorEnabled ? "2FA disabled" : "2FA enabled")
+  }
+
+  const handleUpdateLegalInfo = async () => {
+    try {
+      const token = getAuthToken()
+      if (!token || !investor?.id) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.updateInvestorById(investor.id)),
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            phoneNumber,
+            addressLine1,
+            addressLine2,
+            city,
+            state,
+            postalCode,
+            country,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to update legal information')
+      }
+
+      toast.success("Legal information updated successfully")
+    } catch (error) {
+      console.error('[Settings] Error updating legal info:', error)
+      toast.error('Failed to update legal information')
+    }
   }
 
   if (loading || !investor) {
@@ -617,7 +694,7 @@ export default function LPSettingsPage() {
 
                 <div className="space-y-2">
                   <Label>Phone</Label>
-                  <Input value={investor.phone || 'Not provided'} disabled />
+                  <Input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="Enter phone number" />
                 </div>
               </div>
             </CardContent>
@@ -637,31 +714,35 @@ export default function LPSettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid gap-4">
                 <div className="space-y-2">
-                  <Label>Street Address</Label>
-                  <Input defaultValue="123 Market Street, Suite 500" />
+                  <Label>Street Address Line 1</Label>
+                  <Input value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="Enter street address" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Street Address Line 2</Label>
+                  <Input value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} placeholder="Apartment, suite, unit, etc. (optional)" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>City</Label>
-                    <Input value={investor.city || 'San Francisco'} readOnly />
+                    <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Enter city" />
                   </div>
                   <div className="space-y-2">
                     <Label>State/Province</Label>
-                    <Input defaultValue="CA" />
+                    <Input value={state} onChange={(e) => setState(e.target.value)} placeholder="Enter state/province" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Postal Code</Label>
-                    <Input defaultValue="94103" />
+                    <Input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="Enter postal code" />
                   </div>
                   <div className="space-y-2">
                     <Label>Country</Label>
-                    <Input value={investor.country || 'United States'} readOnly />
+                    <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Enter country" />
                   </div>
                 </div>
               </div>
-              <Button>Update Address</Button>
+              <Button onClick={handleUpdateLegalInfo}>Update Address</Button>
             </CardContent>
           </Card>
 
