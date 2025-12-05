@@ -77,48 +77,36 @@ export default function LPCapitalCallsPage() {
         'Content-Type': 'application/json'
       }
 
-      // Fetch capital calls summary
-      const summaryResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getMyCapitalCallsSummary), {
+      // Fetch capital calls (includes both summary and calls in one response)
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getMyCapitalCalls), {
         headers
       })
 
-      if (!summaryResponse.ok) {
-        console.error('Failed to fetch capital calls summary:', summaryResponse.status)
-        throw new Error('Failed to fetch capital calls summary')
-      }
-
-      const summaryData = await summaryResponse.json()
-      console.log('Summary response:', summaryData)
-
-      if (summaryData.success && summaryData.data) {
-        setSummary({
-          totalCalled: summaryData.data.totalCalled || 0,
-          totalPaid: summaryData.data.totalPaid || 0,
-          totalOutstanding: summaryData.data.outstanding || 0,
-          totalCalls: summaryData.data.totalCalls || 0
-        })
-      }
-
-      // Fetch capital calls list
-      const callsResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getMyCapitalCalls), {
-        headers
-      })
-
-      if (!callsResponse.ok) {
-        console.error('Failed to fetch capital calls list:', callsResponse.status)
+      if (!response.ok) {
+        console.error('Failed to fetch capital calls:', response.status)
         throw new Error('Failed to fetch capital calls')
       }
 
-      const callsData = await callsResponse.json()
-      console.log('Capital calls response:', callsData)
+      const responseData = await response.json()
+      console.log('Capital calls API response:', responseData)
 
-      if (callsData.success) {
-        // Ensure data is an array
-        const calls = Array.isArray(callsData.data) ? callsData.data : []
+      if (responseData.success && responseData.data) {
+        // Extract summary data
+        if (responseData.data.summary) {
+          setSummary({
+            totalCalled: responseData.data.summary.totalCalled || 0,
+            totalPaid: responseData.data.summary.totalPaid || 0,
+            totalOutstanding: responseData.data.summary.outstanding || 0,
+            totalCalls: responseData.data.summary.totalCalls || 0
+          })
+        }
+
+        // Extract capital calls array
+        const calls = Array.isArray(responseData.data.capitalCalls) ? responseData.data.capitalCalls : []
         console.log('Setting capital calls:', calls)
         setCapitalCalls(calls)
       } else {
-        console.error('API returned success: false', callsData)
+        console.error('API returned success: false', responseData)
         setCapitalCalls([])
       }
 
