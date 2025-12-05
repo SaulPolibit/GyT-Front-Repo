@@ -24,6 +24,10 @@ export const API_CONFIG = {
     getInvestorCommitments: (investorId: string) => `/api/investors/${investorId}/commitments`,
     getInvestorCapitalCalls: (investorId: string) => `/api/investors/${investorId}/capital-calls`,
 
+    // Current investor endpoints (me)
+    getMyCapitalCallsSummary: '/api/investors/me/capital-calls-summary',
+    getMyCapitalCalls: '/api/investors/me/capital-calls',
+
     // Add other endpoints as needed
   }
 }
