@@ -51,6 +51,11 @@ export default function LPSettingsPage() {
   const [portalNotifications, setPortalNotifications] = React.useState(true)
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
 
+  // Communication preferences
+  const [preferredContactMethod, setPreferredContactMethod] = React.useState('email')
+  const [reportDeliveryFormat, setReportDeliveryFormat] = React.useState('both')
+  const [notificationFrequency, setNotificationFrequency] = React.useState('immediate')
+
   React.useEffect(() => {
     loadInvestorData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,6 +119,17 @@ export default function LPSettingsPage() {
           setEmailNotifications(notifData.data.emailNotifications ?? true)
           setSmsNotifications(notifData.data.smsNotifications ?? false)
           setPortalNotifications(notifData.data.pushNotifications ?? true)
+
+          // Load communication preferences if available
+          if (notifData.data.preferredContactMethod) {
+            setPreferredContactMethod(notifData.data.preferredContactMethod)
+          }
+          if (notifData.data.reportDeliveryFormat) {
+            setReportDeliveryFormat(notifData.data.reportDeliveryFormat)
+          }
+          if (notifData.data.notificationFrequency) {
+            setNotificationFrequency(notifData.data.notificationFrequency)
+          }
         }
       }
     } catch (error) {
@@ -157,6 +173,10 @@ export default function LPSettingsPage() {
             marketingEmailNotifications: emailNotifications, // Marketing emails
             pushNotifications: portalNotifications,
             smsNotifications,
+            // Communication preferences
+            preferredContactMethod,
+            reportDeliveryFormat,
+            notificationFrequency,
           }),
         }
       )
@@ -464,7 +484,7 @@ export default function LPSettingsPage() {
                 <div className="grid gap-4">
                   <div className="space-y-2">
                     <Label>Preferred Contact Method</Label>
-                    <Select defaultValue="email">
+                    <Select value={preferredContactMethod} onValueChange={setPreferredContactMethod}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -478,7 +498,7 @@ export default function LPSettingsPage() {
 
                   <div className="space-y-2">
                     <Label>Report Delivery Format</Label>
-                    <Select defaultValue="both">
+                    <Select value={reportDeliveryFormat} onValueChange={setReportDeliveryFormat}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -492,7 +512,7 @@ export default function LPSettingsPage() {
 
                   <div className="space-y-2">
                     <Label>Notification Frequency</Label>
-                    <Select defaultValue="immediate">
+                    <Select value={notificationFrequency} onValueChange={setNotificationFrequency}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
