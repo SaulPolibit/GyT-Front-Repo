@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,68 +18,49 @@ import {
   IconChecks,
   IconCircleCheck,
   IconClock,
+  IconX,
+  IconDownload,
 } from '@tabler/icons-react'
 import { getStructures } from '@/lib/structures-storage'
 import {
   getInvestorByEmail,
   getCurrentInvestorEmail,
-  getInvestorStructures,
 } from '@/lib/lp-portal-helpers'
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
+import { getAuthToken, getCurrentUser } from '@/lib/auth-storage'
+import { toast } from 'sonner'
 
-// Generate mock messages for any structure
-const generateMockMessages = (structureId: string, structureName: string) => [
-  {
-    id: `${structureId}-1`,
-    structureId,
-    sender: 'You',
-    senderType: 'investor' as const,
-    message: 'Hi, I just reviewed the Q4 quarterly report. Thank you for the comprehensive update!',
-    timestamp: new Date(Date.now() - 3600000).toISOString(),
-    read: true
-  },
-  {
-    id: `${structureId}-2`,
-    structureId,
-    sender: 'Gabriela Mena',
-    senderType: 'manager' as const,
-    message: `You're welcome! I'm glad you found it helpful. Please don't hesitate to reach out if you have any questions about the portfolio.`,
-    timestamp: new Date(Date.now() - 3000000).toISOString(),
-    read: true
-  },
-  {
-    id: `${structureId}-3`,
-    structureId,
-    sender: 'You',
-    senderType: 'investor' as const,
-    message: 'I do have a question about the K-1 tax forms. When can we expect those for 2024?',
-    timestamp: new Date(Date.now() - 1800000).toISOString(),
-    read: true
-  },
-  {
-    id: `${structureId}-4`,
-    structureId,
-    sender: 'Gabriela Mena',
-    senderType: 'manager' as const,
-    message: 'K-1 forms will be distributed by March 15th. You\'ll receive an email notification when they\'re ready in the Documents section.',
-    timestamp: new Date(Date.now() - 1200000).toISOString(),
-    read: true
-  },
-  {
-    id: `${structureId}-5`,
-    structureId,
-    sender: 'You',
-    senderType: 'investor' as const,
-    message: 'Perfect, thank you! Also, I noticed the NAV increased this quarter. That\'s great news!',
-    timestamp: new Date(Date.now() - 600000).toISOString(),
-    read: false
-  },
-]
+interface Message {
+  id: string
+  conversationId: string
+  senderId: string
+  content: string
+  type: 'text' | 'file' | 'system'
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+  attachments?: Array<{
+    id: string
+    messageId: string
+    filePath: string
+    fileName: string
+    fileSize: number
+    mimeType: string
+  }>
+}
 
 export default function LPChatPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStructure, setSelectedStructure] = useState<string | null>(null)
   const [messageInput, setMessageInput] = useState('')
   const [investorStructures, setInvestorStructures] = useState<any[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const currentUser = getCurrentUser()
 
   useEffect(() => {
     const email = getCurrentInvestorEmail()
@@ -111,19 +92,238 @@ export default function LPChatPage() {
     }
   }, [])
 
+  // Load messages when structure is selected
+  useEffect(() => {
+    if (selectedStructure) {
+      loadMessages(selectedStructure)
+    }
+  }, [selectedStructure])
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const loadMessages = async (conversationId: string) => {
+    setLoading(true)
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.getMessages(conversationId)) + '?limit=100',
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          // Not a participant - show empty state
+          setMessages([])
+          setLoading(false)
+          return
+        }
+        throw new Error('Failed to load messages')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setMessages(result.data.reverse()) // Reverse to show oldest first
+
+        // Mark unread messages as read
+        result.data.forEach((msg: Message) => {
+          if (msg.senderId !== currentUser?.id) {
+            markAsRead(msg.id)
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error)
+      // Don't show error toast - just use empty state
+      setMessages([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const sendMessage = async () => {
+    if (!messageInput.trim() && !selectedFile) return
+    if (!selectedStructure) return
+
+    setSending(true)
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required')
+      setSending(false)
+      return
+    }
+
+    try {
+      let response
+
+      if (selectedFile) {
+        // Send file message
+        const formData = new FormData()
+        formData.append('file', selectedFile)
+        if (messageInput.trim()) {
+          formData.append('content', messageInput.trim())
+        }
+
+        response = await fetch(
+          getApiUrl(API_CONFIG.endpoints.sendFileMessage(selectedStructure)),
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+          }
+        )
+      } else {
+        // Send text message
+        response = await fetch(
+          getApiUrl(API_CONFIG.endpoints.sendMessage(selectedStructure)),
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: messageInput.trim(),
+              type: 'text',
+            }),
+          }
+        )
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to send message')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setMessages([...messages, result.data])
+        setMessageInput('')
+        setSelectedFile(null)
+        scrollToBottom()
+      } else {
+        throw new Error(result.message || 'Failed to send message')
+      }
+    } catch (error: any) {
+      console.error('Error sending message:', error)
+      toast.error(error.message || 'Failed to send message')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const markAsRead = async (messageId: string) => {
+    const token = getAuthToken()
+    if (!token) return
+
+    try {
+      await fetch(
+        getApiUrl(API_CONFIG.endpoints.markMessageAsRead(messageId)),
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+    } catch (error) {
+      console.error('Error marking message as read:', error)
+    }
+  }
+
+  const deleteMessage = async (messageId: string) => {
+    const token = getAuthToken()
+    if (!token) return
+
+    try {
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.deleteMessage(messageId)),
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to delete message')
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        setMessages(messages.filter(msg => msg.id !== messageId))
+        toast.success('Message deleted')
+      }
+    } catch (error: any) {
+      console.error('Error deleting message:', error)
+      toast.error(error.message || 'Failed to delete message')
+    }
+  }
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB')
+        return
+      }
+      setSelectedFile(file)
+      toast.success('File selected. Click send to upload.')
+    }
+  }
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
   // Create chat conversations from investor's structures
   const chatConversations = investorStructures.map(structure => ({
     id: structure.id,
     name: structure.name,
     type: structure.type,
-    managerName: 'Gabriela Mena', // Mock manager name
+    managerName: 'Fund Manager',
     onboardingStatus: structure.onboardingStatus,
-    unreadCount: Math.floor(Math.random() * 3), // Mock unread count
-    lastMessage: structure.onboardingStatus === 'Active'
-      ? 'K-1 forms will be distributed by March 15th.'
-      : 'Welcome! Feel free to ask any questions about the onboarding process.',
-    lastMessageTime: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-    status: Math.random() > 0.5 ? 'online' : 'offline'
+    unreadCount: 0, // Will be calculated from actual messages
+    lastMessage: 'Start a conversation...',
+    lastMessageTime: new Date().toISOString(),
+    status: 'online',
   }))
 
   const filteredConversations = chatConversations.filter(conv => {
@@ -133,10 +333,6 @@ export default function LPChatPage() {
   })
 
   const currentConversation = chatConversations.find(conv => conv.id === selectedStructure)
-  const currentMessages = selectedStructure && currentConversation
-    ? generateMockMessages(selectedStructure, currentConversation.name)
-    : []
-
   const totalUnread = chatConversations.reduce((sum, conv) => sum + conv.unreadCount, 0)
 
   const formatMessageTime = (timestamp: string) => {
@@ -160,6 +356,12 @@ export default function LPChatPage() {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
   }
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
   return (
     <div className="flex-1 flex h-[calc(100vh-var(--header-height))] overflow-hidden">
       {/* Left Sidebar - Conversations List */}
@@ -170,12 +372,9 @@ export default function LPChatPage() {
             <div>
               <h2 className="text-lg font-bold">Messages</h2>
               <p className="text-xs text-muted-foreground">
-                {totalUnread} unread conversations
+                {investorStructures.length} conversations
               </p>
             </div>
-            <Button variant="ghost" size="sm">
-              <IconDots className="w-4 h-4" />
-            </Button>
           </div>
 
           {/* Search */}
@@ -219,20 +418,15 @@ export default function LPChatPage() {
                           <IconBuilding className="w-5 h-5" />
                         </AvatarFallback>
                       </Avatar>
-                      {conversation.status === 'online' && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
-                      )}
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="font-semibold text-sm truncate">{conversation.name}</p>
-                        <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                          {formatMessageTime(conversation.lastMessageTime)}
-                        </span>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <p className="text-xs text-muted-foreground">
-                          {conversation.type} • {conversation.managerName}
+                          {conversation.type}
                         </p>
                         {conversation.onboardingStatus !== 'Active' && (
                           <Badge variant="outline" className="h-4 text-[10px] px-1.5">
@@ -240,14 +434,6 @@ export default function LPChatPage() {
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {conversation.lastMessage}
-                      </p>
-                      {conversation.unreadCount > 0 && (
-                        <Badge className="mt-2 h-5 px-2" variant="default">
-                          {conversation.unreadCount} new
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 </button>
@@ -279,117 +465,161 @@ export default function LPChatPage() {
                         <IconBuilding className="w-5 h-5" />
                       </AvatarFallback>
                     </Avatar>
-                    {currentConversation?.status === 'online' && (
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
-                    )}
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
                   </div>
                   <div>
                     <h3 className="font-semibold">{currentConversation?.name}</h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span>{currentConversation?.type}</span>
-                      <span>•</span>
-                      <span>Manager: {currentConversation?.managerName}</span>
-                      {currentConversation?.status === 'online' && (
-                        <>
-                          <span>•</span>
-                          <span className="text-green-600 flex items-center gap-1">
-                            <div className="w-2 h-2 bg-green-500 rounded-full" />
-                            Online
-                          </span>
-                        </>
-                      )}
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm">
-                    <IconDots className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
             </div>
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/5">
-              {/* Date Separator */}
-              <div className="flex items-center gap-3">
-                <Separator className="flex-1" />
-                <span className="text-xs text-muted-foreground font-medium">Today</span>
-                <Separator className="flex-1" />
-              </div>
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p className="text-sm text-muted-foreground">Loading messages...</p>
+                  </div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <IconMessage className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No messages yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Start the conversation!</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Date Separator */}
+                  <div className="flex items-center gap-3">
+                    <Separator className="flex-1" />
+                    <span className="text-xs text-muted-foreground font-medium">Messages</span>
+                    <Separator className="flex-1" />
+                  </div>
 
-              {currentMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.senderType === 'investor' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex gap-3 max-w-[70%] ${msg.senderType === 'investor' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    {msg.senderType === 'manager' && (
-                      <Avatar className="w-8 h-8 shrink-0">
-                        <AvatarFallback className="bg-purple-500 text-white text-xs">
-                          GM
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div className={msg.senderType === 'investor' ? 'text-right' : 'text-left'}>
+                  {messages.map((msg) => {
+                    const isOwnMessage = msg.senderId === currentUser?.id
+
+                    return (
                       <div
-                        className={`p-3 rounded-lg ${
-                          msg.senderType === 'investor'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-background border'
-                        }`}
+                        key={msg.id}
+                        className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                       >
-                        <p className="text-sm">{msg.message}</p>
+                        <div className={`flex gap-3 max-w-[70%] ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+                          {!isOwnMessage && (
+                            <Avatar className="w-8 h-8 shrink-0">
+                              <AvatarFallback className="bg-purple-500 text-white text-xs">
+                                FM
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div className={isOwnMessage ? 'text-right' : 'text-left'}>
+                            <div
+                              className={`p-3 rounded-lg ${
+                                isOwnMessage
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-background border'
+                              }`}
+                            >
+                              {msg.type === 'file' && msg.attachments && msg.attachments.length > 0 ? (
+                                <div className="space-y-2">
+                                  {msg.attachments.map((attachment) => (
+                                    <a
+                                      key={attachment.id}
+                                      href={attachment.filePath}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className={`flex items-center gap-2 p-2 rounded border ${
+                                        isOwnMessage
+                                          ? 'border-primary-foreground/20 hover:bg-primary-foreground/10'
+                                          : 'hover:bg-muted'
+                                      }`}
+                                    >
+                                      <IconPaperclip className="w-4 h-4" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{attachment.fileName}</p>
+                                        <p className="text-xs opacity-70">{formatFileSize(attachment.fileSize)}</p>
+                                      </div>
+                                      <IconDownload className="w-4 h-4" />
+                                    </a>
+                                  ))}
+                                  {msg.content && msg.content !== 'Sent a file' && (
+                                    <p className="text-sm mt-2">{msg.content}</p>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm">{msg.content}</p>
+                              )}
+                            </div>
+                            <div className={`flex items-center gap-2 mt-1 text-xs text-muted-foreground ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                              <span>{formatFullTime(msg.createdAt)}</span>
+                              {isOwnMessage && (
+                                <button
+                                  onClick={() => deleteMessage(msg.id)}
+                                  className="hover:text-destructive"
+                                  title="Delete message"
+                                >
+                                  <IconX className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {isOwnMessage && (
+                            <Avatar className="w-8 h-8 shrink-0">
+                              <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                                You
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
                       </div>
-                      <div className={`flex items-center gap-2 mt-1 text-xs text-muted-foreground ${msg.senderType === 'investor' ? 'justify-end' : 'justify-start'}`}>
-                        <span>{formatFullTime(msg.timestamp)}</span>
-                        {msg.senderType === 'investor' && (
-                          <>
-                            {msg.read ? (
-                              <IconCircleCheck className="w-3 h-3 text-primary" />
-                            ) : (
-                              <IconChecks className="w-3 h-3" />
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {msg.senderType === 'investor' && (
-                      <Avatar className="w-8 h-8 shrink-0">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                          You
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {/* Typing indicator (optional) */}
-              {currentConversation?.status === 'online' && (
-                <div className="flex justify-start">
-                  <div className="flex gap-3 max-w-[70%]">
-                    <Avatar className="w-8 h-8 shrink-0">
-                      <AvatarFallback className="bg-purple-500 text-white text-xs">
-                        GM
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="bg-background border p-3 rounded-lg">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                    )
+                  })}
+                  <div ref={messagesEndRef} />
+                </>
               )}
             </div>
 
             {/* Message Input */}
             <div className="p-4 border-t bg-background">
+              {selectedFile && (
+                <div className="mb-2 p-2 bg-muted rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <IconPaperclip className="w-4 h-4" />
+                    <span className="text-sm">{selectedFile.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({formatFileSize(selectedFile.size)})
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeSelectedFile}
+                  >
+                    <IconX className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+
               <div className="flex items-end gap-3">
-                <Button variant="ghost" size="sm" className="shrink-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <IconPaperclip className="w-5 h-5" />
                 </Button>
                 <div className="flex-1">
@@ -397,17 +627,27 @@ export default function LPChatPage() {
                     placeholder="Type your message to the fund manager..."
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyDown={handleKeyPress}
                     className="min-h-[60px] resize-none"
                     rows={2}
+                    disabled={sending}
                   />
                 </div>
-                <Button className="shrink-0 h-[60px]">
-                  <IconSend className="w-5 h-5" />
+                <Button
+                  className="shrink-0 h-[60px]"
+                  onClick={sendMessage}
+                  disabled={sending || (!messageInput.trim() && !selectedFile)}
+                >
+                  {sending ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <IconSend className="w-5 h-5" />
+                  )}
                 </Button>
               </div>
               <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                 <IconClock className="w-3 h-3" />
-                <span>Messages are sent to the fund manager in real-time</span>
+                <span>Press Enter to send, Shift+Enter for new line</span>
               </div>
             </div>
           </>
