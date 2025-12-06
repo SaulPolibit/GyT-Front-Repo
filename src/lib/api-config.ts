@@ -28,6 +28,7 @@ export const API_CONFIG = {
     // Current investor endpoints (me)
     getMyCapitalCallsSummary: '/api/investors/me/capital-calls-summary',
     getMyCapitalCalls: '/api/investors/me/capital-calls',
+    getMyDashboard: '/api/investors/me/dashboard',
 
     // Notification settings
     getNotificationSettings: '/api/notifications/settings',

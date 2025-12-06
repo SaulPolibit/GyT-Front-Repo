@@ -11,37 +11,102 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { IconPlus, IconTrendingUp, IconTrendingDown, IconBuilding, IconCurrencyDollar, IconCalendar, IconArrowRight } from "@tabler/icons-react"
 import { getDashboardConfig, removeWidget, reorderWidgets, type DashboardWidget, addWidget as addLPWidget } from "@/lib/lp-dashboard-storage"
-import { getInvestorByEmail, getCurrentInvestorEmail, getInvestorStructures } from "@/lib/lp-portal-helpers"
-import { getCapitalCalls } from "@/lib/capital-calls-storage"
-import { getDistributions } from "@/lib/distributions-storage"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { calculateLPMetric } from "@/lib/lp-metric-calculations"
 import { lpMetricTemplates, lpMetricCategories, getMetricsByCategory as getLPMetricsByCategory, type LPMetricTemplate } from "@/lib/lp-metric-templates"
 import { lpChartTemplates, lpChartCategories, getTemplatesByCategory as getLPTemplatesByCategory, type LPChartTemplate } from "@/lib/lp-chart-templates"
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
+import { getAuthToken } from '@/lib/auth-storage'
+import { toast } from 'sonner'
+
+interface DashboardData {
+  investor: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+    profileImage?: string
+  }
+  structures: Array<{
+    id: string
+    name: string
+    type: string
+    commitment: number
+    calledCapital: number
+    currentValue: number
+    unrealizedGain: number
+    currency: string
+    ownershipPercent: number
+  }>
+  summary: {
+    totalCommitment: number
+    totalCalledCapital: number
+    totalCurrentValue: number
+    totalDistributed: number
+    totalReturn: number
+    totalReturnPercent: number
+  }
+  distributions: Array<{
+    id: string
+    structureId: string
+    structureName: string
+    amount: number
+    date: string
+    type: string
+    status: string
+  }>
+}
 
 export default function LPDashboardPage() {
   const [widgets, setWidgets] = React.useState<DashboardWidget[]>([])
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingWidget, setEditingWidget] = React.useState<DashboardWidget | null>(null)
   const [globalFilter, setGlobalFilter] = React.useState<string>('all')
-  const [investorData, setInvestorData] = React.useState<any>(null)
-  const [structures, setStructures] = React.useState<any[]>([])
+  const [dashboardData, setDashboardData] = React.useState<DashboardData | null>(null)
+  const [loading, setLoading] = React.useState(true)
 
-  // Load widgets and investor data
+  // Load widgets and dashboard data
   React.useEffect(() => {
     const config = getDashboardConfig()
     setWidgets(config.widgets)
-
-    const email = getCurrentInvestorEmail()
-    const investor = getInvestorByEmail(email)
-
-    if (investor) {
-      setInvestorData(investor)
-      const investorStructures = getInvestorStructures(investor)
-      setStructures(investorStructures)
-    }
+    loadDashboardData()
   }, [])
+
+  const loadDashboardData = async () => {
+    setLoading(true)
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getMyDashboard), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to load dashboard data')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setDashboardData(result.data)
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error)
+      toast.error('Failed to load dashboard data')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Configure drag and drop sensors
   const sensors = useSensors(
@@ -113,17 +178,17 @@ export default function LPDashboardPage() {
   }
 
   const renderWidget = (widget: DashboardWidget) => {
-    if (!investorData) return null
+    if (!dashboardData) return null
 
     switch (widget.id) {
       case 'lp-portfolio-cards':
-        return <LPPortfolioCards investorData={investorData} structures={structures} />
+        return <LPPortfolioCards summary={dashboardData.summary} structures={dashboardData.structures} />
 
       case 'lp-nav-card':
-        return <LPNavCard investorData={investorData} structures={structures} />
+        return <LPNavCard summary={dashboardData.summary} structures={dashboardData.structures} />
 
       case 'lp-commitments-table':
-        return <LPCommitmentsTable structures={structures} />
+        return <LPCommitmentsTable structures={dashboardData.structures} />
 
       case 'lp-chart-area':
         // Default area chart - placeholder
@@ -180,6 +245,27 @@ export default function LPDashboardPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!dashboardData) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-muted-foreground">No data available</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <LPChartBuilderDialog
@@ -201,7 +287,7 @@ export default function LPDashboardPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Funds</SelectItem>
-                  {structures.map(structure => (
+                  {dashboardData.structures.map(structure => (
                     <SelectItem key={structure.id} value={structure.id}>
                       {structure.name}
                     </SelectItem>
@@ -284,33 +370,13 @@ export default function LPDashboardPage() {
 }
 
 // Helper components
-function LPPortfolioCards({ investorData, structures }: any) {
-  const totalCommitment = structures.reduce((sum: number, s: any) => sum + s.commitment, 0)
-  const calledCapital = structures.reduce((sum: number, s: any) => sum + s.calledCapital, 0)
-  const currentValue = structures.reduce((sum: number, s: any) => sum + s.currentValue, 0)
+interface LPPortfolioCardsProps {
+  summary: DashboardData['summary']
+  structures: DashboardData['structures']
+}
 
-  // Calculate total distributed from actual distribution records (lifetime, all years)
-  const allDistributions = getDistributions()
-  const investorId = investorData?.id
-
-  const totalDistributed = investorId ? allDistributions
-    .filter(dist => dist.investorAllocations.some(alloc => alloc.investorId === investorId))
-    .reduce((sum, dist) => {
-      const allocation = dist.investorAllocations.find(alloc => alloc.investorId === investorId)
-      return sum + (allocation?.finalAllocation || 0)
-    }, 0) : 0
-
-  console.log('Total Distributed Calculation:', {
-    investorId,
-    distributionCount: allDistributions.length,
-    investorDistributions: allDistributions.filter(dist =>
-      dist.investorAllocations.some(alloc => alloc.investorId === investorId)
-    ).length,
-    totalDistributed
-  })
-
-  const totalReturn = totalDistributed + currentValue - calledCapital
-  const totalReturnPercent = calledCapital > 0 ? (totalReturn / calledCapital) * 100 : 0
+function LPPortfolioCards({ summary, structures }: LPPortfolioCardsProps) {
+  const { totalCommitment, totalCurrentValue, totalCalledCapital, totalDistributed, totalReturn, totalReturnPercent } = summary
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -351,12 +417,12 @@ function LPPortfolioCards({ investorData, structures }: any) {
             Current Value
           </CardDescription>
           <CardTitle className="text-2xl font-semibold text-primary">
-            {formatCurrency(currentValue)}
+            {formatCurrency(totalCurrentValue)}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground">
-            {formatCurrency(calledCapital)} called capital
+            {formatCurrency(totalCalledCapital)} called capital
           </p>
         </CardContent>
       </Card>
@@ -405,11 +471,15 @@ function LPPortfolioCards({ investorData, structures }: any) {
   )
 }
 
-function LPNavCard({ investorData, structures }: any) {
-  const totalCommitment = structures.reduce((sum: number, s: any) => sum + s.commitment, 0)
-  const calledCapital = structures.reduce((sum: number, s: any) => sum + s.calledCapital, 0)
+interface LPNavCardProps {
+  summary: DashboardData['summary']
+  structures: DashboardData['structures']
+}
+
+function LPNavCard({ summary, structures }: LPNavCardProps) {
+  const { totalCommitment, totalCalledCapital } = summary
   // Calculate uncalled capital as commitment minus called capital
-  const uncalledCapital = totalCommitment - calledCapital
+  const uncalledCapital = totalCommitment - totalCalledCapital
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -430,7 +500,7 @@ function LPNavCard({ investorData, structures }: any) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-muted-foreground mb-1">Called Capital</p>
-            <p className="text-2xl font-semibold text-orange-600">{formatCurrency(calledCapital)}</p>
+            <p className="text-2xl font-semibold text-orange-600">{formatCurrency(totalCalledCapital)}</p>
           </div>
           <div>
             <p className="text-sm text-muted-foreground mb-1">Uncalled Capital</p>
@@ -440,14 +510,14 @@ function LPNavCard({ investorData, structures }: any) {
             <p className="text-sm text-muted-foreground mb-1">Deployment Rate</p>
             <p className="text-2xl font-semibold">
               {totalCommitment > 0
-                ? ((calledCapital / totalCommitment) * 100).toFixed(1)
+                ? ((totalCalledCapital / totalCommitment) * 100).toFixed(1)
                 : 0}%
             </p>
           </div>
         </div>
         <Progress
           value={totalCommitment > 0
-            ? (calledCapital / totalCommitment) * 100
+            ? (totalCalledCapital / totalCommitment) * 100
             : 0}
           className="h-3"
         />
@@ -456,7 +526,11 @@ function LPNavCard({ investorData, structures }: any) {
   )
 }
 
-function LPCommitmentsTable({ structures }: any) {
+interface LPCommitmentsTableProps {
+  structures: DashboardData['structures']
+}
+
+function LPCommitmentsTable({ structures }: LPCommitmentsTableProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -490,7 +564,7 @@ function LPCommitmentsTable({ structures }: any) {
           </div>
         ) : (
           <div className="space-y-4">
-            {structures.map((structure: any) => (
+            {structures.map((structure) => (
               <div key={structure.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -525,15 +599,4 @@ function LPCommitmentsTable({ structures }: any) {
       </CardContent>
     </Card>
   )
-}
-
-// Helper to calculate investor-specific metrics
-function calculateInvestorMetric(metricId: string, fundId: string, investorData: any, structures: any[]) {
-  // Placeholder - implement metric calculations based on metricId
-  return {
-    value: '$0',
-    description: '',
-    badge: '',
-    trend: 'neutral' as const
-  }
 }
