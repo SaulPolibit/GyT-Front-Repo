@@ -75,8 +75,10 @@ interface Conversation {
 
 interface AdminStaffUser {
   id: string
-  name: string
+  firstName: string
+  lastName: string
   email: string
+  profileImage?: string
   role: number
   roleName: string
 }
@@ -202,7 +204,7 @@ export default function LPChatPage() {
     setLoadingUsers(true)
 
     try {
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAdminStaffUsers), {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAvailableUsers), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -222,12 +224,14 @@ export default function LPChatPage() {
     }
   }
 
-  const createConversation = async (participantId: string, participantName: string, participantRole: number) => {
+  const createConversation = async (user: AdminStaffUser) => {
     const token = getAuthToken()
     if (!token) {
       toast.error('Authentication required')
       return
     }
+
+    const participantName = `${user.firstName} ${user.lastName}`.trim()
 
     try {
       const response = await fetch(getApiUrl(API_CONFIG.endpoints.createConversation), {
@@ -237,7 +241,7 @@ export default function LPChatPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          participantIds: [participantId],
+          participantIds: [user.id],
           type: 'direct',
           name: participantName,
         }),
@@ -254,9 +258,9 @@ export default function LPChatPage() {
           id: result.data.id,
           name: participantName,
           type: 'direct',
-          participantId,
+          participantId: user.id,
           participantName,
-          participantRole,
+          participantRole: user.role,
           lastMessage: '',
           lastMessageTime: new Date().toISOString(),
           unreadCount: 0,
@@ -570,28 +574,39 @@ export default function LPChatPage() {
                       <p className="text-sm">No admin or staff members available</p>
                     </div>
                   ) : (
-                    adminStaffUsers.map((user) => (
-                      <button
-                        key={user.id}
-                        onClick={() => createConversation(user.id, user.name, user.role)}
-                        className="w-full p-3 rounded-lg border hover:bg-muted transition-colors text-left"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10">
-                            <AvatarFallback className="bg-primary/20 text-primary">
-                              {user.name.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm">{user.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    adminStaffUsers.map((user) => {
+                      const fullName = `${user.firstName} ${user.lastName}`.trim()
+                      const initials = user.firstName && user.lastName
+                        ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
+                        : user.firstName?.substring(0, 2).toUpperCase() || 'U'
+
+                      return (
+                        <button
+                          key={user.id}
+                          onClick={() => createConversation(user)}
+                          className="w-full p-3 rounded-lg border hover:bg-muted transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-10 h-10">
+                              {user.profileImage ? (
+                                <img src={user.profileImage} alt={fullName} className="w-full h-full object-cover" />
+                              ) : (
+                                <AvatarFallback className="bg-primary/20 text-primary">
+                                  {initials}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm">{fullName}</p>
+                              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                            </div>
+                            <Badge className={getRoleBadgeColor(user.role)}>
+                              {getRoleName(user.role)}
+                            </Badge>
                           </div>
-                          <Badge className={getRoleBadgeColor(user.role)}>
-                            {getRoleName(user.role)}
-                          </Badge>
-                        </div>
-                      </button>
-                    ))
+                        </button>
+                      )
+                    })
                   )}
                 </div>
               </DialogContent>

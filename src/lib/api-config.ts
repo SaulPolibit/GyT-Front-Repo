@@ -47,7 +47,7 @@ export const API_CONFIG = {
     searchMessages: (conversationId: string) => `/api/conversations/${conversationId}/messages/search`,
     markMessageAsRead: (messageId: string) => `/api/messages/${messageId}/read`,
     deleteMessage: (messageId: string) => `/api/messages/${messageId}`,
-    getAdminStaffUsers: '/api/users/admin-staff',
+    getAvailableUsers: '/api/messages/available-users',
 
     // Add other endpoints as needed
   }
