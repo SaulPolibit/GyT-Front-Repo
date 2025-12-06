@@ -9,6 +9,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
   IconMessage,
   IconSend,
   IconSearch,
@@ -21,6 +29,7 @@ import {
   IconX,
   IconDownload,
   IconPlus,
+  IconUser,
 } from '@tabler/icons-react'
 import { getStructures } from '@/lib/structures-storage'
 import {
@@ -50,55 +59,55 @@ interface Message {
   }>
 }
 
+interface Conversation {
+  id: string
+  name: string
+  type: 'direct' | 'structure'
+  participantId?: string
+  participantName?: string
+  participantRole?: number
+  structureType?: string
+  onboardingStatus?: string
+  lastMessage?: string
+  lastMessageTime?: string
+  unreadCount?: number
+}
+
+interface AdminStaffUser {
+  id: string
+  name: string
+  email: string
+  role: number
+  roleName: string
+}
+
 export default function LPChatPage() {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedStructure, setSelectedStructure] = useState<string | null>(null)
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [messageInput, setMessageInput] = useState('')
-  const [investorStructures, setInvestorStructures] = useState<any[]>([])
+  const [conversations, setConversations] = useState<Conversation[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [showNewChatDialog, setShowNewChatDialog] = useState(false)
+  const [adminStaffUsers, setAdminStaffUsers] = useState<AdminStaffUser[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const currentUser = getCurrentUser()
 
   useEffect(() => {
-    const email = getCurrentInvestorEmail()
-    const investor = getInvestorByEmail(email)
-
-    if (investor) {
-      // Get ALL structures the investor is invited to, regardless of onboarding status
-      const allStructures = getStructures()
-      const investorStructuresList = investor.fundOwnerships.map(ownership => {
-        const structure = allStructures.find(s => s.id === ownership.fundId)
-        if (!structure) return null
-
-        return {
-          id: structure.id,
-          name: ownership.fundName,
-          type: structure.type,
-          ownershipPercent: ownership.ownershipPercent,
-          commitment: ownership.commitment,
-          onboardingStatus: ownership.onboardingStatus || investor.status,
-        }
-      }).filter((s): s is any => s !== null)
-
-      setInvestorStructures(investorStructuresList)
-
-      // Auto-select first structure if available
-      if (investorStructuresList.length > 0) {
-        setSelectedStructure(investorStructuresList[0].id)
-      }
-    }
+    loadConversations()
+    loadAdminStaffUsers()
   }, [])
 
-  // Load messages when structure is selected
+  // Load messages when conversation is selected
   useEffect(() => {
-    if (selectedStructure) {
-      loadMessages(selectedStructure)
+    if (selectedConversation) {
+      loadMessages(selectedConversation)
     }
-  }, [selectedStructure])
+  }, [selectedConversation])
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -107,6 +116,161 @@ export default function LPChatPage() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const loadConversations = async () => {
+    const token = getAuthToken()
+    if (!token) return
+
+    try {
+      // Fetch conversations from API
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getConversations), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data) {
+          const apiConversations: Conversation[] = result.data.map((conv: any) => ({
+            id: conv.id,
+            name: conv.name || conv.title || 'Conversation',
+            type: conv.type || 'direct',
+            participantId: conv.participantId,
+            participantName: conv.participantName,
+            participantRole: conv.participantRole,
+            lastMessage: conv.lastMessage,
+            lastMessageTime: conv.lastMessageTime || conv.updatedAt,
+            unreadCount: conv.unreadCount || 0,
+          }))
+
+          setConversations(apiConversations)
+
+          // Auto-select first conversation
+          if (apiConversations.length > 0 && !selectedConversation) {
+            setSelectedConversation(apiConversations[0].id)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error)
+    }
+
+    // Also load structure-based conversations from localStorage (fallback)
+    const email = getCurrentInvestorEmail()
+    const investor = getInvestorByEmail(email)
+
+    if (investor) {
+      const allStructures = getStructures()
+      const structureConversations: Conversation[] = investor.fundOwnerships.map(ownership => {
+        const structure = allStructures.find(s => s.id === ownership.fundId)
+        if (!structure) return null
+
+        return {
+          id: structure.id,
+          name: ownership.fundName,
+          type: 'structure' as const,
+          structureType: structure.type,
+          onboardingStatus: ownership.onboardingStatus || investor.status,
+          lastMessage: 'Start a conversation...',
+          lastMessageTime: new Date().toISOString(),
+          unreadCount: 0,
+        }
+      }).filter((s): s is Conversation => s !== null)
+
+      // Merge structure conversations with API conversations (avoid duplicates)
+      const existingIds = new Set(conversations.map(c => c.id))
+      const newStructureConvs = structureConversations.filter(sc => !existingIds.has(sc.id))
+
+      if (newStructureConvs.length > 0) {
+        setConversations(prev => [...prev, ...newStructureConvs])
+      }
+
+      // Auto-select first conversation if none selected
+      if (!selectedConversation && structureConversations.length > 0) {
+        setSelectedConversation(structureConversations[0].id)
+      }
+    }
+  }
+
+  const loadAdminStaffUsers = async () => {
+    const token = getAuthToken()
+    if (!token) return
+
+    setLoadingUsers(true)
+
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAdminStaffUsers), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data) {
+          setAdminStaffUsers(result.data)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading admin/staff users:', error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
+
+  const createConversation = async (participantId: string, participantName: string, participantRole: number) => {
+    const token = getAuthToken()
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.createConversation), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          participantIds: [participantId],
+          type: 'direct',
+          name: participantName,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create conversation')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        const newConversation: Conversation = {
+          id: result.data.id,
+          name: participantName,
+          type: 'direct',
+          participantId,
+          participantName,
+          participantRole,
+          lastMessage: '',
+          lastMessageTime: new Date().toISOString(),
+          unreadCount: 0,
+        }
+
+        setConversations(prev => [newConversation, ...prev])
+        setSelectedConversation(newConversation.id)
+        setShowNewChatDialog(false)
+        toast.success(`Conversation with ${participantName} created`)
+      }
+    } catch (error: any) {
+      console.error('Error creating conversation:', error)
+      toast.error(error.message || 'Failed to create conversation')
+    }
   }
 
   const loadMessages = async (conversationId: string) => {
@@ -163,7 +327,7 @@ export default function LPChatPage() {
 
   const sendMessage = async () => {
     if (!messageInput.trim() && !selectedFile) return
-    if (!selectedStructure) return
+    if (!selectedConversation) return
 
     setSending(true)
     const token = getAuthToken()
@@ -186,7 +350,7 @@ export default function LPChatPage() {
         }
 
         response = await fetch(
-          getApiUrl(API_CONFIG.endpoints.sendFileMessage(selectedStructure)),
+          getApiUrl(API_CONFIG.endpoints.sendFileMessage(selectedConversation)),
           {
             method: 'POST',
             headers: {
@@ -198,7 +362,7 @@ export default function LPChatPage() {
       } else {
         // Send text message
         response = await fetch(
-          getApiUrl(API_CONFIG.endpoints.sendMessage(selectedStructure)),
+          getApiUrl(API_CONFIG.endpoints.sendMessage(selectedConversation)),
           {
             method: 'POST',
             headers: {
@@ -314,27 +478,32 @@ export default function LPChatPage() {
     }
   }
 
-  // Create chat conversations from investor's structures
-  const chatConversations = investorStructures.map(structure => ({
-    id: structure.id,
-    name: structure.name,
-    type: structure.type,
-    managerName: 'Fund Manager',
-    onboardingStatus: structure.onboardingStatus,
-    unreadCount: 0, // Will be calculated from actual messages
-    lastMessage: 'Start a conversation...',
-    lastMessageTime: new Date().toISOString(),
-    status: 'online',
-  }))
+  const getRoleBadgeColor = (role: number) => {
+    switch (role) {
+      case 1: return 'bg-red-500 text-white'
+      case 2: return 'bg-blue-500 text-white'
+      default: return 'bg-gray-500 text-white'
+    }
+  }
 
-  const filteredConversations = chatConversations.filter(conv => {
+  const getRoleName = (role: number) => {
+    switch (role) {
+      case 1: return 'Admin'
+      case 2: return 'Staff'
+      case 3: return 'Investor'
+      default: return 'User'
+    }
+  }
+
+  const filteredConversations = conversations.filter(conv => {
     const matchesSearch = conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         conv.type.toLowerCase().includes(searchQuery.toLowerCase())
+                         (conv.structureType?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+                         (conv.participantName?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false)
     return matchesSearch
   })
 
-  const currentConversation = chatConversations.find(conv => conv.id === selectedStructure)
-  const totalUnread = chatConversations.reduce((sum, conv) => sum + conv.unreadCount, 0)
+  const currentConversation = conversations.find(conv => conv.id === selectedConversation)
+  const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0)
 
   const formatMessageTime = (timestamp: string) => {
     const date = new Date(timestamp)
@@ -373,13 +542,60 @@ export default function LPChatPage() {
             <div>
               <h2 className="text-lg font-bold">Messages</h2>
               <p className="text-xs text-muted-foreground">
-                {investorStructures.length} conversations
+                {conversations.length} conversations
               </p>
             </div>
-            <Button size="sm" onClick={() => toast.info('Contact your fund manager to start a conversation')}>
-              <IconPlus className="w-4 h-4 mr-1" />
-              New
-            </Button>
+            <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <IconPlus className="w-4 h-4 mr-1" />
+                  New
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Start New Conversation</DialogTitle>
+                  <DialogDescription>
+                    Select an admin or staff member to start chatting with
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {loadingUsers ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : adminStaffUsers.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <IconUser className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No admin or staff members available</p>
+                    </div>
+                  ) : (
+                    adminStaffUsers.map((user) => (
+                      <button
+                        key={user.id}
+                        onClick={() => createConversation(user.id, user.name, user.role)}
+                        className="w-full p-3 rounded-lg border hover:bg-muted transition-colors text-left"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="bg-primary/20 text-primary">
+                              {user.name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm">{user.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                          </div>
+                          <Badge className={getRoleBadgeColor(user.role)}>
+                            {getRoleName(user.role)}
+                          </Badge>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Search */}
@@ -401,7 +617,7 @@ export default function LPChatPage() {
               <IconBuilding className="h-12 w-12 text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">No conversations found</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Complete onboarding to start chatting with fund managers
+                Click "New" to start chatting
               </p>
             </div>
           ) : (
@@ -409,9 +625,9 @@ export default function LPChatPage() {
               {filteredConversations.map((conversation) => (
                 <button
                   key={conversation.id}
-                  onClick={() => setSelectedStructure(conversation.id)}
+                  onClick={() => setSelectedConversation(conversation.id)}
                   className={`w-full text-left p-3 rounded-lg transition-colors ${
-                    selectedStructure === conversation.id
+                    selectedConversation === conversation.id
                       ? 'bg-primary/10 border-l-4 border-primary'
                       : 'hover:bg-muted/50'
                   }`}
@@ -419,8 +635,12 @@ export default function LPChatPage() {
                   <div className="flex items-start gap-3">
                     <div className="relative">
                       <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-primary/20 text-primary">
-                          <IconBuilding className="w-5 h-5" />
+                        <AvatarFallback className={conversation.type === 'structure' ? 'bg-primary/20 text-primary' : 'bg-purple-500 text-white'}>
+                          {conversation.type === 'structure' ? (
+                            <IconBuilding className="w-5 h-5" />
+                          ) : (
+                            conversation.name.substring(0, 2).toUpperCase()
+                          )}
                         </AvatarFallback>
                       </Avatar>
                       <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
@@ -431,14 +651,19 @@ export default function LPChatPage() {
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <p className="text-xs text-muted-foreground">
-                          {conversation.type}
+                          {conversation.type === 'structure' ? conversation.structureType : getRoleName(conversation.participantRole || 0)}
                         </p>
-                        {conversation.onboardingStatus !== 'Active' && (
+                        {conversation.onboardingStatus && conversation.onboardingStatus !== 'Active' && (
                           <Badge variant="outline" className="h-4 text-[10px] px-1.5">
                             {conversation.onboardingStatus}
                           </Badge>
                         )}
                       </div>
+                      {(conversation.unreadCount || 0) > 0 && (
+                        <Badge className="mt-2 h-5 px-2" variant="default">
+                          {conversation.unreadCount} new
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </button>
@@ -450,12 +675,12 @@ export default function LPChatPage() {
 
       {/* Right Side - Chat Area */}
       <div className="flex-1 flex flex-col bg-background">
-        {!selectedStructure ? (
+        {!selectedConversation ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <IconMessage className="h-16 w-16 text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">Select a conversation</h3>
             <p className="text-muted-foreground max-w-md">
-              Choose a fund from the left to start viewing and sending messages to the fund manager
+              Choose a conversation from the left or start a new chat with admin/staff
             </p>
           </div>
         ) : (
@@ -466,8 +691,12 @@ export default function LPChatPage() {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <Avatar className="w-10 h-10">
-                      <AvatarFallback className="bg-primary/20 text-primary">
-                        <IconBuilding className="w-5 h-5" />
+                      <AvatarFallback className={currentConversation?.type === 'structure' ? 'bg-primary/20 text-primary' : 'bg-purple-500 text-white'}>
+                        {currentConversation?.type === 'structure' ? (
+                          <IconBuilding className="w-5 h-5" />
+                        ) : (
+                          currentConversation?.name.substring(0, 2).toUpperCase()
+                        )}
                       </AvatarFallback>
                     </Avatar>
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
@@ -475,7 +704,12 @@ export default function LPChatPage() {
                   <div>
                     <h3 className="font-semibold">{currentConversation?.name}</h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{currentConversation?.type}</span>
+                      <span>
+                        {currentConversation?.type === 'structure'
+                          ? currentConversation.structureType
+                          : getRoleName(currentConversation?.participantRole || 0)
+                        }
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -520,7 +754,7 @@ export default function LPChatPage() {
                           {!isOwnMessage && (
                             <Avatar className="w-8 h-8 shrink-0">
                               <AvatarFallback className="bg-purple-500 text-white text-xs">
-                                FM
+                                {currentConversation?.type === 'structure' ? 'FM' : currentConversation?.name.substring(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                           )}
@@ -629,7 +863,7 @@ export default function LPChatPage() {
                 </Button>
                 <div className="flex-1">
                   <Textarea
-                    placeholder="Type your message to the fund manager..."
+                    placeholder={`Message ${currentConversation?.name}...`}
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyDown={handleKeyPress}

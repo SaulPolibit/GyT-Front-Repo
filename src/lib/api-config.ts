@@ -39,12 +39,15 @@ export const API_CONFIG = {
     updateUserProfile: '/api/custom/user/profile',
 
     // Chat/Messages API
+    getConversations: '/api/conversations',
+    createConversation: '/api/conversations',
     getMessages: (conversationId: string) => `/api/conversations/${conversationId}/messages`,
     sendMessage: (conversationId: string) => `/api/conversations/${conversationId}/messages`,
     sendFileMessage: (conversationId: string) => `/api/conversations/${conversationId}/messages/file`,
     searchMessages: (conversationId: string) => `/api/conversations/${conversationId}/messages/search`,
     markMessageAsRead: (messageId: string) => `/api/messages/${messageId}/read`,
     deleteMessage: (messageId: string) => `/api/messages/${messageId}`,
+    getAdminStaffUsers: '/api/users/admin-staff',
 
     // Add other endpoints as needed
   }
