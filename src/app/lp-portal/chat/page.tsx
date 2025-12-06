@@ -136,17 +136,35 @@ export default function LPChatPage() {
       if (response.ok) {
         const result = await response.json()
         if (result.success && result.data) {
-          const apiConversations: Conversation[] = result.data.map((conv: any) => ({
-            id: conv.id,
-            name: conv.name || conv.title || 'Conversation',
-            type: conv.type || 'direct',
-            participantId: conv.participantId,
-            participantName: conv.participantName,
-            participantRole: conv.participantRole,
-            lastMessage: conv.lastMessage,
-            lastMessageTime: conv.lastMessageTime || conv.updatedAt,
-            unreadCount: conv.unreadCount || 0,
-          }))
+          const apiConversations: Conversation[] = result.data.map((conv: any) => {
+            // For direct conversations, prioritize participantName over conversation name
+            let conversationName = conv.name || conv.title || 'Conversation'
+
+            // If it's a direct conversation and we have participant info, use that
+            if (conv.type === 'direct' && conv.participantName) {
+              conversationName = conv.participantName
+            } else if (conv.type === 'direct' && conv.participants && conv.participants.length > 0) {
+              // Alternative: construct name from participant data
+              const otherParticipant = conv.participants.find((p: any) => p.userId !== currentUser?.id)
+              if (otherParticipant) {
+                conversationName = otherParticipant.firstName && otherParticipant.lastName
+                  ? `${otherParticipant.firstName} ${otherParticipant.lastName}`.trim()
+                  : otherParticipant.name || conversationName
+              }
+            }
+
+            return {
+              id: conv.id,
+              name: conversationName,
+              type: conv.type || 'direct',
+              participantId: conv.participantId,
+              participantName: conv.participantName,
+              participantRole: conv.participantRole,
+              lastMessage: conv.lastMessage,
+              lastMessageTime: conv.lastMessageTime || conv.updatedAt,
+              unreadCount: conv.unreadCount || 0,
+            }
+          })
 
           setConversations(apiConversations)
 
