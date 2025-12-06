@@ -66,14 +66,7 @@ export default function LPDashboardPage() {
   const [dashboardData, setDashboardData] = React.useState<DashboardData | null>(null)
   const [loading, setLoading] = React.useState(true)
 
-  // Load widgets and dashboard data
-  React.useEffect(() => {
-    const config = getDashboardConfig()
-    setWidgets(config.widgets)
-    loadDashboardData()
-  }, [])
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = React.useCallback(async () => {
     setLoading(true)
     const token = getAuthToken()
 
@@ -106,7 +99,14 @@ export default function LPDashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  // Load widgets and dashboard data
+  React.useEffect(() => {
+    const config = getDashboardConfig()
+    setWidgets(config.widgets)
+    loadDashboardData()
+  }, [loadDashboardData])
 
   // Configure drag and drop sensors
   const sensors = useSensors(

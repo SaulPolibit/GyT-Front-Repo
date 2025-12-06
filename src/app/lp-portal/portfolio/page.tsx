@@ -179,27 +179,7 @@ export default function PortfolioPage() {
         throw new Error('Invalid response from server')
       }
 
-      // Step 3: Map structures to portfolio format
-      // TODO: These values need to come from a join table between investors and structures
-      // For now, using placeholder values until the backend provides investor-specific data
-      const mappedStructures: InvestorStructure[] = investorData.data.structure_investors?.map((si: StructureInvestor) => {
-        const structure = si.structure
-        return {
-          id: structure.id,
-          name: structure.name,
-          type: structure.type,
-          // TODO: Get actual investor-specific values from backend
-          commitment: 0, // Placeholder - should come from structure_investors join table
-          calledCapital: 0, // Placeholder
-          currentValue: 0, // Placeholder
-          ownershipPercent: 0, // Placeholder
-          unrealizedGain: 0, // Placeholder
-        }
-      }) || []
-
-      setStructures(mappedStructures)
-
-      // Step 4: Fetch capital calls data
+      // Step 3: Fetch capital calls data first to get structures
       try {
         console.log('[Portfolio] Fetching capital calls for investor:', investor.id)
         const capitalCallsResponse = await fetch(
@@ -219,14 +199,35 @@ export default function PortfolioPage() {
 
           if (capitalCallsResponseData.success && capitalCallsResponseData.data) {
             setCapitalCallsData(capitalCallsResponseData.data)
+
+            // Map structures from capital calls data
+            // TODO: These values need to come from a commitments endpoint
+            // For now, using structures from capital calls with placeholder financial data
+            const mappedStructures: InvestorStructure[] = capitalCallsResponseData.data.structures?.map((structure: any) => {
+              return {
+                id: structure.id,
+                name: structure.name,
+                type: structure.type,
+                // TODO: Get actual investor-specific values from backend
+                commitment: 0, // Placeholder - should come from commitments endpoint
+                calledCapital: 0, // Placeholder
+                currentValue: 0, // Placeholder
+                ownershipPercent: 0, // Placeholder
+                unrealizedGain: 0, // Placeholder
+              }
+            }) || []
+
+            setStructures(mappedStructures)
           }
         } else {
           console.warn('[Portfolio] Failed to fetch capital calls:', capitalCallsResponse.statusText)
           // Don't throw error - capital calls are optional data
+          setStructures([])
         }
       } catch (capitalCallsError) {
         console.warn('[Portfolio] Error fetching capital calls:', capitalCallsError)
         // Don't throw error - capital calls are optional data
+        setStructures([])
       }
     } catch (err) {
       console.error('[Portfolio] Error fetching portfolio:', err)
