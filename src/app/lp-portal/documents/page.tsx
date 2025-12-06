@@ -21,225 +21,171 @@ import {
   IconFileSpreadsheet,
   IconCalendar,
 } from '@tabler/icons-react'
-import {
-  getInvestorByEmail,
-  getCurrentInvestorEmail,
-} from '@/lib/lp-portal-helpers'
-import { getStructures } from '@/lib/structures-storage'
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
+import { getAuthToken } from '@/lib/auth-storage'
+import { toast } from 'sonner'
+
+interface Document {
+  id: string
+  entityType: string
+  entityId: string
+  documentType: string
+  documentName: string
+  filePath: string
+  fileSize: number
+  mimeType: string
+  uploadedBy: string
+  version: number
+  isActive: boolean
+  createdAt: string
+}
 
 export default function LPDocumentsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStructure, setSelectedStructure] = useState<string>('all')
-  const [investorStructures, setInvestorStructures] = useState<any[]>([])
-  const [currentInvestorName, setCurrentInvestorName] = useState('')
+  const [userDocuments, setUserDocuments] = useState<Document[]>([])
+  const [structureDocuments, setStructureDocuments] = useState<Document[]>([])
+  const [loading, setLoading] = useState(true)
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<string>('all')
 
   useEffect(() => {
-    const email = getCurrentInvestorEmail()
-    const investor = getInvestorByEmail(email)
-
-    if (investor) {
-      setCurrentInvestorName(investor.name)
-
-      // Get all structures the investor is involved with (regardless of onboarding status)
-      const allStructures = getStructures()
-      const structures = investor.fundOwnerships.map(ownership => {
-        const structure = allStructures.find(s => s.id === ownership.fundId)
-        return structure ? {
-          id: structure.id,
-          name: ownership.fundName,
-          type: structure.type,
-        } : null
-      }).filter(s => s !== null)
-
-      setInvestorStructures(structures)
-    }
+    loadDocuments()
   }, [])
 
-  // Generate mock documents dynamically based on investor's structures
-  const mockDocuments = React.useMemo(() => {
-    const docs: any[] = []
-    let docId = 1
+  const loadDocuments = async () => {
+    setLoading(true)
+    const token = getAuthToken()
 
-    investorStructures.forEach((structure) => {
-      // Structure Documents
-      docs.push(
-        {
-          id: `${docId++}`,
-          name: 'Q4 2024 Quarterly Report.pdf',
-          type: 'Financial Report',
-          category: 'Structure Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          size: '2.4 MB',
-          uploadedBy: 'Gabriela Mena',
-          uploadedDate: '2024-12-15',
-          fileType: 'pdf'
-        },
-        {
-          id: `${docId++}`,
-          name: 'Limited Partnership Agreement.pdf',
-          type: 'Legal Document',
-          category: 'Structure Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          size: '5.1 MB',
-          uploadedBy: 'Gabriela Mena',
-          uploadedDate: '2024-01-10',
-          fileType: 'pdf'
-        },
-        {
-          id: `${docId++}`,
-          name: 'Private Placement Memorandum.pdf',
-          type: 'Legal Document',
-          category: 'Structure Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          size: '8.7 MB',
-          uploadedBy: 'Gabriela Mena',
-          uploadedDate: '2024-01-05',
-          fileType: 'pdf'
-        },
-        {
-          id: `${docId++}`,
-          name: `NAV Report - October 2024.pdf`,
-          type: 'Financial Report',
-          category: 'Structure Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          size: '1.8 MB',
-          uploadedBy: 'Gabriela Mena',
-          uploadedDate: '2024-11-01',
-          fileType: 'pdf'
-        }
-      )
+    if (!token) {
+      toast.error('Authentication required')
+      setLoading(false)
+      return
+    }
 
-      // Investor Documents for current investor
-      docs.push(
-        {
-          id: `${docId++}`,
-          name: `K-1 Tax Form 2024 - ${currentInvestorName}.pdf`,
-          type: 'Tax Document',
-          category: 'My Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          investorName: currentInvestorName,
-          size: '145 KB',
-          uploadedBy: 'System Generated',
-          uploadedDate: '2024-03-15',
-          fileType: 'pdf'
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getCombinedDocuments), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        {
-          id: `${docId++}`,
-          name: `Subscription Agreement - ${currentInvestorName}.pdf`,
-          type: 'Legal Document',
-          category: 'My Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          investorName: currentInvestorName,
-          size: '892 KB',
-          uploadedBy: currentInvestorName,
-          uploadedDate: '2024-02-20',
-          fileType: 'pdf'
-        },
-        {
-          id: `${docId++}`,
-          name: `Capital Call Notice #5 - ${currentInvestorName}.pdf`,
-          type: 'Capital Call',
-          category: 'My Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          investorName: currentInvestorName,
-          size: '234 KB',
-          uploadedBy: 'Gabriela Mena',
-          uploadedDate: '2024-11-01',
-          fileType: 'pdf'
-        },
-        {
-          id: `${docId++}`,
-          name: `Distribution Notice #3 - ${currentInvestorName}.pdf`,
-          type: 'Distribution',
-          category: 'My Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          investorName: currentInvestorName,
-          size: '198 KB',
-          uploadedBy: 'System Generated',
-          uploadedDate: '2024-10-15',
-          fileType: 'pdf'
-        },
-        {
-          id: `${docId++}`,
-          name: `KYC Documentation - ${currentInvestorName}.pdf`,
-          type: 'Identity Verification',
-          category: 'My Documents',
-          structureId: structure.id,
-          structureName: structure.name,
-          investorName: currentInvestorName,
-          size: '1.5 MB',
-          uploadedBy: currentInvestorName,
-          uploadedDate: '2024-02-15',
-          fileType: 'pdf'
-        }
-      )
-    })
+      })
 
-    return docs
-  }, [investorStructures, currentInvestorName])
+      if (!response.ok) {
+        throw new Error('Failed to load documents')
+      }
 
-  const getFileIcon = (fileType: string) => {
-    switch (fileType) {
-      case 'pdf':
-        return <IconFileTypePdf className="w-8 h-8 text-red-500" />
-      case 'excel':
-        return <IconFileSpreadsheet className="w-8 h-8 text-green-600" />
-      case 'word':
-        return <IconFileTypeDoc className="w-8 h-8 text-blue-600" />
-      default:
-        return <IconFileDescription className="w-8 h-8 text-muted-foreground" />
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setUserDocuments(result.data.userDocuments || [])
+        setStructureDocuments(result.data.structureDocuments || [])
+      }
+    } catch (error) {
+      console.error('Error loading documents:', error)
+      toast.error('Failed to load documents')
+      setUserDocuments([])
+      setStructureDocuments([])
+    } finally {
+      setLoading(false)
     }
   }
 
-  // Filter documents by investor's structures and current investor name
-  const investorStructureIds = investorStructures.map(s => s.id)
-  const availableDocuments = mockDocuments.filter(doc =>
-    investorStructureIds.includes(doc.structureId) &&
-    (doc.category === 'Structure Documents' || doc.investorName === currentInvestorName)
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.includes('pdf')) {
+      return <IconFileTypePdf className="w-8 h-8 text-red-500" />
+    } else if (mimeType.includes('sheet') || mimeType.includes('excel')) {
+      return <IconFileSpreadsheet className="w-8 h-8 text-green-600" />
+    } else if (mimeType.includes('word') || mimeType.includes('document')) {
+      return <IconFileTypeDoc className="w-8 h-8 text-blue-600" />
+    } else {
+      return <IconFileDescription className="w-8 h-8 text-muted-foreground" />
+    }
+  }
+
+  const handleDownload = (doc: Document) => {
+    window.open(doc.filePath, '_blank')
+  }
+
+  const handleView = (doc: Document) => {
+    window.open(doc.filePath, '_blank')
+  }
+
+  // Get unique structure IDs for filter
+  const uniqueStructureIds = Array.from(
+    new Set([
+      ...structureDocuments.map(doc => doc.entityId),
+      ...userDocuments.filter(doc => doc.entityType === 'Structure').map(doc => doc.entityId)
+    ])
   )
 
-  const filteredDocuments = availableDocuments.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         doc.type.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStructure = selectedStructure === 'all' || doc.structureId === selectedStructure
+  // Filter documents
+  const filteredUserDocs = userDocuments.filter(doc => {
+    const matchesSearch = doc.documentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         doc.documentType.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStructure = selectedStructure === 'all' || doc.entityId === selectedStructure
+    const matchesType = documentTypeFilter === 'all' || doc.documentType === documentTypeFilter
 
-    return matchesSearch && matchesStructure
+    return matchesSearch && matchesStructure && matchesType && doc.isActive
   })
 
-  const structureDocs = filteredDocuments.filter(doc => doc.category === 'Structure Documents')
-  const myDocs = filteredDocuments.filter(doc => doc.category === 'My Documents')
+  const filteredStructureDocs = structureDocuments.filter(doc => {
+    const matchesSearch = doc.documentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         doc.documentType.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStructure = selectedStructure === 'all' || doc.entityId === selectedStructure
+    const matchesType = documentTypeFilter === 'all' || doc.documentType === documentTypeFilter
 
-  // Group structure documents by structure
-  const structureDocsGrouped = structureDocs.reduce((acc, doc) => {
-    if (!acc[doc.structureId]) {
-      acc[doc.structureId] = {
-        structureName: doc.structureName,
+    return matchesSearch && matchesStructure && matchesType && doc.isActive
+  })
+
+  // Group structure documents by entityId
+  const structureDocsGrouped = filteredStructureDocs.reduce((acc, doc) => {
+    if (!acc[doc.entityId]) {
+      acc[doc.entityId] = {
+        structureName: doc.entityId, // Could be enhanced with actual structure names
         documents: []
       }
     }
-    acc[doc.structureId].documents.push(doc)
+    acc[doc.entityId].documents.push(doc)
     return acc
-  }, {} as Record<string, { structureName: string; documents: typeof mockDocuments }>)
+  }, {} as Record<string, { structureName: string; documents: Document[] }>)
 
-  // Group investor documents by structure
-  const myDocsGrouped = myDocs.reduce((acc, doc) => {
-    if (!acc[doc.structureId]) {
-      acc[doc.structureId] = {
-        structureName: doc.structureName,
+  // Group user documents by entityId
+  const userDocsGrouped = filteredUserDocs.reduce((acc, doc) => {
+    const groupKey = doc.entityType === 'Structure' ? doc.entityId : 'personal'
+    if (!acc[groupKey]) {
+      acc[groupKey] = {
+        structureName: groupKey === 'personal' ? 'Personal Documents' : doc.entityId,
         documents: []
       }
     }
-    acc[doc.structureId].documents.push(doc)
+    acc[groupKey].documents.push(doc)
     return acc
-  }, {} as Record<string, { structureName: string; documents: typeof mockDocuments }>)
+  }, {} as Record<string, { structureName: string; documents: Document[] }>)
+
+  // Get unique document types for filter
+  const documentTypes = Array.from(
+    new Set([
+      ...userDocuments.map(doc => doc.documentType),
+      ...structureDocuments.map(doc => doc.documentType)
+    ])
+  ).sort()
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading documents...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -258,19 +204,19 @@ export default function LPDocumentsPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Total Documents</CardDescription>
-            <CardTitle className="text-3xl">{availableDocuments.length}</CardTitle>
+            <CardTitle className="text-3xl">{userDocuments.length + structureDocuments.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Structure Documents</CardDescription>
-            <CardTitle className="text-3xl">{structureDocs.length}</CardTitle>
+            <CardTitle className="text-3xl">{structureDocuments.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>My Documents</CardDescription>
-            <CardTitle className="text-3xl">{myDocs.length}</CardTitle>
+            <CardTitle className="text-3xl">{userDocuments.length}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -281,7 +227,7 @@ export default function LPDocumentsPage() {
           <CardTitle className="text-base">Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -292,15 +238,29 @@ export default function LPDocumentsPage() {
               />
             </div>
 
+            <Select value={documentTypeFilter} onValueChange={setDocumentTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {documentTypes.map(type => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Select value={selectedStructure} onValueChange={setSelectedStructure}>
               <SelectTrigger>
                 <SelectValue placeholder="All Funds" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Funds</SelectItem>
-                {investorStructures.map(structure => (
-                  <SelectItem key={structure.id} value={structure.id}>
-                    {structure.name}
+                {uniqueStructureIds.map(structureId => (
+                  <SelectItem key={structureId} value={structureId}>
+                    {structureId}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -314,11 +274,11 @@ export default function LPDocumentsPage() {
         <TabsList>
           <TabsTrigger value="structure">
             <IconBuilding className="w-4 h-4 mr-2" />
-            Structure Documents ({structureDocs.length})
+            Structure Documents ({filteredStructureDocs.length})
           </TabsTrigger>
           <TabsTrigger value="personal">
             <IconUser className="w-4 h-4 mr-2" />
-            My Documents ({myDocs.length})
+            My Documents ({filteredUserDocs.length})
           </TabsTrigger>
         </TabsList>
 
@@ -339,7 +299,7 @@ export default function LPDocumentsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Object.entries(structureDocsGrouped).map(([structureId, data]: [string, any]) => (
+                  {Object.entries(structureDocsGrouped).map(([structureId, data]) => (
                     <div key={structureId} className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-4">
                         <IconBuilding className="w-5 h-5 text-primary" />
@@ -348,35 +308,39 @@ export default function LPDocumentsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        {data.documents.map((doc: any) => (
+                        {data.documents.map((doc) => (
                           <div
                             key={doc.id}
                             className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                           >
                             <div className="flex items-center gap-3 flex-1">
-                              {getFileIcon(doc.fileType)}
+                              {getFileIcon(doc.mimeType)}
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-medium text-sm">{doc.name}</p>
+                                  <p className="font-medium text-sm">{doc.documentName}</p>
                                   <Badge variant="outline" className="text-xs">
-                                    {doc.type}
+                                    {doc.documentType}
                                   </Badge>
+                                  {doc.version > 1 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      v{doc.version}
+                                    </Badge>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                  <span>{doc.size}</span>
+                                  <span>{formatFileSize(doc.fileSize)}</span>
                                   <span className="flex items-center gap-1">
                                     <IconCalendar className="w-3 h-3" />
-                                    {new Date(doc.uploadedDate).toLocaleDateString()}
+                                    {new Date(doc.createdAt).toLocaleDateString()}
                                   </span>
-                                  <span>by {doc.uploadedBy}</span>
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" onClick={() => handleView(doc)}>
                                 <IconEye className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" onClick={() => handleDownload(doc)}>
                                 <IconDownload className="w-4 h-4" />
                               </Button>
                             </div>
@@ -401,7 +365,7 @@ export default function LPDocumentsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {Object.keys(myDocsGrouped).length === 0 ? (
+              {Object.keys(userDocsGrouped).length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <IconUser className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No personal documents found</p>
@@ -411,8 +375,8 @@ export default function LPDocumentsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Object.entries(myDocsGrouped).map(([structureId, data]: [string, any]) => (
-                    <div key={structureId} className="border rounded-lg p-4">
+                  {Object.entries(userDocsGrouped).map(([groupKey, data]) => (
+                    <div key={groupKey} className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-4">
                         <IconBuilding className="w-5 h-5 text-primary" />
                         <h3 className="font-semibold text-lg">{data.structureName}</h3>
@@ -420,40 +384,39 @@ export default function LPDocumentsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        {data.documents.map((doc: any) => (
+                        {data.documents.map((doc) => (
                           <div
                             key={doc.id}
                             className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                           >
                             <div className="flex items-center gap-3 flex-1">
-                              {getFileIcon(doc.fileType)}
+                              {getFileIcon(doc.mimeType)}
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-medium text-sm">{doc.name}</p>
+                                  <p className="font-medium text-sm">{doc.documentName}</p>
                                   <Badge variant="outline" className="text-xs">
-                                    {doc.type}
+                                    {doc.documentType}
                                   </Badge>
-                                  {doc.status === 'pending' && (
+                                  {doc.version > 1 && (
                                     <Badge variant="secondary" className="text-xs">
-                                      Pending Signature
+                                      v{doc.version}
                                     </Badge>
                                   )}
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                  <span>{doc.size}</span>
+                                  <span>{formatFileSize(doc.fileSize)}</span>
                                   <span className="flex items-center gap-1">
                                     <IconCalendar className="w-3 h-3" />
-                                    {new Date(doc.uploadedDate).toLocaleDateString()}
+                                    {new Date(doc.createdAt).toLocaleDateString()}
                                   </span>
-                                  <span>by {doc.uploadedBy}</span>
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" onClick={() => handleView(doc)}>
                                 <IconEye className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" onClick={() => handleDownload(doc)}>
                                 <IconDownload className="w-4 h-4" />
                               </Button>
                             </div>

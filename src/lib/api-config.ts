@@ -49,6 +49,9 @@ export const API_CONFIG = {
     deleteMessage: (messageId: string) => `/api/messages/${messageId}`,
     getAvailableUsers: '/api/messages/available-users',
 
+    // Documents API
+    getCombinedDocuments: '/api/documents/combined',
+
     // Add other endpoints as needed
   }
 }
