@@ -20,6 +20,7 @@ import {
   IconClock,
   IconX,
   IconDownload,
+  IconPlus,
 } from '@tabler/icons-react'
 import { getStructures } from '@/lib/structures-storage'
 import {
@@ -375,6 +376,10 @@ export default function LPChatPage() {
                 {investorStructures.length} conversations
               </p>
             </div>
+            <Button size="sm" onClick={() => toast.info('Contact your fund manager to start a conversation')}>
+              <IconPlus className="w-4 h-4 mr-1" />
+              New
+            </Button>
           </div>
 
           {/* Search */}
