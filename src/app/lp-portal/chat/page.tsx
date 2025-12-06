@@ -137,19 +137,29 @@ export default function LPChatPage() {
         const result = await response.json()
         if (result.success && result.data) {
           const apiConversations: Conversation[] = result.data.map((conv: any) => {
-            // For direct conversations, prioritize participantName over conversation name
+            // For direct conversations, get the OTHER participant's name (not current user)
             let conversationName = conv.name || conv.title || 'Conversation'
 
-            // If it's a direct conversation and we have participant info, use that
-            if (conv.type === 'direct' && conv.participantName) {
-              conversationName = conv.participantName
-            } else if (conv.type === 'direct' && conv.participants && conv.participants.length > 0) {
-              // Alternative: construct name from participant data
-              const otherParticipant = conv.participants.find((p: any) => p.userId !== currentUser?.id)
-              if (otherParticipant) {
-                conversationName = otherParticipant.firstName && otherParticipant.lastName
-                  ? `${otherParticipant.firstName} ${otherParticipant.lastName}`.trim()
-                  : otherParticipant.name || conversationName
+            if (conv.type === 'direct') {
+              // First try to get from participants array (most reliable)
+              if (conv.participants && conv.participants.length > 0) {
+                const otherParticipant = conv.participants.find((p: any) => {
+                  const participantId = p.userId || p.id || p.user_id
+                  return participantId !== currentUser?.id
+                })
+
+                if (otherParticipant) {
+                  // Try to get the user's name from various possible fields
+                  const participant = otherParticipant.user || otherParticipant
+                  conversationName = participant.firstName && participant.lastName
+                    ? `${participant.firstName} ${participant.lastName}`.trim()
+                    : participant.name || participant.username || conversationName
+                }
+              }
+              // If participants array didn't work, try participantName field
+              // But only if we haven't already found a name from participants
+              else if (conv.participantName && conversationName === (conv.name || conv.title || 'Conversation')) {
+                conversationName = conv.participantName
               }
             }
 
