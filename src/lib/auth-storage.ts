@@ -175,3 +175,28 @@ export function updateUserKycData(kycId: string, kycUrl: string, kycStatus: stri
     console.error('[Auth] Error updating KYC data:', error)
   }
 }
+
+// Update user profile data in localStorage
+export function updateUserProfile(updates: Partial<ApiUser>): void {
+  if (typeof window === 'undefined') return
+
+  try {
+    const authState = getAuthState()
+    if (!authState.user) {
+      console.error('[Auth] Cannot update user profile: No user found')
+      return
+    }
+
+    // Update user object with new data
+    authState.user = {
+      ...authState.user,
+      ...updates,
+    }
+
+    // Save back to localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(authState))
+    console.log('[Auth] User profile updated in localStorage:', updates)
+  } catch (error) {
+    console.error('[Auth] Error updating user profile:', error)
+  }
+}

@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Camera, Save } from "lucide-react"
-import { getCurrentUser, getAuthToken } from "@/lib/auth-storage"
+import { getCurrentUser, getAuthToken, updateUserProfile } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
 
@@ -36,14 +36,29 @@ export default function AccountPage() {
 
   const loadUserData = () => {
     const user = getCurrentUser()
+    console.log('[Account] Loading user data from localStorage:', user)
 
     if (user) {
+      // Construct full image URL if profileImage exists
+      let avatarUrl = ''
+      if (user.profileImage) {
+        console.log('[Account] User has profileImage:', user.profileImage)
+        // If profileImage starts with http:// or https://, use it as-is
+        // Otherwise, prepend the API base URL
+        avatarUrl = user.profileImage.startsWith('http')
+          ? user.profileImage
+          : `${API_CONFIG.baseUrl}${user.profileImage}`
+        console.log('[Account] Constructed avatarUrl:', avatarUrl)
+      } else {
+        console.log('[Account] No profileImage in user object')
+      }
+
       setFormData({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
-        phone: '', // Phone number not stored in localStorage user object
-        avatarUrl: user.profileImage || '',
+        phone: user.phoneNumber || '', // Load phone number from localStorage
+        avatarUrl: avatarUrl,
         languagePreference: user.appLanguage || 'en',
       })
     }
@@ -83,19 +98,14 @@ export default function AccountPage() {
       const result = await response.json()
 
       if (result.success) {
-        // Update localStorage with new user data
-        const currentUser = getCurrentUser()
-        if (currentUser) {
-          const updatedUser = {
-            ...currentUser,
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-          }
-          localStorage.setItem('polibit_user', JSON.stringify(updatedUser))
-        }
-
         toast.success('Profile updated successfully')
+
+        // Update localStorage with new user data
+        updateUserProfile({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+        })
       } else {
         toast.error(result.message || 'Failed to update profile')
       }
@@ -134,17 +144,12 @@ export default function AccountPage() {
       const result = await response.json()
 
       if (result.success) {
-        // Update localStorage with new language preference
-        const currentUser = getCurrentUser()
-        if (currentUser) {
-          const updatedUser = {
-            ...currentUser,
-            appLanguage: formData.languagePreference,
-          }
-          localStorage.setItem('polibit_user', JSON.stringify(updatedUser))
-        }
-
         toast.success('Language preference updated successfully')
+
+        // Update localStorage with new language preference
+        updateUserProfile({
+          appLanguage: formData.languagePreference,
+        })
       } else {
         toast.error(result.message || 'Failed to update language preference')
       }
@@ -213,7 +218,7 @@ export default function AccountPage() {
     }
   }
 
-  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -229,17 +234,60 @@ export default function AccountPage() {
       return
     }
 
-    // Read file and convert to data URL
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string
-      setFormData({ ...formData, avatarUrl: dataUrl })
-      toast.success('Photo updated! Click "Save Changes" to apply.')
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required. Please log in again.')
+      return
     }
-    reader.onerror = () => {
-      toast.error('Failed to read image file')
+
+    try {
+      // Create FormData and append the file
+      const formData = new FormData()
+      formData.append('profileImage', file)
+
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.uploadProfileImage), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to upload profile image')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data.profileImage) {
+        console.log('[Account] Profile image upload response:', result.data)
+
+        // Construct full image URL
+        const fullImageUrl = result.data.profileImage.startsWith('http')
+          ? result.data.profileImage
+          : `${API_CONFIG.baseUrl}${result.data.profileImage}`
+
+        console.log('[Account] Full image URL:', fullImageUrl)
+        console.log('[Account] Saving to localStorage:', result.data.profileImage)
+
+        // Update state with new image URL
+        setFormData(prev => ({ ...prev, avatarUrl: fullImageUrl }))
+
+        // Update localStorage with new profile image
+        updateUserProfile({
+          profileImage: result.data.profileImage,
+        })
+        console.log('[Account] Profile image updated in auth state')
+
+        toast.success('Profile photo updated successfully')
+      } else {
+        toast.error(result.message || 'Failed to upload profile image')
+      }
+    } catch (error) {
+      console.error('Error uploading profile image:', error)
+      toast.error('Failed to upload profile image')
     }
-    reader.readAsDataURL(file)
   }
 
   const handlePhotoClick = () => {

@@ -38,6 +38,7 @@ export const API_CONFIG = {
 
     // User profile
     updateUserProfile: '/api/custom/user/profile',
+    uploadProfileImage: '/api/custom/user/profile-image',
 
     // Chat/Messages API
     getConversations: '/api/conversations',
