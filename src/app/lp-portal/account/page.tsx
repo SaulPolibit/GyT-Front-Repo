@@ -38,17 +38,12 @@ export default function AccountPage() {
     const user = getCurrentUser()
 
     if (user) {
-      // Parse full name into first and last name
-      const nameParts = user.name?.split(' ') || ['', '']
-      const firstName = nameParts[0] || ''
-      const lastName = nameParts.slice(1).join(' ') || ''
-
       setFormData({
-        firstName,
-        lastName,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
         email: user.email || '',
-        phone: user.phoneNumber || '',
-        avatarUrl: '',
+        phone: '', // Phone number not stored in localStorage user object
+        avatarUrl: user.profileImage || '',
         languagePreference: user.appLanguage || 'en',
       })
     }
@@ -69,12 +64,7 @@ export default function AccountPage() {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        appLanguage: formData.languagePreference,
-      }
-
-      // Only include phone if it's not empty
-      if (formData.phone) {
-        payload.address = formData.phone // Using address field for phone number as per API spec
+        phoneNumber: formData.phone || undefined,
       }
 
       const response = await fetch(getApiUrl(API_CONFIG.endpoints.updateUserProfile), {
@@ -98,10 +88,9 @@ export default function AccountPage() {
         if (currentUser) {
           const updatedUser = {
             ...currentUser,
-            name: `${formData.firstName} ${formData.lastName}`.trim(),
+            firstName: formData.firstName,
+            lastName: formData.lastName,
             email: formData.email,
-            phoneNumber: formData.phone,
-            appLanguage: formData.languagePreference,
           }
           localStorage.setItem('polibit_user', JSON.stringify(updatedUser))
         }
@@ -113,6 +102,55 @@ export default function AccountPage() {
     } catch (error) {
       console.error('Error updating profile:', error)
       toast.error('Failed to update profile')
+    }
+  }
+
+  const handleLanguageUpdate = async () => {
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required. Please log in again.')
+      return
+    }
+
+    try {
+      const payload = {
+        appLanguage: formData.languagePreference,
+      }
+
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.updateUserProfile), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update language preference')
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Update localStorage with new language preference
+        const currentUser = getCurrentUser()
+        if (currentUser) {
+          const updatedUser = {
+            ...currentUser,
+            appLanguage: formData.languagePreference,
+          }
+          localStorage.setItem('polibit_user', JSON.stringify(updatedUser))
+        }
+
+        toast.success('Language preference updated successfully')
+      } else {
+        toast.error(result.message || 'Failed to update language preference')
+      }
+    } catch (error) {
+      console.error('Error updating language preference:', error)
+      toast.error('Failed to update language preference')
     }
   }
 
@@ -347,7 +385,7 @@ export default function AccountPage() {
                 </Select>
               </div>
 
-              <Button onClick={handleProfileUpdate} className="w-full">
+              <Button onClick={handleLanguageUpdate} className="w-full">
                 <Save className="mr-2 h-4 w-4" />
                 Save Preference
               </Button>
