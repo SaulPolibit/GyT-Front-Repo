@@ -7,31 +7,79 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Plus, TrendingUp, TrendingDown, MapPin, Building2, DollarSign } from "lucide-react"
-import investmentsData from "@/data/investments.json"
+import { Search, Plus, TrendingUp, TrendingDown, MapPin, Building2, DollarSign, Loader2, AlertCircle } from "lucide-react"
 import type { Investment } from "@/lib/types"
-import { getInvestments } from "@/lib/investments-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
 
 export default function InvestmentsPage() {
-  const staticInvestments = investmentsData as Investment[]
-  const [dynamicInvestments, setDynamicInvestments] = useState<Investment[]>([])
+  const [investments, setInvestments] = useState<Investment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
 
-  // Load investments from localStorage on mount
+  // Load investments from API on mount
   useEffect(() => {
-    const stored = getInvestments()
-    setDynamicInvestments(stored)
-  }, [])
+    async function fetchInvestments() {
+      try {
+        setIsLoading(true)
+        setError(null)
 
-  // Merge static and dynamic investments
-  const investments = [...staticInvestments, ...dynamicInvestments]
+        // Get authentication token
+        const token = getAuthToken()
+
+        if (!token) {
+          setError('Authentication required. Please log in.')
+          setIsLoading(false)
+          return
+        }
+
+        const apiUrl = getApiUrl(API_CONFIG.endpoints.getAllInvestments)
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          setError(errorData.message || 'Failed to fetch investments')
+          setIsLoading(false)
+          return
+        }
+
+        const result = await response.json()
+
+        if (result.success && Array.isArray(result.data)) {
+          setInvestments(result.data)
+        } else {
+          setError('Invalid response format from API')
+        }
+
+        setIsLoading(false)
+      } catch (err) {
+        console.error('Error fetching investments:', err)
+        setError('Failed to load investments')
+        setIsLoading(false)
+      }
+    }
+
+    fetchInvestments()
+  }, [])
 
   // Filter investments
   const filteredInvestments = investments.filter((inv) => {
-    const matchesSearch = inv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         inv.geography?.city?.toLowerCase().includes(searchQuery.toLowerCase())
+    const invName = inv.name || (inv as any).investmentName || ''
+    const geoString = typeof inv.geography === 'string'
+      ? inv.geography
+      : inv.geography?.city || ''
+    const matchesSearch = invName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         geoString.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = filterType === "all" || inv.type === filterType
     const matchesStatus = filterStatus === "all" || inv.status === filterStatus
     return matchesSearch && matchesType && matchesStatus
@@ -73,6 +121,39 @@ export default function InvestmentsPage() {
       case 'Private Debt': return <DollarSign className="h-4 w-4" />
       default: return null
     }
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Loading investments...</h3>
+            <p className="text-muted-foreground">Please wait while we fetch your data</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Investments</h3>
+            <p className="text-muted-foreground mb-4 max-w-md">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -171,10 +252,14 @@ export default function InvestmentsPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg mb-2">{investment.name}</CardTitle>
+                    <CardTitle className="text-lg mb-2">{investment.name || (investment as any).investmentName || 'Unnamed'}</CardTitle>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      {investment.geography?.city || 'N/A'}, {investment.geography?.state || 'N/A'}
+                      {typeof investment.geography === 'string'
+                        ? investment.geography
+                        : investment.geography?.city && investment.geography?.state
+                        ? `${investment.geography.city}, ${investment.geography.state}`
+                        : 'N/A'}
                     </div>
                   </div>
                   <Badge variant={getStatusColor(investment.status)}>

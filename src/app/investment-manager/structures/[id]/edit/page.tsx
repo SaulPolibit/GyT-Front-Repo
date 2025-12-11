@@ -4,17 +4,13 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Save, Info, CheckCircle2, AlertCircle } from 'lucide-react'
-import { getStructureById, updateStructure } from '@/lib/structures-storage'
+import { ArrowLeft, Save, AlertCircle } from 'lucide-react'
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
+import { getAuthToken } from '@/lib/auth-storage'
 import Link from 'next/link'
 
 interface PageProps {
@@ -118,72 +114,111 @@ export default function EditStructurePage({ params }: PageProps) {
   useEffect(() => {
     if (!id) return
 
-    const structure = getStructureById(id)
-    if (!structure) {
-      setError('Structure not found')
-      setLoading(false)
-      return
+    async function fetchStructure() {
+      try {
+        // Get authentication token
+        const token = getAuthToken()
+
+        if (!token) {
+          setError('Authentication required. Please log in.')
+          setLoading(false)
+          return
+        }
+
+        const apiUrl = getApiUrl(API_CONFIG.endpoints.getSingleStructure(id))
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          setError(errorData.message || 'Failed to fetch structure')
+          setLoading(false)
+          return
+        }
+
+        const result = await response.json()
+        const structure = result.data
+
+        if (!structure) {
+          setError('Structure not found')
+          setLoading(false)
+          return
+        }
+
+        // Initialize form with existing structure data
+        // Map API response field names to form data structure
+        setFormData({
+          name: structure.name || '',
+          status: structure.status || 'active',
+          totalCommitment: structure.totalCommitment || 0,
+          investors: structure.investors || 0,
+          managementFee: structure.managementFee || '',
+          performanceFee: structure.performanceFee || '',
+          hurdleRate: structure.hurdleRate || '',
+          preferredReturn: structure.preferredReturn || '',
+          waterfallStructure: structure.waterfallStructure || '',
+          distributionFrequency: structure.distributionFrequency || '',
+          hierarchyMode: structure.hierarchyMode || false,
+          hierarchySetupApproach: structure.hierarchySetupApproach || 'all-at-once',
+          hierarchyLevels: structure.hierarchyLevels || 2,
+          hierarchyStructures: structure.hierarchyStructures || [],
+          legalTerms: {
+            // Partnership Agreement
+            managementControl: structure.managementControl || '',
+            capitalContributions: structure.capitalContributions || '',
+            allocationsDistributions: structure.allocationsDistributions || '',
+            // Rights & Obligations (convert strings to arrays)
+            limitedPartnerRights: textToArray(structure.limitedPartnerRights || ''),
+            limitedPartnerObligations: textToArray(structure.limitedPartnerObligations || ''),
+            // Voting Rights
+            votingThreshold: 66.67,
+            mattersRequiringConsent: [],
+            // Redemption Terms
+            lockUpPeriod: structure.lockUpPeriod || '',
+            withdrawalConditions: textToArray(structure.withdrawalConditions || ''),
+            withdrawalProcess: textToArray(structure.withdrawalProcess || ''),
+            // Transfer Restrictions
+            transferProhibition: structure.GeneralProhibition || '',
+            permittedTransfers: textToArray(structure.PermittedTransfers || ''),
+            transferRequirements: textToArray(structure.TransferRequirements || ''),
+            // Reporting
+            quarterlyReports: structure.quarterlyReports || '',
+            annualReports: structure.annualReports || '',
+            taxForms: structure.taxForms || '',
+            capitalNotices: structure.CapitalCallDistributionsNotices || '',
+            additionalCommunications: textToArray(structure.additionalCommunications || ''),
+            // Liability
+            liabilityProtection: structure.limitedLiability || '',
+            liabilityExceptions: textToArray(structure.ExceptionsLiability || ''),
+            maximumExposure: structure.maximumExposure || '',
+            // Indemnification
+            partnershipIndemnifiesLP: textToArray(structure.IndemnifiesPartnership || ''),
+            lpIndemnifiesPartnership: textToArray(structure.LPIndemnifiesPartnership || ''),
+            indemnificationProcedures: structure.IndemnifiesProcedures || '',
+            // Additional Provisions
+            amendments: structure.Amendments || '',
+            dissolution: structure.Dissolution || '',
+            disputes: structure.DisputesResolution || '',
+            governingLaw: structure.GoverningLaw || '',
+            additionalProvisions: structure.additionalProvisions || ''
+          }
+        })
+
+        setLoading(false)
+      } catch (err) {
+        console.error('Error fetching structure:', err)
+        setError('Failed to load structure data')
+        setLoading(false)
+      }
     }
 
-    // Initialize form with existing structure data
-    setFormData({
-      name: structure.name,
-      status: structure.status,
-      totalCommitment: structure.totalCommitment,
-      investors: structure.investors,
-      managementFee: structure.managementFee || '',
-      performanceFee: structure.performanceFee || '',
-      hurdleRate: structure.hurdleRate || '',
-      preferredReturn: structure.preferredReturn || '',
-      waterfallStructure: structure.waterfallStructure || '',
-      distributionFrequency: structure.distributionFrequency || '',
-      hierarchyMode: structure.hierarchyMode || false,
-      hierarchySetupApproach: structure.hierarchySetupApproach || 'all-at-once',
-      hierarchyLevels: structure.hierarchyLevels || 2,
-      hierarchyStructures: structure.hierarchyStructures || [],
-      legalTerms: {
-        // Partnership Agreement
-        managementControl: structure.legalTerms?.managementControl || '',
-        capitalContributions: structure.legalTerms?.capitalContributions || '',
-        allocationsDistributions: structure.legalTerms?.allocationsDistributions || '',
-        // Rights & Obligations
-        limitedPartnerRights: structure.legalTerms?.limitedPartnerRights || [],
-        limitedPartnerObligations: structure.legalTerms?.limitedPartnerObligations || [],
-        // Voting Rights
-        votingThreshold: structure.legalTerms?.votingRights?.votingThreshold || 66.67,
-        mattersRequiringConsent: structure.legalTerms?.votingRights?.mattersRequiringConsent || [],
-        // Redemption Terms
-        lockUpPeriod: structure.legalTerms?.redemptionTerms?.lockUpPeriod || '',
-        withdrawalConditions: structure.legalTerms?.redemptionTerms?.withdrawalConditions || [],
-        withdrawalProcess: structure.legalTerms?.redemptionTerms?.withdrawalProcess || [],
-        // Transfer Restrictions
-        transferProhibition: structure.legalTerms?.transferRestrictions?.generalProhibition || '',
-        permittedTransfers: structure.legalTerms?.transferRestrictions?.permittedTransfers || [],
-        transferRequirements: structure.legalTerms?.transferRestrictions?.transferRequirements || [],
-        // Reporting
-        quarterlyReports: structure.legalTerms?.reportingCommitments?.quarterlyReports || '',
-        annualReports: structure.legalTerms?.reportingCommitments?.annualReports || '',
-        taxForms: structure.legalTerms?.reportingCommitments?.taxForms || '',
-        capitalNotices: structure.legalTerms?.reportingCommitments?.capitalNotices || '',
-        additionalCommunications: structure.legalTerms?.reportingCommitments?.additionalCommunications || [],
-        // Liability
-        liabilityProtection: structure.legalTerms?.liabilityLimitations?.limitedLiabilityProtection || '',
-        liabilityExceptions: structure.legalTerms?.liabilityLimitations?.exceptionsToLimitedLiability || [],
-        maximumExposure: structure.legalTerms?.liabilityLimitations?.maximumExposureNote || '',
-        // Indemnification
-        partnershipIndemnifiesLP: structure.legalTerms?.indemnification?.partnershipIndemnifiesLPFor || [],
-        lpIndemnifiesPartnership: structure.legalTerms?.indemnification?.lpIndemnifiesPartnershipFor || [],
-        indemnificationProcedures: structure.legalTerms?.indemnification?.indemnificationProcedures || '',
-        // Additional Provisions
-        amendments: structure.legalTerms?.amendments || '',
-        dissolution: structure.legalTerms?.dissolution || '',
-        disputes: structure.legalTerms?.disputes || '',
-        governingLaw: structure.legalTerms?.governingLaw || '',
-        additionalProvisions: structure.legalTerms?.additionalProvisions || ''
-      }
-    })
-
-    setLoading(false)
+    fetchStructure()
   }, [id])
 
   // Initialize hierarchy structures when levels change
@@ -193,7 +228,6 @@ export default function EditStructurePage({ params }: PageProps) {
       const targetLevels = formData.hierarchyLevels
 
       if (currentLevels !== targetLevels) {
-        const structure = getStructureById(id)
         const newStructures = Array.from({ length: targetLevels }, (_, index) => {
           const existing = formData.hierarchyStructures[index]
           if (existing) return existing
@@ -201,11 +235,11 @@ export default function EditStructurePage({ params }: PageProps) {
           return {
             level: index + 1,
             name: index === 0
-              ? `${structure?.name} - Master Level`
+              ? `${formData.name} - Master Level`
               : index === targetLevels - 1
-              ? `${structure?.name} - Property Level`
-              : `${structure?.name} - Level ${index + 1}`,
-            type: structure?.type || 'fund',
+              ? `${formData.name} - Property Level`
+              : `${formData.name} - Level ${index + 1}`,
+            type: 'fund',
             applyWaterfall: false,
             waterfallAlgorithm: null as 'american' | 'european' | null,
             applyEconomicTerms: false
@@ -218,86 +252,77 @@ export default function EditStructurePage({ params }: PageProps) {
         }))
       }
     }
-  }, [formData.hierarchyMode, formData.hierarchySetupApproach, formData.hierarchyLevels, id])
+  }, [formData.hierarchyMode, formData.hierarchySetupApproach, formData.hierarchyLevels, formData.name])
 
   const handleSave = async () => {
     setSaving(true)
     setError(null)
 
     try {
-      const success = updateStructure(id, {
-        name: formData.name,
-        status: formData.status,
-        totalCommitment: formData.totalCommitment,
-        investors: formData.investors,
-        managementFee: formData.managementFee,
-        performanceFee: formData.performanceFee,
-        hurdleRate: formData.hurdleRate,
-        preferredReturn: formData.preferredReturn,
-        waterfallStructure: formData.waterfallStructure,
-        distributionFrequency: formData.distributionFrequency,
-        hierarchyMode: formData.hierarchyMode,
-        hierarchySetupApproach: formData.hierarchySetupApproach,
-        hierarchyLevels: formData.hierarchyLevels,
-        hierarchyStructures: formData.hierarchyStructures,
-        legalTerms: {
-          // Partnership Agreement
+      // Get authentication token
+      const token = getAuthToken()
+
+      if (!token) {
+        setError('Authentication required. Please log in.')
+        setSaving(false)
+        return
+      }
+
+      // Prepare update data - only send legalTerms with exact field names as strings
+      const updateData = {
           managementControl: formData.legalTerms.managementControl,
           capitalContributions: formData.legalTerms.capitalContributions,
           allocationsDistributions: formData.legalTerms.allocationsDistributions,
-          // Rights & Obligations
-          limitedPartnerRights: formData.legalTerms.limitedPartnerRights,
-          limitedPartnerObligations: formData.legalTerms.limitedPartnerObligations,
-          // Voting Rights
-          votingRights: {
-            votingThreshold: formData.legalTerms.votingThreshold,
-            mattersRequiringConsent: formData.legalTerms.mattersRequiringConsent
-          },
-          // Redemption Terms
-          redemptionTerms: {
-            lockUpPeriod: formData.legalTerms.lockUpPeriod,
-            withdrawalConditions: formData.legalTerms.withdrawalConditions,
-            withdrawalProcess: formData.legalTerms.withdrawalProcess
-          },
-          // Transfer Restrictions
-          transferRestrictions: {
-            generalProhibition: formData.legalTerms.transferProhibition,
-            permittedTransfers: formData.legalTerms.permittedTransfers,
-            transferRequirements: formData.legalTerms.transferRequirements
-          },
-          // Reporting Commitments
-          reportingCommitments: {
-            quarterlyReports: formData.legalTerms.quarterlyReports,
-            annualReports: formData.legalTerms.annualReports,
-            taxForms: formData.legalTerms.taxForms,
-            capitalNotices: formData.legalTerms.capitalNotices,
-            additionalCommunications: formData.legalTerms.additionalCommunications
-          },
-          // Liability Limitations
-          liabilityLimitations: {
-            limitedLiabilityProtection: formData.legalTerms.liabilityProtection,
-            exceptionsToLimitedLiability: formData.legalTerms.liabilityExceptions,
-            maximumExposureNote: formData.legalTerms.maximumExposure
-          },
-          // Indemnification
-          indemnification: {
-            partnershipIndemnifiesLPFor: formData.legalTerms.partnershipIndemnifiesLP,
-            lpIndemnifiesPartnershipFor: formData.legalTerms.lpIndemnifiesPartnership,
-            indemnificationProcedures: formData.legalTerms.indemnificationProcedures
-          },
-          // Additional Provisions
-          amendments: formData.legalTerms.amendments,
-          dissolution: formData.legalTerms.dissolution,
-          disputes: formData.legalTerms.disputes,
-          governingLaw: formData.legalTerms.governingLaw,
+          limitedPartnerObligations: arrayToText(formData.legalTerms.limitedPartnerObligations),
+          limitedPartnerRights: arrayToText(formData.legalTerms.limitedPartnerRights),
+          lockUpPeriod: formData.legalTerms.lockUpPeriod,
+          withdrawalConditions: arrayToText(formData.legalTerms.withdrawalConditions),
+          withdrawalProcess: arrayToText(formData.legalTerms.withdrawalProcess),
+          GeneralProhibition: formData.legalTerms.transferProhibition,
+          PermittedTransfers: arrayToText(formData.legalTerms.permittedTransfers),
+          TransferRequirements: arrayToText(formData.legalTerms.transferRequirements),
+          quarterlyReports: formData.legalTerms.quarterlyReports,
+          annualReports: formData.legalTerms.annualReports,
+          taxForms: formData.legalTerms.taxForms,
+          CapitalCallDistributionsNotices: formData.legalTerms.capitalNotices,
+          additionalCommunications: arrayToText(formData.legalTerms.additionalCommunications),
+          limitedLiability: formData.legalTerms.liabilityProtection,
+          ExceptionsLiability: arrayToText(formData.legalTerms.liabilityExceptions),
+          maximumExposure: formData.legalTerms.maximumExposure,
+          IndemnifiesPartnership: arrayToText(formData.legalTerms.partnershipIndemnifiesLP),
+          LPIndemnifiesPartnership: arrayToText(formData.legalTerms.lpIndemnifiesPartnership),
+          IndemnifiesProcedures: formData.legalTerms.indemnificationProcedures,
+          Amendments: formData.legalTerms.amendments,
+          Dissolution: formData.legalTerms.dissolution,
+          DisputesResolution: formData.legalTerms.disputes,
+          GoverningLaw: formData.legalTerms.governingLaw,
           additionalProvisions: formData.legalTerms.additionalProvisions
-        }
+      }
+
+      const apiUrl = getApiUrl(API_CONFIG.endpoints.updateStructure(id))
+
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData)
       })
 
-      if (success) {
-        router.push(`/investment-manager/structures/${id}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        setError(errorData.message || 'Failed to update structure')
+        setSaving(false)
+        return
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        // router.push(`/investment-manager/structures/${id}`)
       } else {
-        setError('Failed to update structure')
+        setError(result.message || 'Failed to update structure')
       }
     } catch (err) {
       setError('An error occurred while saving')
@@ -366,372 +391,6 @@ export default function EditStructurePage({ params }: PageProps) {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-
-      {/* Basic Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
-          <CardDescription>Update structure details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Structure Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Status *</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value: any) => setFormData({ ...formData, status: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fundraising">Fundraising</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="totalCommitment">Total Commitment *</Label>
-              <Input
-                id="totalCommitment"
-                type="number"
-                value={formData.totalCommitment}
-                onChange={(e) => setFormData({ ...formData, totalCommitment: parseFloat(e.target.value) })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="investors">Number of Investors *</Label>
-              <Input
-                id="investors"
-                type="number"
-                value={formData.investors}
-                onChange={(e) => setFormData({ ...formData, investors: parseInt(e.target.value) })}
-                required
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Economic Terms */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Economic Terms</CardTitle>
-          <CardDescription>Fee structure and performance metrics</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="managementFee">Management Fee</Label>
-              <Input
-                id="managementFee"
-                value={formData.managementFee}
-                onChange={(e) => setFormData({ ...formData, managementFee: e.target.value })}
-                placeholder="e.g., 2%"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="performanceFee">Performance Fee</Label>
-              <Input
-                id="performanceFee"
-                value={formData.performanceFee}
-                onChange={(e) => setFormData({ ...formData, performanceFee: e.target.value })}
-                placeholder="e.g., 20%"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="hurdleRate">Hurdle Rate</Label>
-              <Input
-                id="hurdleRate"
-                value={formData.hurdleRate}
-                onChange={(e) => setFormData({ ...formData, hurdleRate: e.target.value })}
-                placeholder="e.g., 8%"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="preferredReturn">Preferred Return</Label>
-              <Input
-                id="preferredReturn"
-                value={formData.preferredReturn}
-                onChange={(e) => setFormData({ ...formData, preferredReturn: e.target.value })}
-                placeholder="e.g., 8%"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Distribution Model */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Distribution Model</CardTitle>
-          <CardDescription>Waterfall structure and distribution frequency</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="waterfallStructure">Waterfall Structure</Label>
-            <Select
-              value={formData.waterfallStructure}
-              onValueChange={(value) => setFormData({ ...formData, waterfallStructure: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select waterfall structure" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="american">American (Deal-by-Deal)</SelectItem>
-                <SelectItem value="european">European (Whole Fund)</SelectItem>
-                <SelectItem value="hybrid">Hybrid</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="distributionFrequency">Distribution Frequency</Label>
-            <Select
-              value={formData.distributionFrequency}
-              onValueChange={(value) => setFormData({ ...formData, distributionFrequency: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select distribution frequency" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="quarterly">Quarterly</SelectItem>
-                <SelectItem value="semi-annual">Semi-Annual</SelectItem>
-                <SelectItem value="annual">Annual</SelectItem>
-                <SelectItem value="upon-exit">Upon Exit</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Multi-Level Hierarchy Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Multi-Level Hierarchy</CardTitle>
-          <CardDescription>Configure hierarchical structure with cascade distributions</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start space-x-2">
-            <Checkbox
-              id="hierarchyMode"
-              checked={formData.hierarchyMode}
-              onCheckedChange={(checked) => setFormData({ ...formData, hierarchyMode: checked as boolean })}
-            />
-            <div className="flex-1">
-              <Label htmlFor="hierarchyMode" className="cursor-pointer font-medium">
-                Enable Multi-Level Hierarchy
-              </Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                Create a hierarchical structure with multiple levels for complex fund arrangements
-              </p>
-            </div>
-          </div>
-
-          {formData.hierarchyMode && (
-            <div className="space-y-4 mt-4 p-4 border rounded-lg bg-muted/30">
-              <div className="space-y-2">
-                <Label htmlFor="hierarchySetupApproach">Setup Approach *</Label>
-                <RadioGroup
-                  value={formData.hierarchySetupApproach}
-                  onValueChange={(value: any) => setFormData({ ...formData, hierarchySetupApproach: value })}
-                >
-                  <div className="flex items-start space-x-3 space-y-0 rounded-lg border p-4">
-                    <RadioGroupItem value="all-at-once" id="all-at-once" />
-                    <div className="flex-1">
-                      <Label htmlFor="all-at-once" className="cursor-pointer font-medium">
-                        Configure All Levels at Once
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Define all hierarchy levels and their relationships in one setup
-                      </p>
-                    </div>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {formData.hierarchySetupApproach === 'all-at-once' && (
-                <div className="space-y-3 pt-3 border-t">
-                  <div className="space-y-2">
-                    <Label htmlFor="hierarchyLevels">Number of Hierarchy Levels *</Label>
-                    <Select
-                      value={formData.hierarchyLevels.toString()}
-                      onValueChange={(value) => setFormData({ ...formData, hierarchyLevels: parseInt(value) })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                          <SelectItem key={num} value={num.toString()}>
-                            {num} Levels
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {formData.hierarchyStructures.length > 0 && (
-                    <div className="space-y-3 pt-3 border-t">
-                      <h4 className="text-sm font-semibold">Hierarchy Level Configuration</h4>
-                      {formData.hierarchyStructures.map((structure, index) => (
-                        <Card key={index} className="border-primary/20">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <CardTitle className="text-sm flex items-center gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    Level {index + 1} of {formData.hierarchyLevels}
-                                  </Badge>
-                                  {structure.name}
-                                </CardTitle>
-                                <CardDescription className="text-xs mt-1">
-                                  {index === 0 && 'Top-level structure (receives distributions from children)'}
-                                  {index === formData.hierarchyLevels - 1 && 'Property/Investment level (income entry point)'}
-                                  {index > 0 && index < formData.hierarchyLevels - 1 && `Intermediate level`}
-                                </CardDescription>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div className="space-y-2">
-                              <Label htmlFor={`level-${index}-name`} className="text-xs">
-                                Level Name *
-                              </Label>
-                              <Input
-                                id={`level-${index}-name`}
-                                value={structure.name}
-                                onChange={(e) => {
-                                  const newStructures = [...formData.hierarchyStructures]
-                                  newStructures[index] = { ...structure, name: e.target.value }
-                                  setFormData({ ...formData, hierarchyStructures: newStructures })
-                                }}
-                                placeholder="e.g., Master Trust, Investor Trust, Project Trust"
-                                className="h-8 text-xs"
-                              />
-                            </div>
-
-                            {/* Waterfall Configuration */}
-                            <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
-                              <div className="flex items-start space-x-2">
-                                <Checkbox
-                                  id={`level-${index}-waterfall`}
-                                  checked={structure.applyWaterfall}
-                                  disabled={index === formData.hierarchyLevels - 1}
-                                  onCheckedChange={(checked) => {
-                                    const newStructures = [...formData.hierarchyStructures]
-                                    newStructures[index] = {
-                                      ...structure,
-                                      applyWaterfall: checked as boolean,
-                                      waterfallAlgorithm: checked ? 'american' : null
-                                    }
-                                    setFormData({ ...formData, hierarchyStructures: newStructures })
-                                  }}
-                                />
-                                <div className="flex-1">
-                                  <Label
-                                    htmlFor={`level-${index}-waterfall`}
-                                    className={`cursor-pointer text-xs font-medium ${index === formData.hierarchyLevels - 1 ? 'text-muted-foreground' : ''}`}
-                                  >
-                                    Apply Waterfall at This Level
-                                  </Label>
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {index === formData.hierarchyLevels - 1
-                                      ? 'Waterfall not applicable at property level - income enters here'
-                                      : 'Calculate distributions using waterfall algorithm before passing to next level'}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {structure.applyWaterfall && (
-                                <div className="pl-6 pt-2">
-                                  <RadioGroup
-                                    value={structure.waterfallAlgorithm || 'american'}
-                                    onValueChange={(value: any) => {
-                                      const newStructures = [...formData.hierarchyStructures]
-                                      newStructures[index] = {
-                                        ...structure,
-                                        waterfallAlgorithm: value
-                                      }
-                                      setFormData({ ...formData, hierarchyStructures: newStructures })
-                                    }}
-                                  >
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="american" id={`level-${index}-american`} />
-                                      <Label htmlFor={`level-${index}-american`} className="cursor-pointer text-xs font-normal">
-                                        American (deal-by-deal)
-                                      </Label>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <RadioGroupItem value="european" id={`level-${index}-european`} />
-                                      <Label htmlFor={`level-${index}-european`} className="cursor-pointer text-xs font-normal">
-                                        European (whole fund)
-                                      </Label>
-                                    </div>
-                                  </RadioGroup>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Economic Terms Configuration */}
-                            <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
-                              <div className="flex items-start space-x-2">
-                                <Checkbox
-                                  id={`level-${index}-economic`}
-                                  checked={structure.applyEconomicTerms}
-                                  disabled={index === formData.hierarchyLevels - 1}
-                                  onCheckedChange={(checked) => {
-                                    const newStructures = [...formData.hierarchyStructures]
-                                    newStructures[index] = { ...structure, applyEconomicTerms: checked as boolean }
-                                    setFormData({ ...formData, hierarchyStructures: newStructures })
-                                  }}
-                                />
-                                <div className="flex-1">
-                                  <Label
-                                    htmlFor={`level-${index}-economic`}
-                                    className={`cursor-pointer text-xs font-medium ${index === formData.hierarchyLevels - 1 ? 'text-muted-foreground' : ''}`}
-                                  >
-                                    Apply Economic Terms at This Level
-                                  </Label>
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    {index === formData.hierarchyLevels - 1
-                                      ? 'Economic terms not applicable at property level - income enters here'
-                                      : 'Calculate management fees, performance fees, and carry at this level'}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Legal & Terms Section - Comprehensive */}
       <Card id="legal-terms">
@@ -809,37 +468,6 @@ export default function EditStructurePage({ params }: PageProps) {
                 value={arrayToText(formData.legalTerms.limitedPartnerObligations)}
                 onChange={(e) => updateLegalTermsArray('limitedPartnerObligations', e.target.value)}
                 rows={6}
-                className="resize-y"
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Voting Rights */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Voting Rights</h3>
-
-            <div className="space-y-2">
-              <Label htmlFor="votingThreshold">Voting Threshold (%)</Label>
-              <Input
-                id="votingThreshold"
-                type="number"
-                step="0.01"
-                value={formData.legalTerms.votingThreshold}
-                onChange={(e) => setFormData({ ...formData, legalTerms: { ...formData.legalTerms, votingThreshold: parseFloat(e.target.value) || 66.67 } })}
-              />
-              <p className="text-xs text-muted-foreground">Percentage of Partnership Interests required for consent</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mattersRequiringConsent">Matters Requiring Consent (one per line)</Label>
-              <Textarea
-                id="mattersRequiringConsent"
-                placeholder="Amendment of the Partnership Agreement&#10;Removal of the General Partner for cause&#10;Extension of the fund term"
-                value={arrayToText(formData.legalTerms.mattersRequiringConsent)}
-                onChange={(e) => updateLegalTermsArray('mattersRequiringConsent', e.target.value)}
-                rows={7}
                 className="resize-y"
               />
             </div>

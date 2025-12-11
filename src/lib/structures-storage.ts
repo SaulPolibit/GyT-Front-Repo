@@ -173,6 +173,8 @@ export interface Structure {
     governingLaw?: string
     additionalProvisions?: string
   }
+  // Optional banner image for structure display
+  bannerImage?: string
 }
 
 const STORAGE_KEY = 'polibit_structures'

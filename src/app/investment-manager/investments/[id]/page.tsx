@@ -1,9 +1,10 @@
 "use client"
 
 import { use, useState, useEffect } from "react"
-import { notFound, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from 'sonner'
+import { deleteInvestment } from "@/lib/investments-storage"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,10 +19,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft, MapPin, Building2, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Loader2 } from "lucide-react"
-import investmentsData from "@/data/investments.json"
+import { ArrowLeft, MapPin, Building2, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react"
 import type { Investment } from "@/lib/types"
-import { getInvestments, deleteInvestment } from "@/lib/investments-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -30,21 +31,62 @@ interface PageProps {
 export default function InvestmentDetailPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
-  const [dynamicInvestments, setDynamicInvestments] = useState<Investment[]>([])
+  const [investment, setInvestment] = useState<Investment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
-  // Load investments from localStorage on mount
+  // Load investment from API on mount
   useEffect(() => {
-    const stored = getInvestments()
-    setDynamicInvestments(stored)
-    setIsLoading(false)
-  }, [])
+    async function fetchInvestment() {
+      try {
+        setIsLoading(true)
+        setError(null)
 
-  // Merge static and dynamic investments
-  const staticInvestments = investmentsData as Investment[]
-  const allInvestments = [...staticInvestments, ...dynamicInvestments]
-  const investment = allInvestments.find((inv) => inv.id === id)
+        // Get authentication token
+        const token = getAuthToken()
+
+        if (!token) {
+          setError('Authentication required. Please log in.')
+          setIsLoading(false)
+          return
+        }
+
+        const apiUrl = getApiUrl(API_CONFIG.endpoints.getSingleInvestment(id))
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          setError(errorData.message || 'Failed to fetch investment')
+          setIsLoading(false)
+          return
+        }
+
+        const result = await response.json()
+
+        if (result.success && result.data) {
+          setInvestment(result.data)
+        } else {
+          setError('Investment not found')
+        }
+
+        setIsLoading(false)
+      } catch (err) {
+        console.error('Error fetching investment:', err)
+        setError('Failed to load investment data')
+        setIsLoading(false)
+      }
+    }
+
+    fetchInvestment()
+  }, [id])
 
   // Show loading state
   if (isLoading) {
@@ -56,8 +98,27 @@ export default function InvestmentDetailPage({ params }: PageProps) {
     )
   }
 
-  if (!investment) {
-    notFound()
+  // Show error state
+  if (error || !investment) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Investment</h3>
+            <p className="text-muted-foreground mb-4 max-w-md">{error || 'Investment not found'}</p>
+            <div className="flex gap-2">
+              <Button onClick={() => router.push('/investment-manager/investments')} variant="outline">
+                Back to Investments
+              </Button>
+              <Button onClick={() => window.location.reload()} variant="default">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   const handleEdit = () => {

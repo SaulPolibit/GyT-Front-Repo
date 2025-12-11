@@ -8,10 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Building2, Plus, MapPin, Search, TrendingUp, Users, Calendar, LayoutGrid, List, ChevronDown, ChevronRight } from 'lucide-react'
+import { Building2, Plus, MapPin, Search, TrendingUp, Users, Calendar, LayoutGrid, List, ChevronDown, ChevronRight, Loader2, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { getStructures, Structure, migrateStructures } from '@/lib/structures-storage'
+import { Structure } from '@/lib/structures-storage'
+import { getVisibilitySettings, VisibilitySettings } from '@/lib/visibility-storage'
+import { getApiUrl } from '@/lib/api-config'
+import { getAuthToken } from '@/lib/auth-storage'
 
 // Type labels
 const TYPE_LABELS: Record<string, string> = {
@@ -28,28 +31,105 @@ const STATUS_VARIANTS: Record<string, 'default' | 'outline' | 'destructive' | 's
   closed: 'outline',
 }
 
+// Default visibility settings
+const DEFAULT_VISIBILITY: VisibilitySettings = {
+  navMainItems: {},
+  navManagementItems: {},
+  navSecondaryItems: {},
+  currentStageOptions: {},
+  structureStatusFilters: {
+    all: true,
+    fundraising: true,
+    active: true,
+    closed: true,
+  },
+  economicTermsOptions: {},
+  setupCompleteButtons: {},
+  actionButtons: {},
+}
+
 export default function StructuresPage() {
   const router = useRouter()
   const [structures, setStructures] = useState<Structure[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
+  const [visibilitySettings, setVisibilitySettings] = useState<VisibilitySettings>(DEFAULT_VISIBILITY)
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Load structures from localStorage on mount
+  // Load visibility settings on mount
   useEffect(() => {
-    // Run migration first to update old structures with new fields
-    migrateStructures()
-    // Then load structures
-    const loadedStructures = getStructures()
-    console.log('📊 Loaded structures:', loadedStructures.map(s => ({
-      id: s.id,
-      name: s.name,
-      parentStructureId: s.parentStructureId,
-      parentStructureOwnershipPercentage: s.parentStructureOwnershipPercentage
-    })))
-    setStructures(loadedStructures)
+    setVisibilitySettings(getVisibilitySettings())
+  }, [])
+
+  // Load structures from API on mount
+  useEffect(() => {
+    const fetchStructures = async () => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const apiUrl = getApiUrl('/api/structures')
+        console.log('🔄 Fetching structures from:', apiUrl)
+
+        // Get authentication token
+        const token = getAuthToken()
+        if (!token) {
+          throw new Error('No authentication token found. Please login first.')
+        }
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch structures: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log('📊 Loaded structures from API:', data)
+
+        // Handle API response format: { success: true, count: number, data: Structure[] }
+        if (data.success && Array.isArray(data.data)) {
+          setStructures(data.data)
+        } else if (Array.isArray(data)) {
+          // Fallback for direct array response
+          setStructures(data)
+        } else {
+          throw new Error('Invalid response format from API')
+        }
+      } catch (err) {
+        console.error('❌ Error fetching structures:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load structures')
+        setStructures([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchStructures()
+  }, [])
+
+  // Listen for visibility settings changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setVisibilitySettings(getVisibilitySettings())
+    }
+
+    window.addEventListener('visibility-settings-changed', handleVisibilityChange)
+    window.addEventListener('storage', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('visibility-settings-changed', handleVisibilityChange)
+      window.removeEventListener('storage', handleVisibilityChange)
+    }
   }, [])
 
   const handleCreateNew = () => {
@@ -233,18 +313,50 @@ export default function StructuresPage() {
         </div>
 
         {/* Status Filter */}
-        <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
-          <TabsList>
-            <TabsTrigger value="all">All Status</TabsTrigger>
-            <TabsTrigger value="fundraising">Fundraising</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="closed">Closed</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {(visibilitySettings.structureStatusFilters.all ||
+          visibilitySettings.structureStatusFilters.fundraising ||
+          visibilitySettings.structureStatusFilters.active ||
+          visibilitySettings.structureStatusFilters.closed) && (
+          <Tabs value={selectedStatus} onValueChange={setSelectedStatus}>
+            <TabsList>
+              {visibilitySettings.structureStatusFilters.all && (
+                <TabsTrigger value="all">All Status</TabsTrigger>
+              )}
+              {visibilitySettings.structureStatusFilters.fundraising && (
+                <TabsTrigger value="fundraising">Fundraising</TabsTrigger>
+              )}
+              {visibilitySettings.structureStatusFilters.active && (
+                <TabsTrigger value="active">Active</TabsTrigger>
+              )}
+              {visibilitySettings.structureStatusFilters.closed && (
+                <TabsTrigger value="closed">Closed</TabsTrigger>
+              )}
+            </TabsList>
+          </Tabs>
+        )}
       </div>
 
-      {/* Structures Grid */}
-      {structures.length === 0 ? (
+      {/* Loading State */}
+      {isLoading ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Loading structures...</h3>
+            <p className="text-muted-foreground">Please wait while we fetch your data</p>
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Structures</h3>
+            <p className="text-muted-foreground mb-4 max-w-md">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      ) : structures.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
@@ -273,9 +385,18 @@ export default function StructuresPage() {
           {masterStructures.map((structure) => (
             <Card
               key={structure.id}
-              className="hover:shadow-lg transition-shadow cursor-pointer h-full"
+              className="hover:shadow-lg transition-shadow cursor-pointer h-full overflow-hidden"
               onClick={() => handleViewStructure(structure.id)}
             >
+              {structure.bannerImage && (
+                <div className="w-full h-32 overflow-hidden bg-gradient-to-r from-primary/20 to-primary/10">
+                  <img
+                    src={structure.bannerImage}
+                    alt={`${structure.name} banner`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">

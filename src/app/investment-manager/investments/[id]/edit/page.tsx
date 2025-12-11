@@ -9,13 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Info, Loader2, Building2 } from "lucide-react"
+import { ArrowLeft, Info, Loader2, Building2, AlertCircle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { getInvestments, updateInvestment } from "@/lib/investments-storage"
+import { updateInvestment } from "@/lib/investments-storage"
 import { getStructures, canAddInvestment, canAddIssuance } from "@/lib/structures-storage"
 import type { Structure } from "@/lib/structures-storage"
-import investmentsData from "@/data/investments.json"
 import type { Investment, AssetSector } from "@/lib/types"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -25,6 +26,7 @@ export default function EditInvestmentPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [investment, setInvestment] = useState<Investment | null>(null)
   const [structures, setStructures] = useState<Structure[]>([])
   const [selectedStructure, setSelectedStructure] = useState<string>("")
@@ -53,44 +55,93 @@ export default function EditInvestmentPage({ params }: PageProps) {
   }, [])
 
   useEffect(() => {
-    // Load investment data
-    const staticInvestments = investmentsData as Investment[]
-    const dynamicInvestments = getInvestments()
-    const allInvestments = [...staticInvestments, ...dynamicInvestments]
-    const foundInvestment = allInvestments.find((inv) => inv.id === id)
+    // Load investment data from API
+    async function fetchInvestment() {
+      try {
+        setIsLoading(true)
+        setError(null)
 
-    if (foundInvestment) {
-      setInvestment(foundInvestment)
-      setSelectedStructure(foundInvestment.fundId || "")
+        // Get authentication token
+        const token = getAuthToken()
 
-      // Pre-fill form fields
-      setName(foundInvestment.name)
-      setType(foundInvestment.type)
-      setSector(foundInvestment.sector || "")
-      setLocation(foundInvestment.geography ? `${foundInvestment.geography.city}, ${foundInvestment.geography.state}` : "")
-      setDescription(foundInvestment.description || "")
-      setInvestmentType(foundInvestment.investmentType === 'EQUITY' ? 'Equity' :
-                        foundInvestment.investmentType === 'DEBT' ? 'Debt' : 'Mixed')
-      setTotalInvestmentSize(foundInvestment.totalInvestmentSize?.toString() || "")
-      setFundCommitment(foundInvestment.fundCommitment?.toString() || "")
-      setCurrentValue(foundInvestment.totalFundPosition?.currentValue?.toString() || "")
-
-      if (foundInvestment.fundEquityPosition) {
-        setEquityPosition(foundInvestment.fundEquityPosition.equityInvested.toString())
-      }
-
-      if (foundInvestment.fundDebtPosition) {
-        setDebtPosition(foundInvestment.fundDebtPosition.principalProvided.toString())
-        setInterestRate(foundInvestment.fundDebtPosition.interestRate?.toString() || "")
-        if (foundInvestment.fundDebtPosition.maturityDate) {
-          // Convert ISO date to YYYY-MM-DD format for input
-          const date = new Date(foundInvestment.fundDebtPosition.maturityDate)
-          setMaturityDate(date.toISOString().split('T')[0])
+        if (!token) {
+          setError('Authentication required. Please log in.')
+          setIsLoading(false)
+          return
         }
+
+        const apiUrl = getApiUrl(API_CONFIG.endpoints.getSingleInvestment(id))
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          setError(errorData.message || 'Failed to fetch investment')
+          setIsLoading(false)
+          return
+        }
+
+        const result = await response.json()
+
+        if (result.success && result.data) {
+          const foundInvestment = result.data
+          setInvestment(foundInvestment)
+          setSelectedStructure(foundInvestment.fundId || foundInvestment.structureId || "")
+
+          // Pre-fill form fields - handle both formats
+          const invName = foundInvestment.name || foundInvestment.investmentName || ""
+          setName(invName)
+          setType(foundInvestment.type || "Real Estate")
+          setSector(foundInvestment.sector || "")
+
+          // Handle geography as string or object
+          if (typeof foundInvestment.geography === 'string') {
+            setLocation(foundInvestment.geography)
+          } else if (foundInvestment.geography) {
+            setLocation(`${foundInvestment.geography.city || ''}, ${foundInvestment.geography.state || ''}`)
+          } else {
+            setLocation("")
+          }
+
+          setDescription(foundInvestment.description || "")
+          setInvestmentType(foundInvestment.investmentType === 'EQUITY' ? 'Equity' :
+                            foundInvestment.investmentType === 'DEBT' ? 'Debt' : 'Mixed')
+          setTotalInvestmentSize(foundInvestment.totalInvestmentSize?.toString() || "")
+          setFundCommitment(foundInvestment.fundCommitment?.toString() || "")
+          setCurrentValue(foundInvestment.totalFundPosition?.currentValue?.toString() || "")
+
+          if (foundInvestment.fundEquityPosition) {
+            setEquityPosition(foundInvestment.fundEquityPosition.equityInvested?.toString() || "")
+          }
+
+          if (foundInvestment.fundDebtPosition) {
+            setDebtPosition(foundInvestment.fundDebtPosition.principalProvided?.toString() || "")
+            setInterestRate(foundInvestment.fundDebtPosition.interestRate?.toString() || "")
+            if (foundInvestment.fundDebtPosition.maturityDate) {
+              // Convert ISO date to YYYY-MM-DD format for input
+              const date = new Date(foundInvestment.fundDebtPosition.maturityDate)
+              setMaturityDate(date.toISOString().split('T')[0])
+            }
+          }
+        } else {
+          setError('Investment not found')
+        }
+
+        setIsLoading(false)
+      } catch (err) {
+        console.error('Error fetching investment:', err)
+        setError('Failed to load investment data')
+        setIsLoading(false)
       }
     }
 
-    setIsLoading(false)
+    fetchInvestment()
   }, [id])
 
   // Check capacity when structure is selected
@@ -284,21 +335,31 @@ export default function EditInvestmentPage({ params }: PageProps) {
     )
   }
 
-  if (!investment) {
+  if (error || !investment) {
     return (
       <div className="flex flex-col gap-6 p-6">
         <Card className="w-full max-w-md mx-auto">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <h3 className="text-lg font-semibold mb-2">Investment not found</h3>
-            <p className="text-muted-foreground mb-4">
-              The investment you're trying to edit doesn't exist.
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">
+              {error ? 'Error Loading Investment' : 'Investment not found'}
+            </h3>
+            <p className="text-muted-foreground mb-4 max-w-md">
+              {error || "The investment you're trying to edit doesn't exist."}
             </p>
-            <Button asChild>
-              <Link href="/investment-manager/investments">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Investments
-              </Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button asChild variant="outline">
+                <Link href="/investment-manager/investments">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Investments
+                </Link>
+              </Button>
+              {error && (
+                <Button onClick={() => window.location.reload()} variant="default">
+                  Try Again
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

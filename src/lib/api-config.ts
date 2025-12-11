@@ -13,9 +13,15 @@ export const API_CONFIG = {
     getDiditSession: (sessionId: string) => `/api/custom/didit/session/${sessionId}`,
     getAllStructures: '/api/structures',
     getSingleStructure: (structureId: string) => `/api/structures/${structureId}`,
+    updateStructure: (structureId: string) => `/api/structures/${structureId}`,
+    deleteStructure: (structureId: string) => `/api/structures/${structureId}`,
     getStructureDocuments: (structureId: string) => `/api/documents/entity/Structure/${structureId}`,
     verifyUserSignature: '/api/docuseal/verifyUserSignature',
     createPayment: '/api/payments',
+
+    // Investments API
+    getAllInvestments: '/api/investments',
+    getSingleInvestment: (investmentId: string) => `/api/investments/${investmentId}`,
 
     // Investors API
     searchInvestors: (query: string) => `/api/investors/search?q=${encodeURIComponent(query)}`,

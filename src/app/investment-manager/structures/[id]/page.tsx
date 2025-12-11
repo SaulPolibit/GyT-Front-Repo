@@ -17,15 +17,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Building2, ArrowLeft, Pencil, Trash2, MapPin, Users, TrendingUp, Calendar, FileText, Scale } from 'lucide-react'
+import { Building2, ArrowLeft, Pencil, Trash2, MapPin, Users, TrendingUp, Calendar, FileText, Scale, Loader2, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { getStructureById, deleteStructure, Structure, migrateStructures, getStructures } from '@/lib/structures-storage'
+import { Structure, getStructures } from '@/lib/structures-storage'
 import { getInvestorByEmail } from '@/lib/investors-storage'
-import { getInvestmentsByFundId } from '@/lib/investments-storage'
 import type { Investment } from '@/lib/types'
 import { StructureValuationSection } from '@/components/structure-valuation-section'
 import { StructureCapTable } from '@/components/structure-cap-table'
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
+import { getAuthToken } from '@/lib/auth-storage'
 
 // Type labels
 const TYPE_LABELS: Record<string, string> = {
@@ -43,7 +44,8 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 // Format subtype for display (e.g., "multi-project" -> "Multi Project")
-const formatSubtype = (subtype: string) => {
+const formatSubtype = (subtype: string | null | undefined) => {
+  if (!subtype) return 'N/A'
   return subtype
     .split('-')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -61,28 +63,176 @@ export default function StructureDetailPage({ params }: PageProps) {
   const [investments, setInvestments] = useState<Investment[]>([])
   const [id, setId] = useState<string>('')
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const loadStructureData = (structureId: string) => {
-    // Run migration first to update old structures with new fields
-    migrateStructures()
-    // Then load the structure
-    const loadedStructure = getStructureById(structureId)
-    if (loadedStructure) {
-      setStructure(loadedStructure)
+  const loadStructureData = async (structureId: string) => {
+    try {
+      setIsLoading(true)
+      setError(null)
 
-      // Load child structures if this is a hierarchy master
-      if (loadedStructure.hierarchyMode && loadedStructure.childStructureIds && loadedStructure.childStructureIds.length > 0) {
-        const allStructures = getStructures()
-        const children = allStructures.filter(s =>
-          s.parentStructureId === loadedStructure.id ||
-          (s.hierarchyPath && s.hierarchyPath.includes(loadedStructure.id) && s.id !== loadedStructure.id)
-        ).sort((a, b) => (a.hierarchyLevel || 0) - (b.hierarchyLevel || 0))
-        setChildStructures(children)
+      // Get authentication token
+      const token = getAuthToken()
+      if (!token) {
+        throw new Error('No authentication token found. Please login first.')
       }
+
+      // Fetch structure with investors from API
+      const apiUrl = getApiUrl(`/api/structures/${structureId}/with-investors`)
+      console.log('🔄 Fetching structure with investors from:', apiUrl)
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch structure: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log('📊 Loaded structure with investors from API:', data)
+
+      // Handle API response format: { success: true, data: Structure }
+      if (data.success && data.data) {
+        const apiStructure = data.data
+
+        // Map API field names to frontend field names and convert types
+        const loadedStructure: Structure = {
+          ...apiStructure,
+          // Date conversions: API returns strings, frontend expects Date objects
+          createdDate: apiStructure.createdAt ? new Date(apiStructure.createdAt) : new Date(),
+          inceptionDate: apiStructure.inceptionDate ? new Date(apiStructure.inceptionDate) : undefined,
+          finalDate: apiStructure.finalDate ? new Date(apiStructure.finalDate) : undefined,
+          // Field name mappings: API → Frontend
+          jurisdiction: apiStructure.taxJurisdiction || apiStructure.jurisdiction || 'N/A',
+          currency: apiStructure.baseCurrency || apiStructure.currency || 'USD',
+          // Map carriedInterest to performanceFee
+          performanceFee: apiStructure.carriedInterest || apiStructure.performanceFee,
+        }
+
+        setStructure(loadedStructure)
+
+        // Load child structures if this is a hierarchy master
+        if (loadedStructure.hierarchyMode && loadedStructure.childStructureIds && loadedStructure.childStructureIds.length > 0) {
+          const allStructures = getStructures()
+          const children = allStructures.filter(s =>
+            s.parentStructureId === loadedStructure.id ||
+            (s.hierarchyPath && s.hierarchyPath.includes(loadedStructure.id) && s.id !== loadedStructure.id)
+          ).sort((a, b) => (a.hierarchyLevel || 0) - (b.hierarchyLevel || 0))
+          setChildStructures(children)
+        }
+      } else {
+        throw new Error('Invalid response format from API')
+      }
+
+      // Fetch investments tied to this structure from API
+      const investmentsUrl = getApiUrl(`/api/investments/active?structureId=${structureId}`)
+      console.log('🔄 Fetching investments from:', investmentsUrl)
+
+      const investmentsResponse = await fetch(investmentsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (investmentsResponse.ok) {
+        const investmentsData = await investmentsResponse.json()
+        console.log('📊 Loaded investments from API:', investmentsData)
+
+        if (investmentsData.success && Array.isArray(investmentsData.data)) {
+          // Map API response to Investment interface
+          const mappedInvestments: Investment[] = investmentsData.data.map((apiInv: any) => {
+            // Parse geography from "City, State, Country" or "City, Country"
+            const geoParts = (apiInv.geography || '').split(',').map((s: string) => s.trim())
+            const geography = geoParts.length === 3
+              ? { city: geoParts[0], state: geoParts[1], country: geoParts[2] }
+              : geoParts.length === 2
+              ? { city: geoParts[0], state: '', country: geoParts[1] }
+              : { city: '', state: '', country: '' }
+
+            // Determine investment type based on investmentType
+            let type: 'Real Estate' | 'Private Equity' | 'Private Debt' = 'Private Equity'
+            if (apiInv.investmentType === 'DEBT') {
+              type = 'Private Debt'
+            } else if (apiInv.sector && ['Multifamily', 'Office', 'Retail', 'Industrial', 'Hospitality', 'Mixed-Use'].includes(apiInv.sector)) {
+              type = 'Real Estate'
+            }
+
+            // Build fundEquityPosition if equity data exists
+            const fundEquityPosition = (apiInv.investmentType === 'EQUITY' || apiInv.investmentType === 'MIXED') && apiInv.equityInvested
+              ? {
+                  ownershipPercent: apiInv.equityOwnershipPercent || 0,
+                  equityInvested: apiInv.equityInvested || 0,
+                  currentEquityValue: apiInv.equityCurrentValue || apiInv.equityInvested || 0,
+                  unrealizedGain: (apiInv.equityRealizedGain || 0)
+                }
+              : null
+
+            // Build fundDebtPosition if debt data exists
+            const fundDebtPosition = (apiInv.investmentType === 'DEBT' || apiInv.investmentType === 'MIXED') && apiInv.principalProvided
+              ? {
+                  principalProvided: apiInv.principalProvided || 0,
+                  interestRate: apiInv.interestRate || 0,
+                  originationDate: apiInv.investmentDate || '',
+                  maturityDate: apiInv.maturityDate || '',
+                  accruedInterest: apiInv.interestReceived || 0,
+                  currentDebtValue: apiInv.outstandingPrincipal || apiInv.principalProvided || 0,
+                  unrealizedGain: 0
+                }
+              : null
+
+            // Calculate total fund position
+            const totalInvested = (fundEquityPosition?.equityInvested || 0) + (fundDebtPosition?.principalProvided || 0)
+            const currentValue = (fundEquityPosition?.currentEquityValue || 0) + (fundDebtPosition?.currentDebtValue || 0)
+            const unrealizedGain = currentValue - totalInvested
+
+            return {
+              id: apiInv.id,
+              name: apiInv.investmentName || 'Unnamed Investment',
+              type,
+              status: apiInv.status as 'Active' | 'Closed' | 'Pending' | 'Exited',
+              sector: apiInv.sector || 'Other',
+              investmentType: apiInv.investmentType as 'EQUITY' | 'DEBT' | 'MIXED',
+              geography,
+              fundEquityPosition,
+              fundDebtPosition,
+              externalDebt: [],
+              totalFundPosition: {
+                totalInvested,
+                currentValue,
+                unrealizedGain,
+                irr: apiInv.irrPercent || 0,
+                multiple: apiInv.moic || 0
+              },
+              fundId: apiInv.structureId,
+              acquisitionDate: apiInv.investmentDate || '',
+              lastValuationDate: apiInv.updatedAt || apiInv.createdAt || '',
+              description: apiInv.notes || '',
+              documents: [],
+              createdAt: apiInv.createdAt || '',
+              updatedAt: apiInv.updatedAt || ''
+            } as Investment
+          })
+
+          setInvestments(mappedInvestments)
+        }
+      } else {
+        console.warn('⚠️ Failed to fetch investments, using empty array')
+        setInvestments([])
+      }
+    } catch (err) {
+      console.error('❌ Error fetching structure:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load structure')
+      setStructure(null)
+    } finally {
+      setIsLoading(false)
     }
-    // Load investments tied to this structure
-    const structureInvestments = getInvestmentsByFundId(structureId)
-    setInvestments(structureInvestments)
   }
 
   useEffect(() => {
@@ -105,9 +255,38 @@ export default function StructureDetailPage({ params }: PageProps) {
     if (!structure) return
 
     try {
-      await deleteStructure(structure.id)
-      toast.success('Structure deleted successfully')
-      router.push('/investment-manager/structures')
+      // Get authentication token
+      const token = getAuthToken()
+
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        return
+      }
+
+      const apiUrl = getApiUrl(API_CONFIG.endpoints.deleteStructure(structure.id))
+
+      const response = await fetch(apiUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Failed to delete structure')
+        return
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Structure deleted successfully')
+        router.push('/investment-manager/structures')
+      } else {
+        toast.error(result.message || 'Failed to delete structure')
+      }
     } catch (error) {
       console.error('Delete error:', error)
       toast.error('Failed to delete structure. Please try again.')
@@ -168,6 +347,48 @@ export default function StructureDetailPage({ params }: PageProps) {
     return <Building2 className="h-5 w-5" />
   }
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Loading structure...</h3>
+            <p className="text-muted-foreground">Please wait while we fetch your data</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Structure</h3>
+            <p className="text-muted-foreground mb-4 max-w-md">{error}</p>
+            <div className="flex gap-2">
+              <Button onClick={() => loadStructureData(id)} variant="outline">
+                Try Again
+              </Button>
+              <Button onClick={handleBack} asChild>
+                <Link href="/investment-manager/structures">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Structures
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Structure not found state
   if (!structure) {
     return (
       <div className="flex flex-col gap-6 p-6">
@@ -534,55 +755,41 @@ export default function StructureDetailPage({ params }: PageProps) {
         )}
 
         {/* Economic Terms */}
-        {(structure.managementFee || structure.performanceFee || structure.hurdleRate || structure.preferredReturn) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Economic Terms</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {structure.managementFee && (
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Management Fee</div>
-                    <div className="text-lg font-semibold">{structure.managementFee}%</div>
-                  </div>
-                )}
-                {structure.performanceFee && (
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Performance Fee</div>
-                    <div className="text-lg font-semibold">{structure.performanceFee}%</div>
-                  </div>
-                )}
-                {structure.hurdleRate && (
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Hurdle Rate</div>
-                    <div className="text-lg font-semibold">{structure.hurdleRate}%</div>
-                  </div>
-                )}
-                {structure.preferredReturn && (
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Preferred Return</div>
-                    <div className="text-lg font-semibold">{structure.preferredReturn}%</div>
-                  </div>
-                )}
-                {structure.waterfallStructure && (
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Waterfall Structure</div>
-                    <div className="text-lg font-semibold capitalize">{structure.waterfallStructure}</div>
-                  </div>
-                )}
-                {structure.economicTermsApplication && (
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Terms Application</div>
-                    <div className="text-lg font-semibold capitalize">
-                      {structure.economicTermsApplication.replace('-', ' ')}
-                    </div>
-                  </div>
-                )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Economic Terms</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Management Fee</div>
+                <div className="text-lg font-semibold">{structure.managementFee ? `${structure.managementFee}%` : ''}</div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Performance Fee</div>
+                <div className="text-lg font-semibold">{structure.performanceFee ? `${structure.performanceFee}%` : ''}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Hurdle Rate</div>
+                <div className="text-lg font-semibold">{structure.hurdleRate ? `${structure.hurdleRate}%` : ''}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Preferred Return</div>
+                <div className="text-lg font-semibold">{structure.preferredReturn ? `${structure.preferredReturn}%` : ''}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Waterfall Structure</div>
+                <div className="text-lg font-semibold capitalize">{structure.waterfallStructure || ''}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Terms Application</div>
+                <div className="text-lg font-semibold capitalize">
+                  {structure.economicTermsApplication ? structure.economicTermsApplication.replace('-', ' ') : ''}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Tokenization Details */}
         {(structure.calculatedIssuances || structure.tokenName || structure.determinedTier) && (
