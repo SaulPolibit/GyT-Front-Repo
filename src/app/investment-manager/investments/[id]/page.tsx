@@ -9,6 +9,17 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft, MapPin, Building2, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react"
+import { ArrowLeft, MapPin, Building2, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Loader2, AlertCircle, Upload } from "lucide-react"
 import type { Investment } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken } from "@/lib/auth-storage"
@@ -35,6 +46,21 @@ export default function InvestmentDetailPage({ params }: PageProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [showDeleteDocDialog, setShowDeleteDocDialog] = useState(false)
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [isDeletingDocument, setIsDeletingDocument] = useState(false)
+  const [documents, setDocuments] = useState<any[]>([])
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
+
+  // Upload form state
+  const [documentType, setDocumentType] = useState("")
+  const [documentName, setDocumentName] = useState("")
+  const [tags, setTags] = useState("")
+  const [metadata, setMetadata] = useState("")
+  const [notes, setNotes] = useState("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   // Load investment from API on mount
   useEffect(() => {
@@ -88,6 +114,48 @@ export default function InvestmentDetailPage({ params }: PageProps) {
     fetchInvestment()
   }, [id])
 
+  // Load documents from API
+  useEffect(() => {
+    async function fetchDocuments() {
+      if (!investment) return
+
+      try {
+        setIsLoadingDocuments(true)
+
+        const token = getAuthToken()
+        if (!token) {
+          console.error('No authentication token found')
+          return
+        }
+
+        const apiUrl = getApiUrl(API_CONFIG.endpoints.getEntityDocuments('Investment', id))
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && Array.isArray(result.data)) {
+            setDocuments(result.data)
+          } else if (result.data) {
+            setDocuments([result.data])
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching documents:', err)
+      } finally {
+        setIsLoadingDocuments(false)
+      }
+    }
+
+    fetchDocuments()
+  }, [id, investment])
+
   // Show loading state
   if (isLoading) {
     return (
@@ -123,6 +191,141 @@ export default function InvestmentDetailPage({ params }: PageProps) {
 
   const handleEdit = () => {
     router.push(`/investment-manager/investments/${id}/edit`)
+  }
+
+  const handleDeleteDocument = async () => {
+    if (!selectedDocumentId) return
+
+    try {
+      setIsDeletingDocument(true)
+
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        return
+      }
+
+      const apiUrl = getApiUrl(API_CONFIG.endpoints.deleteDocument(selectedDocumentId))
+
+      const response = await fetch(apiUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Failed to delete document')
+        return
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Document deleted successfully')
+        setShowDeleteDocDialog(false)
+        setSelectedDocumentId(null)
+
+        // Refresh documents list
+        setDocuments(documents.filter(doc => doc.id !== selectedDocumentId))
+      } else {
+        toast.error(result.message || 'Failed to delete document')
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error)
+      toast.error('Failed to delete document. Please try again.')
+    } finally {
+      setIsDeletingDocument(false)
+    }
+  }
+
+  const handleUploadDocument = async () => {
+    if (!selectedFile) {
+      toast.error('Please select a file to upload')
+      return
+    }
+
+    if (!documentType || !documentName) {
+      toast.error('Please fill in document type and name')
+      return
+    }
+
+    try {
+      setIsUploading(true)
+
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        return
+      }
+
+      // Create FormData for file upload
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+      formData.append('entityType', 'Investment')
+      formData.append('entityId', id)
+      formData.append('documentType', documentType)
+      formData.append('documentName', documentName)
+      formData.append('tags', tags)
+      formData.append('metadata', metadata)
+      formData.append('notes', notes)
+
+      const apiUrl = getApiUrl('/api/documents')
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Failed to upload document')
+        return
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Document uploaded successfully')
+        setShowUploadDialog(false)
+        // Reset form
+        setDocumentType('')
+        setDocumentName('')
+        setTags('')
+        setMetadata('')
+        setNotes('')
+        setSelectedFile(null)
+
+        // Refresh documents list
+        const documentsApiUrl = getApiUrl(API_CONFIG.endpoints.getEntityDocuments('Investment', id))
+        const documentsResponse = await fetch(documentsApiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (documentsResponse.ok) {
+          const documentsResult = await documentsResponse.json()
+          if (documentsResult.success && Array.isArray(documentsResult.data)) {
+            setDocuments(documentsResult.data)
+          }
+        }
+      } else {
+        toast.error(result.message || 'Failed to upload document')
+      }
+    } catch (error) {
+      console.error('Error uploading document:', error)
+      toast.error('Failed to upload document. Please try again.')
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   const confirmDelete = () => {
@@ -477,23 +680,49 @@ export default function InvestmentDetailPage({ params }: PageProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Documents</CardTitle>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setShowUploadDialog(true)}>
+              <Upload className="h-4 w-4 mr-2" />
               Upload Document
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {investment.documents && investment.documents.length > 0 ? (
+          {isLoadingDocuments ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Loading documents...</span>
+            </div>
+          ) : documents && documents.length > 0 ? (
             <div className="space-y-2">
-              {investment.documents.map((doc) => (
+              {documents.map((doc) => (
                 <div key={doc.id} className="flex items-center justify-between p-3 border rounded hover:bg-muted/50">
-                  <div>
-                    <div className="font-medium">{doc.name}</div>
+                  <div className="flex-1">
+                    <div className="font-medium">{doc.documentName || doc.name}</div>
                     <div className="text-sm text-muted-foreground">
-                      {doc.type} • Uploaded {formatDate(doc.uploadedDate)} by {doc.uploadedBy}
+                      {doc.documentType || doc.type}
+                      {doc.uploadedAt && ` • Uploaded ${formatDate(doc.uploadedAt)}`}
+                      {doc.uploadedBy && ` by ${doc.uploadedBy}`}
+                      {doc.tags && ` • Tags: ${doc.tags}`}
                     </div>
+                    {doc.notes && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {doc.notes}
+                      </div>
+                    )}
                   </div>
-                  <Button variant="ghost" size="sm">Download</Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm">Download</Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedDocumentId(doc.id)
+                        setShowDeleteDocDialog(true)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -505,7 +734,106 @@ export default function InvestmentDetailPage({ params }: PageProps) {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Upload Document Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload Document</DialogTitle>
+            <DialogDescription>
+              Upload a document for this investment
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="documentType">Document Type *</Label>
+              <Input
+                id="documentType"
+                value={documentType}
+                onChange={(e) => setDocumentType(e.target.value)}
+                placeholder="e.g., Contract, Report, Invoice"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="documentName">Document Name *</Label>
+              <Input
+                id="documentName"
+                value={documentName}
+                onChange={(e) => setDocumentName(e.target.value)}
+                placeholder="e.g., Q4 2024 Financial Report"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags</Label>
+              <Input
+                id="tags"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="e.g., financial, quarterly, 2024"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="metadata">Metadata</Label>
+              <Input
+                id="metadata"
+                value={metadata}
+                onChange={(e) => setMetadata(e.target.value)}
+                placeholder="Additional metadata (optional)"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add any notes about this document"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="file">File *</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                required
+              />
+              {selectedFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUploadDialog(false)} disabled={isUploading}>
+              Cancel
+            </Button>
+            <Button onClick={handleUploadDocument} disabled={isUploading}>
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Investment Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -521,6 +849,35 @@ export default function InvestmentDetailPage({ params }: PageProps) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Document Confirmation Dialog */}
+      <AlertDialog open={showDeleteDocDialog} onOpenChange={setShowDeleteDocDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this document? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingDocument}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDocument}
+              disabled={isDeletingDocument}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeletingDocument ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

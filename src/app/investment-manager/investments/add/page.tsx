@@ -11,9 +11,9 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Building2, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { saveInvestment } from "@/lib/investments-storage"
-import { getStructures, canAddInvestment, canAddIssuance } from "@/lib/structures-storage"
 import type { Structure } from "@/lib/structures-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
 
 export default function AddInvestmentPage() {
   const router = useRouter()
@@ -38,31 +38,81 @@ export default function AddInvestmentPage() {
   const [visibilityType, setVisibilityType] = useState<"public" | "fund-specific" | "private">("public")
 
   useEffect(() => {
-    const allStructures = getStructures()
-    setStructures(allStructures)
+    async function fetchStructures() {
+      try {
+        const token = getAuthToken()
+        if (!token) {
+          console.error('No authentication token found')
+          return
+        }
+
+        const apiUrl = getApiUrl(API_CONFIG.endpoints.getAllStructures)
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && Array.isArray(result.data)) {
+            setStructures(result.data)
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching structures:', err)
+      }
+    }
+
+    fetchStructures()
   }, [])
 
   // Check capacity when structure is selected
   useEffect(() => {
-    if (selectedStructure) {
-      const capacity = canAddInvestment(selectedStructure)
-      setCapacityInfo(capacity)
+    if (selectedStructure && structures.length > 0) {
+      const structure = structures.find(s => s.id === selectedStructure)
+      if (structure) {
+        const max = parseInt(structure.plannedInvestments || '0')
+        const current = structure.investors || 0
+        setCapacityInfo({
+          canAdd: current < max,
+          current: current,
+          max: max
+        })
+      } else {
+        setCapacityInfo(null)
+      }
     } else {
       setCapacityInfo(null)
     }
-  }, [selectedStructure])
+  }, [selectedStructure, structures])
 
   // Check issuance capacity when structure or investment type changes
   useEffect(() => {
-    if (selectedStructure) {
-      const issuance = canAddIssuance(selectedStructure, investmentType)
-      setIssuanceInfo(issuance)
+    if (selectedStructure && structures.length > 0) {
+      const structure = structures.find(s => s.id === selectedStructure)
+      if (structure) {
+        const max = 50
+        const current = 0
+        const required = investmentType === 'Mixed' ? 2 : 1
+        setIssuanceInfo({
+          canAdd: current + required <= max,
+          current: current,
+          max: max,
+          required: required
+        })
+      } else {
+        setIssuanceInfo(null)
+      }
     } else {
       setIssuanceInfo(null)
     }
-  }, [selectedStructure, investmentType])
+  }, [selectedStructure, investmentType, structures])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!selectedStructure) {
@@ -98,95 +148,75 @@ export default function AddInvestmentPage() {
       ? (equityPositionNum / totalInvestmentSizeNum) * 100
       : 0
 
-    // Get jurisdiction from selected structure
-    const selectedStructureData = structures.find(s => s.id === selectedStructure)
-    const isUSJurisdiction = selectedStructureData?.jurisdiction?.toLowerCase() === 'united states' ||
-                             selectedStructureData?.jurisdiction?.toLowerCase() === 'us' ||
-                             selectedStructureData?.jurisdiction?.toLowerCase() === 'usa'
-
-    // Parse geography based on jurisdiction
-    let geographyData
-    if (isUSJurisdiction) {
-      // US: City, State, Country (3 parts expected)
-      const parts = location.split(',').map(p => p.trim())
-      geographyData = {
-        city: parts[0] || 'N/A',
-        state: parts[1] || 'N/A',
-        country: parts[2] || 'United States',
-      }
-    } else {
-      // Non-US: City, Country (2 parts expected)
-      const parts = location.split(',').map(p => p.trim())
-      geographyData = {
-        city: parts[0] || 'N/A',
-        state: parts[1] || 'N/A',
-        country: parts[1] || 'N/A',
-      }
-    }
-
     try {
       const currentDate = new Date().toISOString()
 
-      // Determine fundEquityPosition based on investment type
-      const fundEquityPosition = (investmentType === 'Equity' || investmentType === 'Mixed')
-        ? {
-            ownershipPercent: ownershipPercentageNum,
-            equityInvested: equityPositionNum,
-            currentEquityValue: equityPositionNum,
-            unrealizedGain: 0,
-          }
-        : null
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        return
+      }
 
-      // Determine fundDebtPosition based on investment type
-      const fundDebtPosition = (investmentType === 'Debt' || investmentType === 'Mixed')
-        ? {
-            principalProvided: debtPositionNum,
-            interestRate: interestRateNum,
-            originationDate: currentDate,
-            maturityDate: maturityDate || currentDate,
-            accruedInterest: 0,
-            currentDebtValue: debtPositionNum,
-            unrealizedGain: 0,
-          }
-        : null
-
-      const newInvestment = saveInvestment({
+      // Create flat structure payload
+      const investmentData = {
+        structureId: selectedStructure,
         fundId: selectedStructure,
         name,
-        type,
-        status: "Active",
-        sector: (sector || "General") as any,
-        investmentType: investmentType.toUpperCase() as 'EQUITY' | 'DEBT' | 'MIXED',
-        totalInvestmentSize: totalInvestmentSizeNum,
-        fundCommitment: fundCommitmentNum,
-        ownershipPercentage: ownershipPercentageNum,
-        totalPropertyValue: type === 'Real Estate' ? totalInvestmentSizeNum : undefined,
-        totalCompanyValue: type === 'Private Equity' ? totalInvestmentSizeNum : undefined,
-        totalProjectValue: type === 'Private Debt' ? totalInvestmentSizeNum : undefined,
-        geography: geographyData,
-        fundEquityPosition,
-        fundDebtPosition,
-        externalDebt: [],
-        totalFundPosition: {
-          totalInvested: fundCommitmentNum,
-          currentValue: fundCommitmentNum,
-          unrealizedGain: 0,
-          irr: 0,
-          multiple: 1.0,
-        },
-        visibility: {
-          type: visibilityType,
-          fundId: visibilityType === 'fund-specific' ? selectedStructure : undefined,
-        },
-        acquisitionDate: currentDate,
-        lastValuationDate: currentDate,
+        investmentName: name,
         description: description || `Investment in ${name}`,
-        documents: [],
-        createdAt: currentDate,
-        updatedAt: currentDate,
+        investmentType: investmentType.toUpperCase(),
+        type,
+        investmentDate: currentDate,
+        originationDate: currentDate,
+        fundCommitment: fundCommitmentNum,
+        equityInvested: equityPositionNum,
+        ownershipPercentage: ownershipPercentageNum,
+        equityOwnershipPercent: ownershipPercentageNum,
+        currentEquityValue: equityPositionNum,
+        unrealizedGain: 0,
+        principalProvided: debtPositionNum,
+        interestRate: interestRateNum,
+        maturityDate: maturityDate || currentDate,
+        accruedInterest: 0,
+        currentDebtValue: debtPositionNum,
+        irr: 0,
+        multiple: 1.0,
+        currentValue: fundCommitmentNum,
+        totalInvested: fundCommitmentNum,
+        totalInvestmentSize: totalInvestmentSizeNum,
+        lastValuationDate: currentDate,
+        totalPropertyValue: type === 'Real Estate' ? totalInvestmentSizeNum : undefined,
+        sector: sector || "General",
+        geography: location,
+        currency: "USD",
+        notes: ""
+      }
+
+      const apiUrl = getApiUrl(API_CONFIG.endpoints.createInvestment)
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(investmentData)
       })
 
-      router.push(`/investment-manager/investments/${newInvestment.id}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Failed to create investment')
+        return
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Investment created successfully')
+        router.push(`/investment-manager/investments/${result.data.id}`)
+      } else {
+        toast.error(result.message || 'Failed to create investment')
+      }
     } catch (error) {
       console.error("Error creating investment:", error)
       toast.error("Failed to create investment. Please try again.")

@@ -22,8 +22,12 @@ export const API_CONFIG = {
     // Investments API
     getAllInvestments: '/api/investments',
     getSingleInvestment: (investmentId: string) => `/api/investments/${investmentId}`,
+    updateInvestment: (investmentId: string) => `/api/investments/${investmentId}`,
+    createInvestment: '/api/investments',
 
     // Investors API
+    getAllInvestors: '/api/investors',
+    getAllInvestorsWithStructures: '/api/investors/with-structures',
     searchInvestors: (query: string) => `/api/investors/search?q=${encodeURIComponent(query)}`,
     getInvestorWithStructures: (investorId: string) => `/api/investors/${investorId}/with-structures`,
     getInvestorById: (investorId: string) => `/api/investors/${investorId}`,
@@ -59,6 +63,9 @@ export const API_CONFIG = {
 
     // Documents API
     getCombinedDocuments: '/api/documents/combined',
+    uploadDocument: '/api/documents',
+    getEntityDocuments: (entityType: string, entityId: string) => `/api/documents/entity/${entityType}/${entityId}`,
+    deleteDocument: (documentId: string) => `/api/documents/${documentId}`,
 
     // Add other endpoints as needed
   }

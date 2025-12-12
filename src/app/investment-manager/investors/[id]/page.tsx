@@ -18,15 +18,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft, User, Users, Building, Briefcase, Mail, Phone, MapPin, Calendar, TrendingUp, TrendingDown, Pencil, Trash2, FileText, Download, Loader2 } from "lucide-react"
-import investorsData from "@/data/investors.json"
-import investmentsData from "@/data/investments.json"
+import { ArrowLeft, User, Users, Building, Briefcase, Mail, Phone, MapPin, Calendar, TrendingUp, TrendingDown, Pencil, Trash2, FileText, Download, Loader2, AlertCircle } from "lucide-react"
 import type { Investor, CapitalCall, Distribution } from "@/lib/types"
-import { getInvestors, deleteInvestor } from "@/lib/investors-storage"
-import { getStructureById, getStructures, type Structure } from "@/lib/structures-storage"
+import { getStructures, type Structure } from "@/lib/structures-storage"
 import { getCapitalCalls } from "@/lib/capital-calls-storage"
 import { getDistributions } from "@/lib/distributions-storage"
 import { calculateIRR } from "@/lib/performance-calculations"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
+import { deleteInvestor } from "@/lib/investors-storage"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -35,8 +35,9 @@ interface PageProps {
 export default function InvestorDetailPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
-  const [dynamicInvestors, setDynamicInvestors] = useState<Investor[]>([])
+  const [investor, setInvestor] = useState<Investor | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [structures, setStructures] = useState<Structure[]>([])
   const [capitalCalls, setCapitalCalls] = useState<CapitalCall[]>([])
   const [distributions, setDistributions] = useState<Distribution[]>([])
@@ -44,40 +45,115 @@ export default function InvestorDetailPage({ params }: PageProps) {
   const [k1Year, setK1Year] = useState(2024)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
-  // Load investors, structures, capital calls, and distributions from localStorage on mount
+  // Load investor from API on mount
   useEffect(() => {
-    const storedInvestors = getInvestors()
+    async function fetchInvestor() {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Get authentication token
+        const token = getAuthToken()
+
+        if (!token) {
+          setError('Authentication required. Please log in.')
+          setIsLoading(false)
+          return
+        }
+
+        const apiUrl = getApiUrl(API_CONFIG.endpoints.getInvestorWithStructures(id))
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            setInvestor(null)
+            setIsLoading(false)
+            return
+          }
+          const errorData = await response.json()
+          setError(errorData.message || 'Failed to fetch investor')
+          setIsLoading(false)
+          return
+        }
+
+        const result = await response.json()
+
+        if (result.success && result.data) {
+          setInvestor(result.data)
+        } else {
+          setError('Invalid response format from API')
+        }
+
+        setIsLoading(false)
+      } catch (err) {
+        console.error('Error fetching investor:', err)
+        setError('Failed to load investor')
+        setIsLoading(false)
+      }
+    }
+
+    fetchInvestor()
+  }, [id])
+
+  // Load structures, capital calls, and distributions from localStorage
+  useEffect(() => {
     const storedStructures = getStructures()
     const storedCapitalCalls = getCapitalCalls()
     const storedDistributions = getDistributions()
-    setDynamicInvestors(storedInvestors)
     setStructures(storedStructures)
     setCapitalCalls(storedCapitalCalls)
     setDistributions(storedDistributions)
-    setIsLoading(false)
   }, [])
 
-  // Merge static and dynamic investors, removing duplicates (prefer dynamic over static)
-  const staticInvestors = investorsData as Investor[]
-  const dynamicIds = new Set(dynamicInvestors.map(inv => inv.id))
-  const uniqueStaticInvestors = staticInvestors.filter(inv => !dynamicIds.has(inv.id))
-  const allInvestors = [...uniqueStaticInvestors, ...dynamicInvestors]
-  const investor = allInvestors.find((inv) => inv.id === id)
-
-  // Show loading state while fetching dynamic investors
+  // Show loading state while fetching investor
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-        <p className="text-muted-foreground">Loading investor details...</p>
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Loading investor...</h3>
+            <p className="text-muted-foreground">Please wait while we fetch the data</p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
-  // Only call notFound() after we've checked both static and dynamic investors
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Investor</h3>
+            <p className="text-muted-foreground mb-4 max-w-md">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Only call notFound() after we've checked the API
   if (!investor) {
     notFound()
   }
+
+  // Construct investor name from firstName and lastName if needed
+  const firstName = (investor as any).firstName || ''
+  const lastName = (investor as any).lastName || ''
+  const investorName = investor.name || (firstName && lastName ? `${firstName} ${lastName}`.trim() : firstName || lastName || 'Unnamed')
 
   const handleDownloadK1 = async (year: number) => {
     try {
@@ -89,7 +165,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `K1-${year}-${investor.name.replace(/\s+/g, '-')}.pdf`
+      a.download = `K1-${year}-${investorName.replace(/\s+/g, '-')}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)
@@ -173,11 +249,6 @@ export default function InvestorDetailPage({ params }: PageProps) {
     }
   }
 
-  const getFundName = (fundId: string): string => {
-    const structure = getStructureById(fundId)
-    return structure?.name || fundId
-  }
-
   // Calculate actual called capital from capital call transactions
   const calculateCalledCapital = (fundId: string): number => {
     const fundCapitalCalls = capitalCalls.filter(cc =>
@@ -228,17 +299,27 @@ export default function InvestorDetailPage({ params }: PageProps) {
     unrealizedGainMap.set(ownership.fundId, unrealizedGain)
   })
 
-  // Calculate total distributed from distribution transactions
-  const totalDistributed = distributions
+  // Calculate total distributed from distribution transactions (fallback)
+  const calculatedTotalDistributed = distributions
     .filter(dist => dist.status === 'Completed')
     .reduce((sum, dist) => {
       const allocation = dist.investorAllocations.find(alloc => alloc.investorId === investor.id)
       return sum + (allocation?.finalAllocation || 0)
     }, 0)
 
-  // Calculate total portfolio metrics using actual calculated values
-  const totalCommitment = investor.fundOwnerships?.reduce((sum, fo) => sum + fo.commitment, 0) || 0
-  const totalCalledCapital = Array.from(calledCapitalMap.values()).reduce((sum, called) => sum + called, 0)
+  // Calculate total portfolio metrics using API data first, then fallback to calculated values
+  const totalCommitment = (investor as any).totalCommitment ??
+                         (investor as any).commitment ??
+                         (investor.fundOwnerships?.reduce((sum, fo) => sum + fo.commitment, 0) || 0)
+
+  const totalCalledCapital = (investor as any).totalContributed ??
+                            (investor as any).contributed ??
+                            (Array.from(calledCapitalMap.values()).reduce((sum, called) => sum + called, 0))
+
+  const totalDistributed = (investor as any).totalDistributed ??
+                          (investor as any).distributed ??
+                          calculatedTotalDistributed
+
   const totalUncalledCapital = totalCommitment - totalCalledCapital
   const totalCurrentValue = Array.from(currentValueMap.values()).reduce((sum, value) => sum + value, 0)
   const totalUnrealizedGain = Array.from(unrealizedGainMap.values()).reduce((sum, gain) => sum + gain, 0)
@@ -315,7 +396,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
           </Button>
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold">{investor.name}</h1>
+              <h1 className="text-3xl font-bold">{investorName}</h1>
               <Badge variant={getStatusColor(investor.status)}>
                 {investor.status}
               </Badge>

@@ -7,43 +7,125 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Plus, TrendingUp, TrendingDown, User, Users, Building, Briefcase, Mail, Phone } from "lucide-react"
-import investorsData from "@/data/investors.json"
+import { Search, Plus, TrendingUp, TrendingDown, User, Users, Building, Briefcase, Mail, Phone, Loader2, AlertCircle } from "lucide-react"
 import type { Investor, CapitalCall, Distribution } from "@/lib/types"
 import type { Structure } from "@/lib/structures-storage"
-import { getInvestors } from "@/lib/investors-storage"
 import { getCapitalCalls } from "@/lib/capital-calls-storage"
 import { getDistributions } from "@/lib/distributions-storage"
-import { getStructures } from "@/lib/structures-storage"
 import { calculateIRR } from "@/lib/performance-calculations"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
 
 export default function InvestorsPage() {
-  const staticInvestors = investorsData as Investor[]
-  const [dynamicInvestors, setDynamicInvestors] = useState<Investor[]>([])
+  const [investors, setInvestors] = useState<Investor[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [capitalCalls, setCapitalCalls] = useState<CapitalCall[]>([])
   const [distributions, setDistributions] = useState<Distribution[]>([])
   const [structures, setStructures] = useState<Structure[]>([])
-
-  // Load data from localStorage on mount
-  useEffect(() => {
-    const storedInvestors = getInvestors()
-    const storedCapitalCalls = getCapitalCalls()
-    const storedDistributions = getDistributions()
-    const storedStructures = getStructures()
-
-    setDynamicInvestors(storedInvestors)
-    setCapitalCalls(storedCapitalCalls)
-    setDistributions(storedDistributions)
-    setStructures(storedStructures)
-  }, [])
-
-  // Merge static and dynamic investors, removing duplicates (prefer dynamic over static)
-  const dynamicIds = new Set(dynamicInvestors.map(inv => inv.id))
-  const uniqueStaticInvestors = staticInvestors.filter(inv => !dynamicIds.has(inv.id))
-  const investors = [...uniqueStaticInvestors, ...dynamicInvestors]
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+
+  // Load data from API on mount
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const token = getAuthToken()
+        if (!token) {
+          setError('Authentication required. Please log in.')
+          setIsLoading(false)
+          return
+        }
+
+        // Fetch investors with structures from API
+        const investorsUrl = getApiUrl(API_CONFIG.endpoints.getAllInvestorsWithStructures)
+        const investorsResponse = await fetch(investorsUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!investorsResponse.ok) {
+          const errorData = await investorsResponse.json()
+          setError(errorData.message || 'Failed to fetch investors')
+          setIsLoading(false)
+          return
+        }
+
+        const investorsResult = await investorsResponse.json()
+        if (investorsResult.success && Array.isArray(investorsResult.data)) {
+          // Map the API response to match the expected Investor type
+          const mappedInvestors = investorsResult.data.map((inv: any) => ({
+            ...inv,
+            // Map API fields to expected fields
+            name: inv.name || `${inv.firstName || ''} ${inv.lastName || ''}`.trim() || inv.email,
+            type: inv.type || 'Individual',
+            status: inv.kycStatus || inv.status || 'Pending',
+            // Map structures array to fundOwnerships for backward compatibility
+            fundOwnerships: (inv.structures || []).map((struct: any) => ({
+              fundId: struct.structure_id || struct.id,
+              fundName: struct.name || struct.structure_name || 'Unknown Structure',
+              fundType: struct.type || 'fund',
+              commitment: struct.commitment || struct.totalCommitment || 0,
+              investedDate: struct.investedDate || struct.createdAt,
+            }))
+          }))
+
+          setInvestors(mappedInvestors)
+
+          // Extract and populate structures data from investor structures
+          const structuresMap = new Map<string, Structure>()
+          investorsResult.data.forEach((investor: any) => {
+            if (investor.structures && Array.isArray(investor.structures)) {
+              investor.structures.forEach((struct: any) => {
+                const structureId = struct.structure_id || struct.id
+                if (structureId && !structuresMap.has(structureId)) {
+                  // Create a basic structure object from the structure data
+                  structuresMap.set(structureId, {
+                    id: structureId,
+                    name: struct.name || struct.structure_name || 'Unknown Structure',
+                    type: struct.type || 'fund',
+                    subtype: struct.subtype || '',
+                    status: struct.status || 'active',
+                    jurisdiction: struct.jurisdiction || 'Unknown',
+                    currency: struct.currency || 'USD',
+                    totalCommitment: struct.totalCommitment || 0,
+                    investors: 0, // Will be calculated
+                    createdDate: struct.createdAt ? new Date(struct.createdAt) : new Date(),
+                  } as Structure)
+                }
+              })
+            }
+          })
+
+          setStructures(Array.from(structuresMap.values()))
+        } else {
+          setError('Invalid response format from API')
+        }
+
+        // Load capital calls and distributions from localStorage (these will be migrated later)
+        const storedCapitalCalls = getCapitalCalls()
+        const storedDistributions = getDistributions()
+
+        setCapitalCalls(storedCapitalCalls)
+        setDistributions(storedDistributions)
+
+        setIsLoading(false)
+      } catch (err) {
+        console.error('Error fetching investors:', err)
+        setError('Failed to load investors')
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
 
   // Calculate called capital from capital call transactions
   const calculateCalledCapital = (investorId: string): number => {
@@ -165,23 +247,43 @@ export default function InvestorsPage() {
   }
 
   const filteredInvestors = investors.filter((inv) => {
-    const matchesSearch = inv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         inv.email.toLowerCase().includes(searchQuery.toLowerCase())
+    // Construct name from firstName and lastName
+    const firstName = (inv as any).firstName || ''
+    const lastName = (inv as any).lastName || ''
+    const invName = inv.name || (firstName && lastName ? `${firstName} ${lastName}`.trim() : firstName || lastName || '')
+    const invEmail = inv.email || (inv as any).investorEmail || ''
+    const matchesSearch = invName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         invEmail.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = filterType === "all" || inv.type === filterType
     const matchesStatus = filterStatus === "all" || inv.status === filterStatus
     return matchesSearch && matchesType && matchesStatus
   })
 
-  // Calculate summary metrics from transactions
+  // Calculate summary metrics from API data or fallback to calculations
   const totalCommitment = investors.reduce((sum, inv) => {
+    // Try to get from API response first, fallback to fundOwnerships calculation
+    const apiCommitment = (inv as any).totalCommitment || (inv as any).commitment
+    if (apiCommitment !== undefined) {
+      return sum + apiCommitment
+    }
     return sum + (inv.fundOwnerships?.reduce((foSum, fo) => foSum + fo.commitment, 0) || 0)
   }, 0)
 
   const totalContributed = investors.reduce((sum, inv) => {
+    // Try to get from API response first, fallback to calculation
+    const apiContributed = (inv as any).totalContributed || (inv as any).contributed
+    if (apiContributed !== undefined) {
+      return sum + apiContributed
+    }
     return sum + calculateCalledCapital(inv.id)
   }, 0)
 
   const totalDistributed = investors.reduce((sum, inv) => {
+    // Try to get from API response first, fallback to calculation
+    const apiDistributed = (inv as any).totalDistributed || (inv as any).distributed
+    if (apiDistributed !== undefined) {
+      return sum + apiDistributed
+    }
     return sum + calculateTotalDistributed(inv.id)
   }, 0)
 
@@ -269,6 +371,39 @@ export default function InvestorsPage() {
       case 'Amended': return 'outline'
       default: return 'secondary'
     }
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Loading investors...</h3>
+            <p className="text-muted-foreground">Please wait while we fetch your data</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Investors</h3>
+            <p className="text-muted-foreground mb-4 max-w-md">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -364,36 +499,44 @@ export default function InvestorsPage() {
 
       {/* Investors Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredInvestors.map((investor) => (
-          <Link key={investor.id} href={`/investment-manager/investors/${investor.id}`}>
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg mb-2">{investor.name}</CardTitle>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                      {getTypeIcon(investor.type)}
-                      <span>{formatInvestorType(investor.type)}</span>
+        {filteredInvestors.map((investor) => {
+          // Construct name from firstName and lastName
+          const firstName = (investor as any).firstName || ''
+          const lastName = (investor as any).lastName || ''
+          const invName = investor.name || (firstName && lastName ? `${firstName} ${lastName}`.trim() : firstName || lastName || 'Unnamed')
+          const invEmail = investor.email || (investor as any).investorEmail || 'N/A'
+          const invPhone = investor.phone || (investor as any).investorPhone
+
+          return (
+            <Link key={investor.id} href={`/investment-manager/investors/${investor.id}`}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg mb-2">{invName}</CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                        {getTypeIcon(investor.type)}
+                        <span>{formatInvestorType(investor.type)}</span>
+                      </div>
                     </div>
+                    <Badge variant={getStatusColor(investor.status)}>
+                      {formatStatus(investor.status)}
+                    </Badge>
                   </div>
-                  <Badge variant={getStatusColor(investor.status)}>
-                    {formatStatus(investor.status)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Contact Info */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground truncate">{investor.email}</span>
-                  </div>
-                  {investor.phone && (
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Contact Info */}
+                  <div className="space-y-1">
                     <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">{investor.phone}</span>
+                      <Mail className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground truncate">{invEmail}</span>
                     </div>
-                  )}
+                    {invPhone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">{invPhone}</span>
+                      </div>
+                    )}
                 </div>
 
                 {/* Financial Metrics */}
@@ -401,12 +544,22 @@ export default function InvestorsPage() {
                   <div>
                     <div className="text-xs text-muted-foreground">Commitment</div>
                     <div className="text-sm font-semibold">
-                      {formatCurrency(investor.fundOwnerships?.reduce((sum, fo) => sum + fo.commitment, 0) || 0)}
+                      {formatCurrency(
+                        (investor as any).totalCommitment ||
+                        (investor as any).commitment ||
+                        investor.fundOwnerships?.reduce((sum, fo) => sum + fo.commitment, 0) ||
+                        0
+                      )}
                     </div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Current Value</div>
-                    <div className="text-sm font-semibold">{formatCurrency(calculateCurrentValue(investor))}</div>
+                    <div className="text-sm font-semibold">
+                      {formatCurrency(
+                        (investor as any).currentValue ||
+                        calculateCurrentValue(investor)
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -415,15 +568,19 @@ export default function InvestorsPage() {
                   <div>
                     <div className="text-xs text-muted-foreground">Called Capital</div>
                     <div className="text-sm font-semibold">
-                      {formatCurrency(calculateCalledCapital(investor.id))}
+                      {formatCurrency(
+                        (investor as any).totalContributed ||
+                        (investor as any).contributed ||
+                        calculateCalledCapital(investor.id)
+                      )}
                     </div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Uncalled</div>
                     <div className="text-sm font-semibold">
                       {formatCurrency(
-                        (investor.fundOwnerships?.reduce((sum, fo) => sum + fo.commitment, 0) || 0) -
-                        calculateCalledCapital(investor.id)
+                        ((investor as any).totalCommitment || (investor as any).commitment || investor.fundOwnerships?.reduce((sum, fo) => sum + fo.commitment, 0) || 0) -
+                        ((investor as any).totalContributed || (investor as any).contributed || calculateCalledCapital(investor.id))
                       )}
                     </div>
                   </div>
@@ -474,7 +631,8 @@ export default function InvestorsPage() {
               </CardContent>
             </Card>
           </Link>
-        ))}
+          )
+        })}
       </div>
 
       {/* Empty State */}

@@ -11,8 +11,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Info, Loader2, Building2, AlertCircle } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { updateInvestment } from "@/lib/investments-storage"
-import { getStructures, canAddInvestment, canAddIssuance } from "@/lib/structures-storage"
 import type { Structure } from "@/lib/structures-storage"
 import type { Investment, AssetSector } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
@@ -49,9 +47,38 @@ export default function EditInvestmentPage({ params }: PageProps) {
   const [currentValue, setCurrentValue] = useState("")
 
   useEffect(() => {
-    // Load structures
-    const allStructures = getStructures()
-    setStructures(allStructures)
+    // Load structures from API
+    async function fetchStructures() {
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          console.error('No authentication token found')
+          return
+        }
+
+        const apiUrl = getApiUrl(API_CONFIG.endpoints.getAllStructures)
+
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && Array.isArray(result.data)) {
+            setStructures(result.data)
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching structures:', err)
+      }
+    }
+
+    fetchStructures()
   }, [])
 
   useEffect(() => {
@@ -114,20 +141,15 @@ export default function EditInvestmentPage({ params }: PageProps) {
                             foundInvestment.investmentType === 'DEBT' ? 'Debt' : 'Mixed')
           setTotalInvestmentSize(foundInvestment.totalInvestmentSize?.toString() || "")
           setFundCommitment(foundInvestment.fundCommitment?.toString() || "")
-          setCurrentValue(foundInvestment.totalFundPosition?.currentValue?.toString() || "")
+          setCurrentValue(foundInvestment.currentValue?.toString() || foundInvestment.currentEquityValue?.toString() || "")
+          setEquityPosition(foundInvestment.equityInvested?.toString() || "")
+          setDebtPosition(foundInvestment.principalProvided?.toString() || "")
+          setInterestRate(foundInvestment.interestRate?.toString() || "")
 
-          if (foundInvestment.fundEquityPosition) {
-            setEquityPosition(foundInvestment.fundEquityPosition.equityInvested?.toString() || "")
-          }
-
-          if (foundInvestment.fundDebtPosition) {
-            setDebtPosition(foundInvestment.fundDebtPosition.principalProvided?.toString() || "")
-            setInterestRate(foundInvestment.fundDebtPosition.interestRate?.toString() || "")
-            if (foundInvestment.fundDebtPosition.maturityDate) {
-              // Convert ISO date to YYYY-MM-DD format for input
-              const date = new Date(foundInvestment.fundDebtPosition.maturityDate)
-              setMaturityDate(date.toISOString().split('T')[0])
-            }
+          if (foundInvestment.maturityDate) {
+            // Convert ISO date to YYYY-MM-DD format for input
+            const date = new Date(foundInvestment.maturityDate)
+            setMaturityDate(date.toISOString().split('T')[0])
           }
         } else {
           setError('Investment not found')
@@ -146,45 +168,77 @@ export default function EditInvestmentPage({ params }: PageProps) {
 
   // Check capacity when structure is selected
   useEffect(() => {
-    if (selectedStructure && investment) {
-      const capacity = canAddInvestment(selectedStructure)
-      // For edit mode, we need to account for this investment already being in the count
-      if (capacity && investment.fundId === selectedStructure) {
-        setCapacityInfo({
-          canAdd: true,
-          current: capacity.current,
-          max: capacity.max
-        })
+    if (selectedStructure && investment && structures.length > 0) {
+      // Find the selected structure from API-fetched structures
+      const structure = structures.find(s => s.id === selectedStructure)
+
+      if (structure) {
+        // Use data from API structure
+        const max = parseInt(structure.plannedInvestments || '0')
+        const current = structure.investors || 0
+
+        // For edit mode, we need to account for this investment already being in the count
+        if (investment.fundId === selectedStructure) {
+          setCapacityInfo({
+            canAdd: true,
+            current: current,
+            max: max
+          })
+        } else {
+          setCapacityInfo({
+            canAdd: current < max,
+            current: current,
+            max: max
+          })
+        }
       } else {
-        setCapacityInfo(capacity)
+        setCapacityInfo(null)
       }
     } else {
       setCapacityInfo(null)
     }
-  }, [selectedStructure, investment])
+  }, [selectedStructure, investment, structures])
 
   // Check issuance capacity when structure or investment type changes
   useEffect(() => {
-    if (selectedStructure && investment) {
-      const issuance = canAddIssuance(selectedStructure, investmentType)
-      // For edit mode, if the investment type hasn't changed, we're okay
-      if (issuance && investment.fundId === selectedStructure &&
-          investment.investmentType === investmentType.toUpperCase()) {
-        setIssuanceInfo({
-          canAdd: true,
-          current: issuance.current,
-          max: issuance.max,
-          required: issuance.required
-        })
+    if (selectedStructure && investment && structures.length > 0) {
+      // Find the selected structure from API-fetched structures
+      const structure = structures.find(s => s.id === selectedStructure)
+
+      if (structure) {
+        // Use data from API structure - default max to 50 if not provided
+        const max = 50
+        // Since API doesn't provide currentIssuances, we'll default to 0
+        // In a real scenario, this would come from the API
+        const current = 0
+        const required = investmentType === 'Mixed' ? 2 : 1
+
+        // For edit mode, if the investment type hasn't changed, we're okay
+        if (investment.fundId === selectedStructure &&
+            investment.investmentType === investmentType.toUpperCase()) {
+          setIssuanceInfo({
+            canAdd: true,
+            current: current,
+            max: max,
+            required: required
+          })
+        } else {
+          setIssuanceInfo({
+            canAdd: current + required <= max,
+            current: current,
+            max: max,
+            required: required
+          })
+        }
       } else {
-        setIssuanceInfo(issuance)
+        setIssuanceInfo(null)
       }
     } else {
       setIssuanceInfo(null)
     }
-  }, [selectedStructure, investmentType, investment])
+  }, [selectedStructure, investmentType, investment, structures])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!investment) return
@@ -230,59 +284,10 @@ export default function EditInvestmentPage({ params }: PageProps) {
     // Calculate multiple
     const multiple = fundCommitmentNum > 0 ? currentValueNum / fundCommitmentNum : 1.0
 
-    // Get jurisdiction from selected structure
-    const selectedStructureData = structures.find(s => s.id === selectedStructure)
-    const isUSJurisdiction = selectedStructureData?.jurisdiction?.toLowerCase() === 'united states' ||
-                             selectedStructureData?.jurisdiction?.toLowerCase() === 'us' ||
-                             selectedStructureData?.jurisdiction?.toLowerCase() === 'usa'
-
-    // Parse geography based on jurisdiction
-    let geographyData
-    if (isUSJurisdiction) {
-      // US: City, State, Country (3 parts expected)
-      const parts = location.split(',').map(p => p.trim())
-      geographyData = {
-        city: parts[0] || 'N/A',
-        state: parts[1] || 'N/A',
-        country: parts[2] || 'United States',
-      }
-    } else {
-      // Non-US: City, Country (2 parts expected)
-      const parts = location.split(',').map(p => p.trim())
-      geographyData = {
-        city: parts[0] || 'N/A',
-        state: parts[1] || 'N/A',
-        country: parts[1] || 'N/A',
-      }
-    }
-
     try {
       const currentDate = new Date().toISOString()
 
-      // Determine fundEquityPosition based on investment type
-      const fundEquityPosition = (investmentType === 'Equity' || investmentType === 'Mixed')
-        ? {
-            ownershipPercent: ownershipPercentageNum,
-            equityInvested: equityPositionNum,
-            currentEquityValue: investmentType === 'Equity' ? currentValueNum : equityPositionNum,
-            unrealizedGain: investmentType === 'Equity' ? unrealizedGain : 0,
-          }
-        : null
-
-      // Determine fundDebtPosition based on investment type
-      const fundDebtPosition = (investmentType === 'Debt' || investmentType === 'Mixed')
-        ? {
-            principalProvided: debtPositionNum,
-            interestRate: interestRateNum,
-            originationDate: investment.fundDebtPosition?.originationDate || currentDate,
-            maturityDate: maturityDate || investment.fundDebtPosition?.maturityDate || currentDate,
-            accruedInterest: investment.fundDebtPosition?.accruedInterest || 0,
-            currentDebtValue: investmentType === 'Debt' ? currentValueNum : debtPositionNum,
-            unrealizedGain: investmentType === 'Debt' ? unrealizedGain : 0,
-          }
-        : null
-
-      updateInvestment(id, {
+      const updateData = {
         fundId: selectedStructure,
         name,
         type,
@@ -295,21 +300,58 @@ export default function EditInvestmentPage({ params }: PageProps) {
         totalPropertyValue: type === 'Real Estate' ? totalInvestmentSizeNum : undefined,
         totalCompanyValue: type === 'Private Equity' ? totalInvestmentSizeNum : undefined,
         totalProjectValue: type === 'Private Debt' ? totalInvestmentSizeNum : undefined,
-        geography: geographyData,
-        fundEquityPosition,
-        fundDebtPosition,
-        totalFundPosition: {
-          totalInvested: fundCommitmentNum,
-          currentValue: currentValueNum,
-          unrealizedGain: unrealizedGain,
-          irr: investment.totalFundPosition?.irr || 0,
-          multiple: multiple,
-        },
+        geography: location,
+        equityInvested: equityPositionNum,
+        currentEquityValue: investmentType === 'Equity' ? currentValueNum : equityPositionNum,
+        principalProvided: debtPositionNum,
+        interestRate: interestRateNum,
+        originationDate: investment.fundDebtPosition?.originationDate || currentDate,
+        maturityDate: maturityDate || investment.fundDebtPosition?.maturityDate || currentDate,
+        accruedInterest: investment.fundDebtPosition?.accruedInterest || 0,
+        currentDebtValue: investmentType === 'Debt' ? currentValueNum : debtPositionNum,
+        totalInvested: fundCommitmentNum,
+        currentValue: currentValueNum,
+        unrealizedGain: unrealizedGain,
+        irr: investment.totalFundPosition?.irr || 0,
+        multiple: multiple,
         lastValuationDate: currentDate,
         updatedAt: currentDate,
+      }
+
+      // Get authentication token
+      const token = getAuthToken()
+
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        return
+      }
+
+      // Call PUT endpoint to update investment
+      const apiUrl = getApiUrl(API_CONFIG.endpoints.updateInvestment(id))
+
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData)
       })
 
-      router.push(`/investment-manager/investments/${id}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.message || 'Failed to update investment')
+        return
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Investment updated successfully')
+        router.push(`/investment-manager/investments/${id}`)
+      } else {
+        toast.error(result.message || 'Failed to update investment')
+      }
     } catch (error) {
       console.error("Error updating investment:", error)
       toast.error("Failed to update investment. Please try again.")

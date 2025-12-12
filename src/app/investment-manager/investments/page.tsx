@@ -86,8 +86,8 @@ export default function InvestmentsPage() {
   })
 
   // Calculate summary metrics from fund positions
-  const totalValue = investments.reduce((sum, inv) => sum + (inv.totalFundPosition?.currentValue || 0), 0)
-  const totalCost = investments.reduce((sum, inv) => sum + (inv.totalFundPosition?.totalInvested || 0), 0)
+  const totalValue = investments.reduce((sum, inv) => sum + ((inv as any).currentValue || inv.totalFundPosition?.currentValue || 0), 0)
+  const totalCost = investments.reduce((sum, inv) => sum + ((inv as any).totalInvested || inv.totalFundPosition?.totalInvested || 0), 0)
   const totalGain = totalValue - totalCost
   const gainPercent = totalCost > 0 ? ((totalGain / totalCost) * 100) : 0
 
@@ -279,11 +279,11 @@ export default function InvestmentsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <div className="text-xs text-muted-foreground">Current Value</div>
-                    <div className="text-sm font-semibold">{formatCurrency(investment.totalFundPosition?.currentValue || 0)}</div>
+                    <div className="text-sm font-semibold">{formatCurrency((investment as any).currentValue || investment.totalFundPosition?.currentValue || 0)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Total Invested</div>
-                    <div className="text-sm font-semibold">{formatCurrency(investment.totalFundPosition?.totalInvested || 0)}</div>
+                    <div className="text-sm font-semibold">{formatCurrency((investment as any).totalInvested || investment.totalFundPosition?.totalInvested || 0)}</div>
                   </div>
                 </div>
 
@@ -291,15 +291,15 @@ export default function InvestmentsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <div className="text-xs text-muted-foreground">IRR</div>
-                    <div className={`text-sm font-semibold flex items-center gap-1 ${(investment.totalFundPosition?.irr || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {(investment.totalFundPosition?.irr || 0) >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {formatPercent(investment.totalFundPosition?.irr)}
+                    <div className={`text-sm font-semibold flex items-center gap-1 ${((investment as any).irr || investment.totalFundPosition?.irr || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {((investment as any).irr || investment.totalFundPosition?.irr || 0) >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {formatPercent((investment as any).irr || investment.totalFundPosition?.irr)}
                     </div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Multiple</div>
-                    <div className={`text-sm font-semibold ${(investment.totalFundPosition?.multiple || 0) >= 1 ? 'text-green-600' : 'text-red-600'}`}>
-                      {(investment.totalFundPosition?.multiple || 0).toFixed(2)}x
+                    <div className={`text-sm font-semibold ${((investment as any).multiple || investment.totalFundPosition?.multiple || 0) >= 1 ? 'text-green-600' : 'text-red-600'}`}>
+                      {((investment as any).multiple || investment.totalFundPosition?.multiple || 0).toFixed(2)}x
                     </div>
                   </div>
                 </div>
