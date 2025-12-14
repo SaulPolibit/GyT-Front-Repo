@@ -8,170 +8,294 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Building2 } from "lucide-react"
-import { saveInvestor } from "@/lib/investors-storage"
-import { getStructures, canAddInvestor, getStructureInvestorCount } from "@/lib/structures-storage"
-import type { Structure } from "@/lib/structures-storage"
-import type { InvestorType } from "@/lib/types"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowLeft, Loader2, AlertCircle } from "lucide-react"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
+
+type InvestorType = 'Individual' | 'Institution' | 'Family Office' | 'Fund of Funds'
+
+interface User {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: number
+}
+
+interface Structure {
+  id: string
+  name: string
+  type: string
+}
 
 export default function AddInvestorPage() {
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [structures, setStructures] = useState<Structure[]>([])
-  const [selectedStructure, setSelectedStructure] = useState<string>("")
-  const [capacityInfo, setCapacityInfo] = useState<{ canAdd: boolean; current: number; max: number } | null>(null)
+  const [users, setUsers] = useState<User[]>([])
 
   // Form state
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [phone, setPhone] = useState("")
-  const [type, setType] = useState<InvestorType>("individual")
-  const [taxId, setTaxId] = useState("")
+  const [investorType, setInvestorType] = useState<InvestorType>('Individual')
+  const [selectedUserId, setSelectedUserId] = useState("")
+  const [selectedStructure, setSelectedStructure] = useState("")
 
-  // Address state
-  const [street, setStreet] = useState("")
+  // Common fields
+  const [email, setEmail] = useState("")
+  const [phoneNumber, setPhoneNumber] = useState("")
+  const [country, setCountry] = useState("United States")
+  const [taxId, setTaxId] = useState("")
+  const [kycStatus, setKycStatus] = useState("Not Started")
+  const [accreditedInvestor, setAccreditedInvestor] = useState(false)
+  const [riskTolerance, setRiskTolerance] = useState("")
+  const [investmentPreferences, setInvestmentPreferences] = useState("")
+
+  // Individual fields
+  const [fullName, setFullName] = useState("")
+  const [dateOfBirth, setDateOfBirth] = useState("")
+  const [nationality, setNationality] = useState("")
+  const [passportNumber, setPassportNumber] = useState("")
+  const [addressLine1, setAddressLine1] = useState("")
+  const [addressLine2, setAddressLine2] = useState("")
   const [city, setCity] = useState("")
   const [state, setState] = useState("")
-  const [zipCode, setZipCode] = useState("")
-  const [country, setCountry] = useState("United States")
+  const [postalCode, setPostalCode] = useState("")
 
-  // Hierarchy level state
-  const [hierarchyLevel, setHierarchyLevel] = useState<number | undefined>(undefined)
+  // Institution fields
+  const [institutionName, setInstitutionName] = useState("")
+  const [institutionType, setInstitutionType] = useState("")
+  const [registrationNumber, setRegistrationNumber] = useState("")
+  const [legalRepresentative, setLegalRepresentative] = useState("")
 
-  // Custom terms state
-  const [hasCustomTerms, setHasCustomTerms] = useState(false)
-  const [customManagementFee, setCustomManagementFee] = useState("")
-  const [customPerformanceFee, setCustomPerformanceFee] = useState("")
-  const [customHurdleRate, setCustomHurdleRate] = useState("")
-  const [customPreferredReturn, setCustomPreferredReturn] = useState("")
+  // Fund of Funds fields
+  const [fundName, setFundName] = useState("")
+  const [fundManager, setFundManager] = useState("")
+  const [aum, setAum] = useState("")
 
+  // Family Office fields
+  const [officeName, setOfficeName] = useState("")
+  const [familyName, setFamilyName] = useState("")
+  const [principalContact, setPrincipalContact] = useState("")
+  const [assetsUnderManagement, setAssetsUnderManagement] = useState("")
+
+  // Load structures and non-investor users
   useEffect(() => {
-    const allStructures = getStructures()
-    setStructures(allStructures)
+    async function fetchData() {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const token = getAuthToken()
+        if (!token) {
+          setError('Authentication required. Please log in.')
+          setIsLoading(false)
+          return
+        }
+
+        // Fetch structures
+        const structuresUrl = getApiUrl(API_CONFIG.endpoints.getAllStructures)
+        const structuresResponse = await fetch(structuresUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!structuresResponse.ok) {
+          throw new Error('Failed to fetch structures')
+        }
+
+        const structuresResult = await structuresResponse.json()
+        if (structuresResult.success && Array.isArray(structuresResult.data)) {
+          setStructures(structuresResult.data)
+        }
+
+        // Fetch non-investor users (users with role 0, 1, or 2)
+        const usersUrl = getApiUrl(API_CONFIG.endpoints.getUsersByRole('0,1,2'))
+        const usersResponse = await fetch(usersUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!usersResponse.ok) {
+          throw new Error('Failed to fetch users')
+        }
+
+        const usersResult = await usersResponse.json()
+        if (usersResult.success && Array.isArray(usersResult.data)) {
+          setUsers(usersResult.data)
+        }
+
+        setIsLoading(false)
+      } catch (err) {
+        console.error('Error fetching data:', err)
+        setError('Failed to load data')
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
   }, [])
 
-  // Pre-fill data from pre-registered investor when email matches
+  // Update email and name when user is selected (for Individual type)
   useEffect(() => {
-    if (!selectedStructure || !email) return
-
-    const structure = structures.find(s => s.id === selectedStructure)
-    if (!structure?.preRegisteredInvestors) return
-
-    const preRegistered = structure.preRegisteredInvestors.find(
-      inv => inv.email.toLowerCase() === email.toLowerCase()
-    )
-
-    if (preRegistered) {
-      // Pre-fill name if not already filled
-      if (!name) {
-        setName(`${preRegistered.firstName} ${preRegistered.lastName}`)
-      }
-
-      // Pre-fill custom terms if they exist
-      if (preRegistered.customTerms) {
-        setHasCustomTerms(true)
-        setCustomManagementFee(preRegistered.customTerms.managementFee?.toString() || "")
-        setCustomPerformanceFee(preRegistered.customTerms.performanceFee?.toString() || "")
-        setCustomHurdleRate(preRegistered.customTerms.hurdleRate?.toString() || "")
-        setCustomPreferredReturn(preRegistered.customTerms.preferredReturn?.toString() || "")
-      }
-
-      // Pre-fill hierarchy level if it exists
-      if (preRegistered.hierarchyLevel) {
-        setHierarchyLevel(preRegistered.hierarchyLevel)
+    if (investorType === 'Individual' && selectedUserId) {
+      const user = users.find(u => u.id === selectedUserId)
+      if (user) {
+        setEmail(user.email)
+        setFullName(`${user.firstName} ${user.lastName}`.trim())
       }
     }
-  }, [selectedStructure, email, structures])
+  }, [selectedUserId, investorType, users])
 
-  // Check capacity when structure is selected
-  useEffect(() => {
-    if (selectedStructure) {
-      const capacity = canAddInvestor(selectedStructure)
-      setCapacityInfo(capacity)
-    } else {
-      setCapacityInfo(null)
-    }
-  }, [selectedStructure])
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!selectedStructure) {
-      toast.error("Please select a fund/structure")
+      toast.error("Please select a structure")
       return
     }
 
-    // Check capacity before submitting
-    if (capacityInfo && !capacityInfo.canAdd) {
-      toast.error(`This fund has reached its maximum capacity of ${capacityInfo.max} investors. Currently has ${capacityInfo.current} investors.`)
-      return
-    }
+    // Validation based on investor type
+    if (investorType === 'Individual') {
+      if (!selectedUserId) {
+        toast.error("Please select a user")
+        return
+      }
+    } else {
+      if (!email) {
+        toast.error("Please enter email")
+        return
+      }
 
-    if (!name || !email) {
-      toast.error("Please fill in all required fields")
-      return
+      if (investorType === 'Institution' && !institutionName) {
+        toast.error("Please enter institution name")
+        return
+      }
+
+      if (investorType === 'Family Office' && !officeName) {
+        toast.error("Please enter office name")
+        return
+      }
+
+      if (investorType === 'Fund of Funds' && !fundName) {
+        toast.error("Please enter fund name")
+        return
+      }
     }
 
     try {
-      const fundName = structures.find(s => s.id === selectedStructure)?.name || selectedStructure
+      setIsSubmitting(true)
 
-      const newInvestor = saveInvestor({
-        name,
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Build payload based on investor type
+      const payload: any = {
+        investorType,
         email,
-        phone: phone || undefined,
-        type,
-        status: "Pending",
-        fundOwnerships: [{
-          fundId: selectedStructure,
-          fundName: fundName,
-          commitment: 0,
-          ownershipPercent: 0,
-          calledCapital: 0,
-          uncalledCapital: 0,
-          investedDate: new Date().toISOString(),
-          hierarchyLevel: hierarchyLevel,
-          customTerms: hasCustomTerms ? {
-            managementFee: customManagementFee ? parseFloat(customManagementFee) : undefined,
-            performanceFee: customPerformanceFee ? parseFloat(customPerformanceFee) : undefined,
-            hurdleRate: customHurdleRate ? parseFloat(customHurdleRate) : undefined,
-            preferredReturn: customPreferredReturn ? parseFloat(customPreferredReturn) : undefined,
-          } : undefined,
-        }],
-        currentValue: 0,
-        unrealizedGain: 0,
-        totalDistributed: 0,
-        netCashFlow: 0,
-        irr: 0,
-        k1Status: "Not Started",
-        taxId: taxId || undefined,
-        address: street ? {
-          street,
-          city,
-          state,
-          zipCode,
-          country,
-        } : undefined,
-        preferredContactMethod: "Email",
-        investorSince: new Date().toISOString(),
-        notes: "",
-        documents: [],
+        phoneNumber,
+        country,
+        taxId,
+        kycStatus,
+        accreditedInvestor,
+        riskTolerance,
+        investmentPreferences,
+        structureId: selectedStructure,
+        userId: selectedUserId || undefined, // Include userId for all types if selected
+      }
+
+      if (investorType === 'Individual') {
+        payload.fullName = fullName
+        payload.dateOfBirth = dateOfBirth
+        payload.nationality = nationality
+        payload.passportNumber = passportNumber
+        payload.addressLine1 = addressLine1
+        payload.addressLine2 = addressLine2
+        payload.city = city
+        payload.state = state
+        payload.postalCode = postalCode
+      } else if (investorType === 'Institution') {
+        payload.institutionName = institutionName
+        payload.institutionType = institutionType
+        payload.registrationNumber = registrationNumber
+        payload.legalRepresentative = legalRepresentative
+      } else if (investorType === 'Fund of Funds') {
+        payload.fundName = fundName
+        payload.fundManager = fundManager
+        payload.aum = aum ? parseFloat(aum) : undefined
+      } else if (investorType === 'Family Office') {
+        payload.officeName = officeName
+        payload.familyName = familyName
+        payload.principalContact = principalContact
+        payload.assetsUnderManagement = assetsUnderManagement ? parseFloat(assetsUnderManagement) : undefined
+      }
+
+      const apiUrl = getApiUrl(API_CONFIG.endpoints.createInvestor)
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
       })
 
-      router.push(`/investment-manager/investors/${newInvestor.id}`)
-    } catch (error) {
-      console.error("Error creating investor:", error)
-      toast.error("Failed to create investor. Please try again.")
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to create investor')
+      }
+
+      const result = await response.json()
+
+      toast.success('Investor created successfully')
+      router.push('/investment-manager/investors')
+    } catch (err: any) {
+      console.error('Error creating investor:', err)
+      toast.error(err.message || 'Failed to create investor')
+      setIsSubmitting(false)
     }
   }
 
-  const getStructureLabel = (structure: Structure) => {
-    const typeLabels: Record<string, string> = {
-      fund: "Fund",
-      sa: "SA/LLC",
-      fideicomiso: "Trust",
-      "private-debt": "Private Debt",
-    }
-    return `${structure.name} (${typeLabels[structure.type]})`
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Loading...</h3>
+            <p className="text-muted-foreground">Please wait while we fetch the data</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <Card className="w-full max-w-md mx-auto">
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Error Loading Data</h3>
+            <p className="text-muted-foreground mb-4 max-w-md">{error}</p>
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -184,334 +308,435 @@ export default function AddInvestorPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">Add New Investor</h1>
-          <p className="text-muted-foreground">Create a new investor and assign to a fund or structure</p>
+          <h1 className="text-3xl font-bold">Add Investor</h1>
+          <p className="text-muted-foreground mt-1">
+            Add a new investor to a structure
+          </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-              <CardDescription>Investor details and contact information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="investor@example.com"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="type">Investor Type</Label>
-                <select
-                  id="type"
-                  value={type}
-                  onChange={(e) => setType(e.target.value as InvestorType)}
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                >
-                  <option value="Individual">Individual</option>
-                  <option value="Institution">Institution</option>
-                  <option value="Family Office">Family Office</option>
-                  <option value="Fund of Funds">Fund of Funds</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="taxId">Tax ID / SSN</Label>
-                <Input
-                  id="taxId"
-                  value={taxId}
-                  onChange={(e) => setTaxId(e.target.value)}
-                  placeholder="123-45-6789"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Fund Assignment */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Fund Assignment</CardTitle>
-              <CardDescription>Select fund to assign investor</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="structure">Select Fund/Structure *</Label>
-                <select
-                  id="structure"
-                  value={selectedStructure}
-                  onChange={(e) => setSelectedStructure(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                  required
-                >
-                  <option value="">-- Select a Fund --</option>
+        <Card>
+          <CardHeader>
+            <CardTitle>Investor Information</CardTitle>
+            <CardDescription>
+              Select investor type and fill in the required information
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Structure Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="structure">Structure *</Label>
+              <Select value={selectedStructure} onValueChange={setSelectedStructure}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a structure" />
+                </SelectTrigger>
+                <SelectContent>
                   {structures.map((structure) => (
-                    <option key={structure.id} value={structure.id}>
-                      {getStructureLabel(structure)}
-                    </option>
+                    <SelectItem key={structure.id} value={structure.id}>
+                      {structure.name} ({structure.type})
+                    </SelectItem>
                   ))}
-                </select>
-                {structures.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No funds available. Please create a structure first.
-                  </p>
-                )}
-              </div>
+                </SelectContent>
+              </Select>
+            </div>
 
-              {/* Hierarchy Level (conditional) */}
-              {selectedStructure && structures.find(s => s.id === selectedStructure)?.hierarchyMode &&
-               structures.find(s => s.id === selectedStructure)?.hierarchyStructures &&
-               (structures.find(s => s.id === selectedStructure)?.hierarchyStructures?.length || 0) > 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="hierarchyLevel">Participating Hierarchy Level *</Label>
-                  <select
-                    id="hierarchyLevel"
-                    value={hierarchyLevel || ""}
-                    onChange={(e) => setHierarchyLevel(e.target.value ? parseInt(e.target.value) : undefined)}
-                    className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                    required
-                  >
-                    <option value="">-- Select Level --</option>
-                    {structures.find(s => s.id === selectedStructure)?.hierarchyStructures?.map((level, index) => (
-                      <option key={index} value={index + 1}>
-                        Level {index + 1}: {level.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground">
-                    Select which hierarchy level this investor participates in
-                  </p>
+            {/* Investor Type Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="investorType">Investor Type *</Label>
+              <Select value={investorType} onValueChange={(value) => setInvestorType(value as InvestorType)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select investor type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Individual">Individual</SelectItem>
+                  <SelectItem value="Institution">Institution</SelectItem>
+                  <SelectItem value="Family Office">Family Office</SelectItem>
+                  <SelectItem value="Fund of Funds">Fund of Funds</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* User Selection - Always shown */}
+            <div className="space-y-2">
+              <Label htmlFor="user">Associate User {investorType === 'Individual' ? '*' : '(Optional)'}</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a user" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                {investorType === 'Individual'
+                  ? 'Email and name will be taken from the selected user'
+                  : 'Optionally associate a user account with this investor'}
+              </p>
+            </div>
+
+            {/* Individual: Additional fields */}
+            {investorType === 'Individual' && (
+              <>
+
+                {/* Individual specific fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nationality">Nationality</Label>
+                    <Input
+                      id="nationality"
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      placeholder="e.g., United States"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="passportNumber">Passport Number</Label>
+                    <Input
+                      id="passportNumber"
+                      value={passportNumber}
+                      onChange={(e) => setPassportNumber(e.target.value)}
+                      placeholder="Passport number"
+                    />
+                  </div>
                 </div>
-              )}
 
-              {selectedStructure && (
-                <div className={`p-4 rounded-lg border ${
-                  capacityInfo && !capacityInfo.canAdd
-                    ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'
-                    : 'bg-muted/50 border-muted'
-                }`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">
-                      {structures.find(s => s.id === selectedStructure)?.name}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-                    <div>
-                      <span className="text-muted-foreground">Total Commitment:</span>
-                      <span className="ml-2 font-medium">
-                        ${structures.find(s => s.id === selectedStructure)?.totalCommitment.toLocaleString()}
-                      </span>
+                {/* Address fields */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium">Address</h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="addressLine1">Address Line 1</Label>
+                      <Input
+                        id="addressLine1"
+                        value={addressLine1}
+                        onChange={(e) => setAddressLine1(e.target.value)}
+                        placeholder="Street address"
+                      />
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Max Investors:</span>
-                      <span className="ml-2 font-medium">
-                        {structures.find(s => s.id === selectedStructure)?.investors}
-                      </span>
+                    <div className="space-y-2">
+                      <Label htmlFor="addressLine2">Address Line 2</Label>
+                      <Input
+                        id="addressLine2"
+                        value={addressLine2}
+                        onChange={(e) => setAddressLine2(e.target.value)}
+                        placeholder="Apt, suite, etc. (optional)"
+                      />
                     </div>
-                  </div>
-                  {capacityInfo && (
-                    <div className={`text-sm pt-2 border-t ${
-                      capacityInfo.canAdd ? 'border-muted' : 'border-red-200 dark:border-red-800'
-                    }`}>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Current Capacity:</span>
-                        <Badge variant={capacityInfo.canAdd ? "default" : "destructive"}>
-                          {capacityInfo.current} / {capacityInfo.max} investors
-                        </Badge>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">City</Label>
+                        <Input
+                          id="city"
+                          value={city}
+                          onChange={(e) => setCity(e.target.value)}
+                          placeholder="City"
+                        />
                       </div>
-                      {!capacityInfo.canAdd && (
-                        <p className="text-red-600 dark:text-red-400 mt-2 text-xs font-medium">
-                          ⚠️ This fund has reached maximum capacity
-                        </p>
-                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="state">State</Label>
+                        <Input
+                          id="state"
+                          value={state}
+                          onChange={(e) => setState(e.target.value)}
+                          placeholder="State"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="postalCode">Postal Code</Label>
+                        <Input
+                          id="postalCode"
+                          value={postalCode}
+                          onChange={(e) => setPostalCode(e.target.value)}
+                          placeholder="Postal code"
+                        />
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md">
-                <p className="text-sm text-blue-900 dark:text-blue-100">
-                  <strong>Note:</strong> Commitment amount and ownership percentage will be captured during the investor onboarding process.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Custom Economic Terms */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Custom Economic Terms (Optional)</CardTitle>
-              <CardDescription>Override fund-level terms for this investor</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="hasCustomTerms"
-                  checked={hasCustomTerms}
-                  onChange={(e) => setHasCustomTerms(e.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <Label htmlFor="hasCustomTerms" className="cursor-pointer">
-                  This investor has custom economic terms
-                </Label>
-              </div>
-
-              {hasCustomTerms && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                  <div className="space-y-2">
-                    <Label htmlFor="customManagementFee">Management Fee (%)</Label>
-                    <Input
-                      id="customManagementFee"
-                      type="number"
-                      step="0.01"
-                      value={customManagementFee}
-                      onChange={(e) => setCustomManagementFee(e.target.value)}
-                      placeholder="e.g., 1.5"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="customPerformanceFee">Performance Fee (%)</Label>
-                    <Input
-                      id="customPerformanceFee"
-                      type="number"
-                      step="0.01"
-                      value={customPerformanceFee}
-                      onChange={(e) => setCustomPerformanceFee(e.target.value)}
-                      placeholder="e.g., 20"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="customHurdleRate">Hurdle Rate (%)</Label>
-                    <Input
-                      id="customHurdleRate"
-                      type="number"
-                      step="0.01"
-                      value={customHurdleRate}
-                      onChange={(e) => setCustomHurdleRate(e.target.value)}
-                      placeholder="e.g., 8"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="customPreferredReturn">Preferred Return (%)</Label>
-                    <Input
-                      id="customPreferredReturn"
-                      type="number"
-                      step="0.01"
-                      value={customPreferredReturn}
-                      onChange={(e) => setCustomPreferredReturn(e.target.value)}
-                      placeholder="e.g., 8"
-                    />
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </>
+            )}
 
-          {/* Address Information */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Address (Optional)</CardTitle>
-              <CardDescription>Investor mailing address</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="street">Street Address</Label>
-                  <Input
-                    id="street"
-                    value={street}
-                    onChange={(e) => setStreet(e.target.value)}
-                    placeholder="123 Main St, Suite 100"
-                  />
-                </div>
-
+            {/* Institution Fields */}
+            {investorType === 'Institution' && (
+              <>
                 <div className="space-y-2">
-                  <Label htmlFor="city">City</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
-                    id="city"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="New York"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="institution@example.com"
+                    required
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="institutionName">Institution Name *</Label>
+                    <Input
+                      id="institutionName"
+                      value={institutionName}
+                      onChange={(e) => setInstitutionName(e.target.value)}
+                      placeholder="Institution name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="institutionType">Institution Type</Label>
+                    <Input
+                      id="institutionType"
+                      value={institutionType}
+                      onChange={(e) => setInstitutionType(e.target.value)}
+                      placeholder="e.g., Bank, Insurance, etc."
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="registrationNumber">Registration Number</Label>
+                    <Input
+                      id="registrationNumber"
+                      value={registrationNumber}
+                      onChange={(e) => setRegistrationNumber(e.target.value)}
+                      placeholder="Registration number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="legalRepresentative">Legal Representative</Label>
+                    <Input
+                      id="legalRepresentative"
+                      value={legalRepresentative}
+                      onChange={(e) => setLegalRepresentative(e.target.value)}
+                      placeholder="Name of legal representative"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
+            {/* Family Office Fields */}
+            {investorType === 'Family Office' && (
+              <>
                 <div className="space-y-2">
-                  <Label htmlFor="state">State / Province</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
-                    id="state"
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
-                    placeholder="NY"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="office@example.com"
+                    required
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="officeName">Office Name *</Label>
+                    <Input
+                      id="officeName"
+                      value={officeName}
+                      onChange={(e) => setOfficeName(e.target.value)}
+                      placeholder="Family office name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="familyName">Family Name</Label>
+                    <Input
+                      id="familyName"
+                      value={familyName}
+                      onChange={(e) => setFamilyName(e.target.value)}
+                      placeholder="Family name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="principalContact">Principal Contact</Label>
+                    <Input
+                      id="principalContact"
+                      value={principalContact}
+                      onChange={(e) => setPrincipalContact(e.target.value)}
+                      placeholder="Contact person name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="assetsUnderManagement">Assets Under Management</Label>
+                    <Input
+                      id="assetsUnderManagement"
+                      type="number"
+                      value={assetsUnderManagement}
+                      onChange={(e) => setAssetsUnderManagement(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
+            {/* Fund of Funds Fields */}
+            {investorType === 'Fund of Funds' && (
+              <>
                 <div className="space-y-2">
-                  <Label htmlFor="zipCode">ZIP / Postal Code</Label>
+                  <Label htmlFor="email">Email *</Label>
                   <Input
-                    id="zipCode"
-                    value={zipCode}
-                    onChange={(e) => setZipCode(e.target.value)}
-                    placeholder="10001"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="fund@example.com"
+                    required
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fundName">Fund Name *</Label>
+                    <Input
+                      id="fundName"
+                      value={fundName}
+                      onChange={(e) => setFundName(e.target.value)}
+                      placeholder="Fund name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fundManager">Fund Manager</Label>
+                    <Input
+                      id="fundManager"
+                      value={fundManager}
+                      onChange={(e) => setFundManager(e.target.value)}
+                      placeholder="Manager name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="aum">AUM (Assets Under Management)</Label>
+                    <Input
+                      id="aum"
+                      type="number"
+                      value={aum}
+                      onChange={(e) => setAum(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
+            {/* Common fields for all types */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-sm font-medium">Additional Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Input
+                    id="phoneNumber"
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+1 (555) 000-0000"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="country">Country</Label>
                   <Input
                     id="country"
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    placeholder="United States"
+                    placeholder="Country"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="taxId">Tax ID</Label>
+                  <Input
+                    id="taxId"
+                    value={taxId}
+                    onChange={(e) => setTaxId(e.target.value)}
+                    placeholder="Tax ID"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="kycStatus">KYC Status</Label>
+                  <Select value={kycStatus} onValueChange={setKycStatus}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Not Started">Not Started</SelectItem>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Completed">Completed</SelectItem>
+                      <SelectItem value="Approved">Approved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="riskTolerance">Risk Tolerance</Label>
+                  <Select value={riskTolerance} onValueChange={setRiskTolerance}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select risk tolerance" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Conservative">Conservative</SelectItem>
+                      <SelectItem value="Moderate">Moderate</SelectItem>
+                      <SelectItem value="Aggressive">Aggressive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="investmentPreferences">Investment Preferences</Label>
+                  <Input
+                    id="investmentPreferences"
+                    value={investmentPreferences}
+                    onChange={(e) => setInvestmentPreferences(e.target.value)}
+                    placeholder="e.g., Real Estate, Technology, Healthcare"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="accreditedInvestor" className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="accreditedInvestor"
+                      checked={accreditedInvestor}
+                      onChange={(e) => setAccreditedInvestor(e.target.checked)}
+                      className="rounded"
+                    />
+                    Accredited Investor
+                  </Label>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
 
-        {/* Form Actions */}
-        <div className="flex justify-end gap-4 mt-6">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/investment-manager/investors">Cancel</Link>
-          </Button>
-          <Button type="submit">Create Investor</Button>
-        </div>
+            {/* Action buttons */}
+            <div className="flex gap-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/investment-manager/investors')}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Investor'
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </form>
     </div>
   )

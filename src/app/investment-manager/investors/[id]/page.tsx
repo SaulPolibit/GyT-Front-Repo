@@ -18,7 +18,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft, User, Users, Building, Briefcase, Mail, Phone, MapPin, Calendar, TrendingUp, TrendingDown, Pencil, Trash2, FileText, Download, Loader2, AlertCircle } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { ArrowLeft, User, Users, Building, Briefcase, Mail, Phone, MapPin, Calendar, TrendingUp, TrendingDown, Pencil, Trash2, FileText, Download, Loader2, AlertCircle, Upload, Eye } from "lucide-react"
 import type { Investor, CapitalCall, Distribution } from "@/lib/types"
 import { getStructures, type Structure } from "@/lib/structures-storage"
 import { getCapitalCalls } from "@/lib/capital-calls-storage"
@@ -44,6 +62,18 @@ export default function InvestorDetailPage({ params }: PageProps) {
   const [isDownloadingK1, setIsDownloadingK1] = useState(false)
   const [k1Year, setK1Year] = useState(2024)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showUploadDialog, setShowUploadDialog] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+  const [documents, setDocuments] = useState<any[]>([])
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
+  const [uploadForm, setUploadForm] = useState({
+    documentType: '',
+    documentName: '',
+    tags: '',
+    metadata: '',
+    notes: '',
+    file: null as File | null,
+  })
 
   // Load investor from API on mount
   useEffect(() => {
@@ -86,7 +116,69 @@ export default function InvestorDetailPage({ params }: PageProps) {
         const result = await response.json()
 
         if (result.success && result.data) {
-          setInvestor(result.data)
+          // Map API response to expected Investor type
+          const apiData = result.data
+
+          // Safely construct name with null checks
+          const firstName = apiData.firstName ?? ''
+          const lastName = apiData.lastName ?? ''
+          const fullName = `${firstName} ${lastName}`.trim()
+          const investorName = apiData.name || fullName || apiData.email || 'Unnamed'
+
+          // Safely construct address only if at least one field has a value
+          let address = null
+          if (apiData.addressLine1 || apiData.city || apiData.state || apiData.postalCode || apiData.country) {
+            address = {
+              street: apiData.addressLine1 ?? '',
+              city: apiData.city ?? '',
+              state: apiData.state ?? '',
+              zipCode: apiData.postalCode ?? '',
+              country: apiData.country ?? ''
+            }
+          } else if (apiData.address) {
+            address = apiData.address
+          }
+
+          // Safely map structures to fundOwnerships with null checks
+          const structures = apiData.structures || apiData.fundOwnerships || []
+          const fundOwnerships = Array.isArray(structures) ? structures.map((struct: any) => {
+            if (!struct) return null
+            return {
+              fundId: struct.structure_id ?? struct.id ?? struct.fundId ?? '',
+              fundName: struct.name ?? struct.structure_name ?? struct.fundName ?? 'Unknown Structure',
+              fundType: struct.type ?? struct.fundType ?? 'fund',
+              commitment: struct.commitment ?? struct.totalCommitment ?? 0,
+              investedDate: struct.investedDate ?? struct.createdAt ?? null,
+              customTerms: struct.customTerms ?? null,
+              hierarchyLevel: struct.hierarchyLevel ?? undefined,
+            }
+          }).filter(Boolean) : []
+
+          const mappedInvestor = {
+            ...apiData,
+            // Map name fields
+            name: investorName,
+            // Map status and type fields with null handling
+            status: apiData.kycStatus ?? apiData.status ?? 'Pending',
+            type: apiData.investorType ?? 'n/d',
+            // Map phone field
+            phone: apiData.phoneNumber ?? apiData.phone ?? null,
+            // Map date fields
+            investorSince: apiData.createdAt ?? apiData.investorSince ?? new Date().toISOString(),
+            // Set address
+            address: address,
+            // Set fundOwnerships
+            fundOwnerships: fundOwnerships,
+            // Set default values for missing fields
+            preferredContactMethod: apiData.preferredContactMethod ?? 'Email',
+            lastContactDate: apiData.lastContactDate ?? apiData.lastLogin ?? null,
+            k1Status: apiData.k1Status ?? 'Not Started',
+            k1DeliveryDate: apiData.k1DeliveryDate ?? null,
+            documents: Array.isArray(apiData.documents) ? apiData.documents : [],
+            notes: apiData.notes ?? apiData.investmentPreferences ?? null,
+            taxId: apiData.taxId ?? null,
+          }
+          setInvestor(mappedInvestor)
         } else {
           setError('Invalid response format from API')
         }
@@ -111,6 +203,54 @@ export default function InvestorDetailPage({ params }: PageProps) {
     setCapitalCalls(storedCapitalCalls)
     setDistributions(storedDistributions)
   }, [])
+
+  // Fetch documents from API
+  const fetchDocuments = async () => {
+    try {
+      setIsLoadingDocuments(true)
+      const token = getAuthToken()
+
+      if (!token) {
+        console.error('No authentication token found')
+        setIsLoadingDocuments(false)
+        return
+      }
+
+      const documentsUrl = getApiUrl(API_CONFIG.endpoints.getEntityDocuments('Investor', id))
+      const response = await fetch(documentsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        console.error('Failed to fetch documents:', response.status)
+        setIsLoadingDocuments(false)
+        return
+      }
+
+      const result = await response.json()
+      if (result.success && Array.isArray(result.data)) {
+        setDocuments(result.data)
+      } else {
+        setDocuments([])
+      }
+
+      setIsLoadingDocuments(false)
+    } catch (error) {
+      console.error('Error fetching documents:', error)
+      setIsLoadingDocuments(false)
+    }
+  }
+
+  // Load documents when investor is loaded
+  useEffect(() => {
+    if (investor) {
+      fetchDocuments()
+    }
+  }, [investor?.id])
 
   // Show loading state while fetching investor
   if (isLoading) {
@@ -150,10 +290,8 @@ export default function InvestorDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  // Construct investor name from firstName and lastName if needed
-  const firstName = (investor as any).firstName || ''
-  const lastName = (investor as any).lastName || ''
-  const investorName = investor.name || (firstName && lastName ? `${firstName} ${lastName}`.trim() : firstName || lastName || 'Unnamed')
+  // Use the mapped investor name (already constructed during API mapping)
+  const investorName = investor.name || 'Unnamed Investor'
 
   const handleDownloadK1 = async (year: number) => {
     try {
@@ -193,6 +331,87 @@ export default function InvestorDetailPage({ params }: PageProps) {
     }
   }
 
+  const handleUploadDocument = async () => {
+    try {
+      // Validate required fields
+      if (!uploadForm.file) {
+        toast.error('Please select a file to upload')
+        return
+      }
+      if (!uploadForm.documentType) {
+        toast.error('Please select a document type')
+        return
+      }
+      if (!uploadForm.documentName) {
+        toast.error('Please enter a document name')
+        return
+      }
+
+      setIsUploading(true)
+
+      // Get authentication token
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        setIsUploading(false)
+        return
+      }
+
+      // Create FormData
+      const formData = new FormData()
+      formData.append('entityType', 'Investor')
+      formData.append('entityId', id)
+      formData.append('documentType', uploadForm.documentType)
+      formData.append('documentName', uploadForm.documentName)
+      formData.append('tags', uploadForm.tags)
+      formData.append('metadata', uploadForm.metadata)
+      formData.append('notes', uploadForm.notes)
+      formData.append('file', uploadForm.file)
+
+      // Upload document
+      const uploadUrl = getApiUrl(API_CONFIG.endpoints.uploadDocument)
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // Don't set Content-Type header - browser will set it with boundary for FormData
+        },
+        body: formData
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to upload document')
+      }
+
+      const result = await response.json()
+
+      toast.success('Document uploaded successfully')
+
+      // Reset form
+      setUploadForm({
+        documentType: '',
+        documentName: '',
+        tags: '',
+        metadata: '',
+        notes: '',
+        file: null,
+      })
+
+      // Close dialog
+      setShowUploadDialog(false)
+
+      // Refresh documents list
+      await fetchDocuments()
+
+    } catch (error) {
+      console.error('Upload error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to upload document')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -226,14 +445,46 @@ export default function InvestorDetailPage({ params }: PageProps) {
     }
   }
 
+  const formatStatus = (status: string): string => {
+    if (!status) return 'Pending'
+    const normalized = status.toLowerCase()
+
+    // KYC/Onboarding statuses
+    if (normalized === 'not started') return 'Not Started'
+    if (normalized === 'in progress') return 'In Progress'
+    if (normalized === 'completed') return 'Completed'
+    if (normalized === 'approved') return 'Approved'
+    if (normalized === 'rejected') return 'Rejected'
+
+    // Standard statuses
+    if (normalized === 'kyc/kyb') return 'KYC/KYB'
+    if (normalized === 'pending') return 'Pending'
+    if (normalized === 'contracts') return 'Contracts'
+    if (normalized === 'commitment') return 'Commitment'
+    if (normalized === 'active') return 'Active'
+    if (normalized === 'inactive') return 'Inactive'
+
+    return status
+  }
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Pending': return 'outline'        // Pre-registered
-      case 'KYC/KYB': return 'outline'        // Identity verification
-      case 'Contracts': return 'outline'      // Contract signing
-      case 'Commitment': return 'outline'     // Capital commitment setup
-      case 'Active': return 'default'         // Fully onboarded
-      case 'Inactive': return 'secondary'     // Previously active
+    const normalizedStatus = formatStatus(status)
+    switch (normalizedStatus) {
+      // KYC/Onboarding statuses
+      case 'Not Started': return 'secondary'
+      case 'In Progress': return 'outline'
+      case 'Completed': return 'default'
+      case 'Approved': return 'default'
+      case 'Rejected': return 'destructive'
+
+      // Standard statuses
+      case 'Pending': return 'outline'
+      case 'KYC/KYB': return 'outline'
+      case 'Contracts': return 'outline'
+      case 'Commitment': return 'outline'
+      case 'Active': return 'default'
+      case 'Inactive': return 'secondary'
+
       default: return 'secondary'
     }
   }
@@ -398,7 +649,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl font-bold">{investorName}</h1>
               <Badge variant={getStatusColor(investor.status)}>
-                {investor.status}
+                {formatStatus(investor.status)}
               </Badge>
             </div>
             <div className="flex items-center gap-4 text-muted-foreground">
@@ -862,34 +1113,220 @@ export default function InvestorDetailPage({ params }: PageProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Documents</CardTitle>
-            <Button variant="outline" size="sm">
-              <FileText className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={() => setShowUploadDialog(true)}>
+              <Upload className="h-4 w-4 mr-2" />
               Upload Document
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {investor.documents && investor.documents.length > 0 ? (
+          {isLoadingDocuments ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            </div>
+          ) : documents && documents.length > 0 ? (
             <div className="space-y-2">
-              {investor.documents.map((doc) => (
+              {documents.map((doc) => (
                 <div key={doc.id} className="flex items-center justify-between p-3 border rounded hover:bg-muted/50">
-                  <div>
-                    <div className="font-medium">{doc.name}</div>
+                  <div className="flex-1">
+                    <div className="font-medium">{doc.documentName || doc.name}</div>
                     <div className="text-sm text-muted-foreground">
-                      {doc.type} • Uploaded {formatDate(doc.uploadedDate)} by {doc.uploadedBy}
+                      {doc.documentType || doc.type}
+                      {doc.createdAt && ` • Uploaded ${formatDate(doc.createdAt)}`}
+                      {doc.uploadedBy && ` by ${doc.uploadedBy}`}
                     </div>
+                    {doc.tags && (
+                      <div className="flex gap-1 mt-1">
+                        {(typeof doc.tags === 'string' ? doc.tags.split(',') : doc.tags).map((tag: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            {tag.trim()}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    {doc.notes && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {doc.notes}
+                      </div>
+                    )}
                   </div>
-                  <Button variant="ghost" size="sm">Download</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (doc.filePath) {
+                        window.open(doc.filePath, '_blank')
+                      } else {
+                        toast.error('Document file path not available')
+                      }
+                    }}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    See
+                  </Button>
                 </div>
               ))}
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              No documents uploaded yet
+              <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>No documents uploaded yet</p>
+              <p className="text-sm mt-1">Click "Upload Document" to add files</p>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Upload Document Dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Upload Document</DialogTitle>
+            <DialogDescription>
+              Upload a document for {investorName}. All fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* File Upload */}
+            <div className="space-y-2">
+              <Label htmlFor="file">File *</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null
+                  setUploadForm({ ...uploadForm, file })
+                  // Auto-fill document name from filename if empty
+                  if (file && !uploadForm.documentName) {
+                    setUploadForm({ ...uploadForm, file, documentName: file.name })
+                  }
+                }}
+                disabled={isUploading}
+              />
+              {uploadForm.file && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {uploadForm.file.name} ({(uploadForm.file.size / 1024).toFixed(2)} KB)
+                </p>
+              )}
+            </div>
+
+            {/* Document Type */}
+            <div className="space-y-2">
+              <Label htmlFor="documentType">Document Type *</Label>
+              <Select
+                value={uploadForm.documentType}
+                onValueChange={(value) => setUploadForm({ ...uploadForm, documentType: value })}
+                disabled={isUploading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select document type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ID">ID Document</SelectItem>
+                  <SelectItem value="Proof of Address">Proof of Address</SelectItem>
+                  <SelectItem value="Tax Document">Tax Document</SelectItem>
+                  <SelectItem value="Bank Statement">Bank Statement</SelectItem>
+                  <SelectItem value="Contract">Contract</SelectItem>
+                  <SelectItem value="Agreement">Agreement</SelectItem>
+                  <SelectItem value="Subscription Document">Subscription Document</SelectItem>
+                  <SelectItem value="KYC Document">KYC Document</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Document Name */}
+            <div className="space-y-2">
+              <Label htmlFor="documentName">Document Name *</Label>
+              <Input
+                id="documentName"
+                placeholder="e.g., Passport Copy, Utility Bill, etc."
+                value={uploadForm.documentName}
+                onChange={(e) => setUploadForm({ ...uploadForm, documentName: e.target.value })}
+                disabled={isUploading}
+              />
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags (Optional)</Label>
+              <Input
+                id="tags"
+                placeholder="e.g., urgent, verified, reviewed (comma-separated)"
+                value={uploadForm.tags}
+                onChange={(e) => setUploadForm({ ...uploadForm, tags: e.target.value })}
+                disabled={isUploading}
+              />
+              <p className="text-sm text-muted-foreground">
+                Separate multiple tags with commas
+              </p>
+            </div>
+
+            {/* Metadata */}
+            <div className="space-y-2">
+              <Label htmlFor="metadata">Metadata (Optional)</Label>
+              <Input
+                id="metadata"
+                placeholder="Additional metadata as JSON string"
+                value={uploadForm.metadata}
+                onChange={(e) => setUploadForm({ ...uploadForm, metadata: e.target.value })}
+                disabled={isUploading}
+              />
+              <p className="text-sm text-muted-foreground">
+                Optional: JSON format metadata
+              </p>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Add any additional notes about this document..."
+                value={uploadForm.notes}
+                onChange={(e) => setUploadForm({ ...uploadForm, notes: e.target.value })}
+                disabled={isUploading}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowUploadDialog(false)
+                // Reset form when closing
+                setUploadForm({
+                  documentType: '',
+                  documentName: '',
+                  tags: '',
+                  metadata: '',
+                  notes: '',
+                  file: null,
+                })
+              }}
+              disabled={isUploading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUploadDocument} disabled={isUploading}>
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Document
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

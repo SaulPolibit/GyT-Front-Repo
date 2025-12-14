@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   IconFileDescription,
   IconUpload,
@@ -21,170 +24,394 @@ import {
   IconFileTypeDoc,
   IconFileSpreadsheet,
   IconCalendar,
-  IconFilter
+  IconBriefcase
 } from '@tabler/icons-react'
-import { getStructures } from '@/lib/structures-storage'
-import { getInvestors } from '@/lib/investors-storage'
+import { Loader2 } from 'lucide-react'
+import { API_CONFIG, getApiUrl } from '@/lib/api-config'
+import { getAuthToken } from '@/lib/auth-storage'
+import { toast } from 'sonner'
 
-const mockDocuments = [
-  {
-    id: '1',
-    name: 'Q4 2024 Quarterly Report.pdf',
-    type: 'Financial Report',
-    category: 'Structure Documents',
-    structureId: '1',
-    structureName: 'Vanguard Real Estate Fund I',
-    size: '2.4 MB',
-    uploadedBy: 'Gabriela Mena',
-    uploadedDate: '2024-12-15',
-    fileType: 'pdf'
-  },
-  {
-    id: '2',
-    name: 'Limited Partnership Agreement.pdf',
-    type: 'Legal Document',
-    category: 'Structure Documents',
-    structureId: '1',
-    structureName: 'Vanguard Real Estate Fund I',
-    size: '5.1 MB',
-    uploadedBy: 'Gabriela Mena',
-    uploadedDate: '2024-01-10',
-    fileType: 'pdf'
-  },
-  {
-    id: '3',
-    name: 'Private Placement Memorandum.pdf',
-    type: 'Legal Document',
-    category: 'Structure Documents',
-    structureId: '1',
-    structureName: 'Vanguard Real Estate Fund I',
-    size: '8.7 MB',
-    uploadedBy: 'Gabriela Mena',
-    uploadedDate: '2024-01-05',
-    fileType: 'pdf'
-  },
-  {
-    id: '4',
-    name: 'K-1 Tax Form 2024 - John Smith.pdf',
-    type: 'Tax Document',
-    category: 'Investor Documents',
-    structureId: '1',
-    structureName: 'Vanguard Real Estate Fund I',
-    investorId: '1',
-    investorName: 'John Smith',
-    size: '145 KB',
-    uploadedBy: 'System Generated',
-    uploadedDate: '2024-03-15',
-    fileType: 'pdf'
-  },
-  {
-    id: '5',
-    name: 'Subscription Agreement - Maria Garcia.pdf',
-    type: 'Legal Document',
-    category: 'Investor Documents',
-    structureId: '1',
-    structureName: 'Vanguard Real Estate Fund I',
-    investorId: '2',
-    investorName: 'Maria Garcia',
-    size: '892 KB',
-    uploadedBy: 'Maria Garcia',
-    uploadedDate: '2024-02-20',
-    fileType: 'pdf'
-  },
-  {
-    id: '6',
-    name: 'Capital Call Notice #5.pdf',
-    type: 'Capital Call',
-    category: 'Investor Documents',
-    structureId: '1',
-    structureName: 'Vanguard Real Estate Fund I',
-    investorId: '1',
-    investorName: 'John Smith',
-    size: '234 KB',
-    uploadedBy: 'Gabriela Mena',
-    uploadedDate: '2024-11-01',
-    fileType: 'pdf'
-  },
-  {
-    id: '7',
-    name: 'Distribution Notice #3.pdf',
-    type: 'Distribution',
-    category: 'Investor Documents',
-    structureId: '1',
-    structureName: 'Vanguard Real Estate Fund I',
-    investorId: '2',
-    investorName: 'Maria Garcia',
-    size: '198 KB',
-    uploadedBy: 'System Generated',
-    uploadedDate: '2024-10-15',
-    fileType: 'pdf'
-  },
-  {
-    id: '8',
-    name: 'Annual Financial Statements 2024.xlsx',
-    type: 'Financial Report',
-    category: 'Structure Documents',
-    structureId: '2',
-    structureName: 'Tech Growth SPV',
-    size: '1.2 MB',
-    uploadedBy: 'Gabriela Mena',
-    uploadedDate: '2024-12-20',
-    fileType: 'excel'
-  },
-]
+interface Document {
+  id: string
+  documentName: string
+  documentType: string
+  entityType: string
+  entityId: string
+  entityName?: string
+  filePath: string
+  fileSize?: number
+  tags?: string | string[]
+  notes?: string
+  createdAt: string
+  uploadedBy?: string
+}
+
+interface Structure {
+  id: string
+  name: string
+}
+
+interface Investor {
+  id: string
+  name?: string
+  firstName?: string
+  lastName?: string
+  email?: string
+}
+
+interface Investment {
+  id: string
+  name: string
+  type?: string
+}
 
 export default function DocumentsPage() {
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [structures, setStructures] = useState<Structure[]>([])
+  const [investors, setInvestors] = useState<Investor[]>([])
+  const [investments, setInvestments] = useState<Investment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStructure, setSelectedStructure] = useState<string>('all')
   const [selectedInvestor, setSelectedInvestor] = useState<string>('all')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [structures, setStructures] = useState<any[]>([])
-  const [investors, setInvestors] = useState<any[]>([])
+
+  // Upload dialog state
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [uploadEntityType, setUploadEntityType] = useState<'Structure' | 'Investor' | 'Investment'>('Structure')
+  const [uploadEntityId, setUploadEntityId] = useState('')
+  const [uploadDocumentType, setUploadDocumentType] = useState('')
+  const [uploadDocumentName, setUploadDocumentName] = useState('')
+  const [uploadTags, setUploadTags] = useState('')
+  const [uploadMetadata, setUploadMetadata] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
-    setStructures(getStructures())
-    setInvestors(getInvestors())
+    fetchData()
   }, [])
 
-  const getFileIcon = (fileType: string) => {
-    switch (fileType) {
+  const fetchData = async () => {
+    try {
+      setIsLoading(true)
+      const token = getAuthToken()
+
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        setIsLoading(false)
+        return
+      }
+
+      let fetchedDocuments: Document[] = []
+      let fetchedStructures: Structure[] = []
+      let fetchedInvestors: Investor[] = []
+      let fetchedInvestments: Investment[] = []
+
+      // Fetch documents
+      const documentsUrl = getApiUrl(API_CONFIG.endpoints.getAllDocuments)
+      const documentsResponse = await fetch(documentsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (documentsResponse.ok) {
+        const result = await documentsResponse.json()
+        if (result.success && Array.isArray(result.data)) {
+          fetchedDocuments = result.data
+        }
+      }
+
+      // Fetch structures
+      const structuresUrl = getApiUrl(API_CONFIG.endpoints.getAllStructures)
+      const structuresResponse = await fetch(structuresUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (structuresResponse.ok) {
+        const result = await structuresResponse.json()
+        if (result.success && Array.isArray(result.data)) {
+          fetchedStructures = result.data
+          setStructures(result.data)
+        }
+      }
+
+      // Fetch investors
+      const investorsUrl = getApiUrl(API_CONFIG.endpoints.getAllInvestorsWithStructures)
+      const investorsResponse = await fetch(investorsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (investorsResponse.ok) {
+        const result = await investorsResponse.json()
+        if (result.success && Array.isArray(result.data)) {
+          fetchedInvestors = result.data
+          setInvestors(result.data)
+        }
+      }
+
+      // Fetch investments
+      const investmentsUrl = getApiUrl(API_CONFIG.endpoints.getAllInvestments)
+      const investmentsResponse = await fetch(investmentsUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (investmentsResponse.ok) {
+        const result = await investmentsResponse.json()
+        if (result.success && Array.isArray(result.data)) {
+          fetchedInvestments = result.data
+          setInvestments(result.data)
+        }
+      }
+
+      // Enrich documents with entity names
+      const enrichedDocuments = fetchedDocuments.map(doc => {
+        if (doc.entityType === 'Structure') {
+          const structure = fetchedStructures.find(s => s.id === doc.entityId)
+          return {
+            ...doc,
+            entityName: structure?.name || doc.entityName
+          }
+        } else if (doc.entityType === 'Investor') {
+          const investor = fetchedInvestors.find(inv => inv.id === doc.entityId)
+          const investorName = investor?.name ||
+            `${investor?.firstName || ''} ${investor?.lastName || ''}`.trim() ||
+            investor?.email
+          return {
+            ...doc,
+            entityName: investorName || doc.entityName
+          }
+        } else if (doc.entityType === 'Investment') {
+          const investment = fetchedInvestments.find(inv => inv.id === doc.entityId)
+          return {
+            ...doc,
+            entityName: investment?.name || doc.entityName
+          }
+        }
+        return doc
+      })
+
+      setDocuments(enrichedDocuments)
+      setIsLoading(false)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      toast.error('Failed to load data')
+      setIsLoading(false)
+    }
+  }
+
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase()
+    switch (extension) {
       case 'pdf':
         return <IconFileTypePdf className="w-8 h-8 text-red-500" />
-      case 'excel':
+      case 'xlsx':
+      case 'xls':
+      case 'csv':
         return <IconFileSpreadsheet className="w-8 h-8 text-green-600" />
-      case 'word':
+      case 'doc':
+      case 'docx':
         return <IconFileTypeDoc className="w-8 h-8 text-blue-600" />
       default:
         return <IconFileDescription className="w-8 h-8 text-muted-foreground" />
     }
   }
 
-  const filteredDocuments = mockDocuments.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         doc.type.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStructure = selectedStructure === 'all' || doc.structureId === selectedStructure
-    const matchesInvestor = selectedInvestor === 'all' || doc.investorId === selectedInvestor
-    const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return 'Unknown size'
+    const kb = bytes / 1024
+    if (kb < 1024) return `${kb.toFixed(2)} KB`
+    const mb = kb / 1024
+    return `${mb.toFixed(2)} MB`
+  }
+
+  const handleDownloadDocument = (doc: Document) => {
+    if (!doc.filePath) {
+      toast.error('Document file path not available')
+      return
+    }
+
+    // Create a temporary anchor element to trigger download
+    const link = document.createElement('a')
+    link.href = doc.filePath
+    link.download = doc.documentName || 'document'
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success('Download started')
+  }
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (!confirm('Are you sure you want to delete this document?')) {
+      return
+    }
+
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const deleteUrl = getApiUrl(API_CONFIG.endpoints.deleteDocument(documentId))
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        // Remove document from state
+        setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== documentId))
+        toast.success('Document deleted successfully')
+      } else {
+        const result = await response.json()
+        toast.error(result.error || 'Failed to delete document')
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error)
+      toast.error('Failed to delete document')
+    }
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setUploadFile(file)
+      // Auto-fill document name from file name
+      if (!uploadDocumentName) {
+        setUploadDocumentName(file.name)
+      }
+    }
+  }
+
+  const resetUploadForm = () => {
+    setUploadFile(null)
+    setUploadEntityType('Structure')
+    setUploadEntityId('')
+    setUploadDocumentType('')
+    setUploadDocumentName('')
+    setUploadTags('')
+    setUploadMetadata('')
+  }
+
+  const handleUploadDocument = async () => {
+    if (!uploadFile) {
+      toast.error('Please select a file')
+      return
+    }
+
+    if (!uploadEntityId) {
+      toast.error('Please select an entity')
+      return
+    }
+
+    if (!uploadDocumentType) {
+      toast.error('Please enter a document type')
+      return
+    }
+
+    try {
+      setIsUploading(true)
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const formData = new FormData()
+      formData.append('file', uploadFile)
+      formData.append('entityType', uploadEntityType)
+      formData.append('entityId', uploadEntityId)
+      formData.append('documentType', uploadDocumentType)
+      formData.append('documentName', uploadDocumentName || uploadFile.name)
+      if (uploadTags) formData.append('tags', uploadTags)
+      if (uploadMetadata) formData.append('metadata', uploadMetadata)
+
+      const uploadUrl = getApiUrl(API_CONFIG.endpoints.uploadDocument)
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (response.ok) {
+        await response.json()
+        toast.success('Document uploaded successfully')
+        setUploadDialogOpen(false)
+        resetUploadForm()
+        // Refresh documents list
+        fetchData()
+      } else {
+        const result = await response.json()
+        toast.error(result.error || 'Failed to upload document')
+      }
+    } catch (error) {
+      console.error('Error uploading document:', error)
+      toast.error('Failed to upload document')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = doc.documentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         doc.documentType.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStructure = selectedStructure === 'all' || doc.entityId === selectedStructure
+    const matchesInvestor = selectedInvestor === 'all' || doc.entityId === selectedInvestor
+    const matchesCategory = selectedCategory === 'all' ||
+      (selectedCategory === 'Structure Documents' && doc.entityType === 'Structure') ||
+      (selectedCategory === 'Investor Documents' && doc.entityType === 'Investor') ||
+      (selectedCategory === 'Investment Documents' && doc.entityType === 'Investment')
 
     return matchesSearch && matchesStructure && matchesInvestor && matchesCategory
   })
 
-  const structureDocs = filteredDocuments.filter(doc => doc.category === 'Structure Documents')
-  const investorDocs = filteredDocuments.filter(doc => doc.category === 'Investor Documents')
+  const structureDocs = filteredDocuments.filter(doc => doc.entityType === 'Structure')
+  const investorDocs = filteredDocuments.filter(doc => doc.entityType === 'Investor')
+  const investmentDocs = filteredDocuments.filter(doc => doc.entityType === 'Investment')
 
   // Group investor documents by investor
   const investorDocsGrouped = investorDocs.reduce((acc, doc) => {
-    if (!doc.investorId) return acc
-    if (!acc[doc.investorId]) {
-      acc[doc.investorId] = {
-        investorName: doc.investorName || '',
-        structureName: doc.structureName,
+    if (!acc[doc.entityId]) {
+      acc[doc.entityId] = {
+        investorName: doc.entityName || `Investor ${doc.entityId}`,
         documents: []
       }
     }
-    acc[doc.investorId].documents.push(doc)
+    acc[doc.entityId].documents.push(doc)
     return acc
-  }, {} as Record<string, { investorName: string; structureName: string; documents: typeof mockDocuments }>)
+  }, {} as Record<string, { investorName: string; documents: Document[] }>)
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading documents...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-6">
@@ -196,7 +423,7 @@ export default function DocumentsPage() {
             Manage structure and investor documents organized by fund
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setUploadDialogOpen(true)}>
           <IconUpload className="w-4 h-4 mr-2" />
           Upload Document
         </Button>
@@ -207,7 +434,7 @@ export default function DocumentsPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Total Documents</CardDescription>
-            <CardTitle className="text-3xl">{mockDocuments.length}</CardTitle>
+            <CardTitle className="text-3xl">{documents.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -224,8 +451,8 @@ export default function DocumentsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardDescription>Active Structures</CardDescription>
-            <CardTitle className="text-3xl">{structures.length}</CardTitle>
+            <CardDescription>Investment Documents</CardDescription>
+            <CardTitle className="text-3xl">{investmentDocs.length}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -267,13 +494,11 @@ export default function DocumentsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Investors</SelectItem>
-                {investors
-                  .filter(inv => selectedStructure === 'all' || inv.fundOwnerships?.[0]?.fundId === selectedStructure)
-                  .map(investor => (
-                    <SelectItem key={investor.id} value={investor.id}>
-                      {investor.name}
-                    </SelectItem>
-                  ))}
+                {investors.map(investor => (
+                  <SelectItem key={investor.id} value={investor.id}>
+                    {investor.name || `${investor.firstName || ''} ${investor.lastName || ''}`.trim() || investor.email}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -285,6 +510,7 @@ export default function DocumentsPage() {
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="Structure Documents">Structure Documents</SelectItem>
                 <SelectItem value="Investor Documents">Investor Documents</SelectItem>
+                <SelectItem value="Investment Documents">Investment Documents</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -301,6 +527,10 @@ export default function DocumentsPage() {
           <TabsTrigger value="investor">
             <IconUsers className="w-4 h-4 mr-2" />
             Investor Documents ({investorDocs.length})
+          </TabsTrigger>
+          <TabsTrigger value="investment">
+            <IconBriefcase className="w-4 h-4 mr-2" />
+            Investment Documents ({investmentDocs.length})
           </TabsTrigger>
         </TabsList>
 
@@ -327,34 +557,52 @@ export default function DocumentsPage() {
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-4 flex-1">
-                        {getFileIcon(doc.fileType)}
+                        {getFileIcon(doc.documentName)}
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium">{doc.name}</p>
-                            <Badge variant="outline">{doc.type}</Badge>
+                            <p className="font-medium">{doc.documentName}</p>
+                            <Badge variant="outline">{doc.documentType}</Badge>
                           </div>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1">
                               <IconBuilding className="w-3 h-3" />
-                              {doc.structureName}
+                              {doc.entityName || 'Unknown Structure'}
                             </span>
-                            <span>{doc.size}</span>
+                            {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
                             <span className="flex items-center gap-1">
                               <IconCalendar className="w-3 h-3" />
-                              {new Date(doc.uploadedDate).toLocaleDateString()}
+                              {new Date(doc.createdAt).toLocaleDateString()}
                             </span>
-                            <span>by {doc.uploadedBy}</span>
+                            {doc.uploadedBy && <span>by {doc.uploadedBy}</span>}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (doc.filePath) {
+                              window.open(doc.filePath, '_blank')
+                            } else {
+                              toast.error('Document file path not available')
+                            }
+                          }}
+                        >
                           <IconEye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadDocument(doc)}
+                        >
                           <IconDownload className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteDocument(doc.id)}
+                        >
                           <IconTrash className="w-4 h-4" />
                         </Button>
                       </div>
@@ -392,7 +640,7 @@ export default function DocumentsPage() {
                             <h3 className="font-semibold text-lg">{data.investorName}</h3>
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">
-                            {data.structureName} • {data.documents.length} documents
+                            {data.documents.length} document{data.documents.length !== 1 ? 's' : ''}
                           </p>
                         </div>
                         <Button variant="outline" size="sm">
@@ -408,32 +656,50 @@ export default function DocumentsPage() {
                             className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                           >
                             <div className="flex items-center gap-3 flex-1">
-                              {getFileIcon(doc.fileType)}
+                              {getFileIcon(doc.documentName)}
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-medium text-sm">{doc.name}</p>
+                                  <p className="font-medium text-sm">{doc.documentName}</p>
                                   <Badge variant="secondary" className="text-xs">
-                                    {doc.type}
+                                    {doc.documentType}
                                   </Badge>
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                  <span>{doc.size}</span>
+                                  {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
                                   <span className="flex items-center gap-1">
                                     <IconCalendar className="w-3 h-3" />
-                                    {new Date(doc.uploadedDate).toLocaleDateString()}
+                                    {new Date(doc.createdAt).toLocaleDateString()}
                                   </span>
-                                  <span>by {doc.uploadedBy}</span>
+                                  {doc.uploadedBy && <span>by {doc.uploadedBy}</span>}
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  if (doc.filePath) {
+                                    window.open(doc.filePath, '_blank')
+                                  } else {
+                                    toast.error('Document file path not available')
+                                  }
+                                }}
+                              >
                                 <IconEye className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDownloadDocument(doc)}
+                              >
                                 <IconDownload className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteDocument(doc.id)}
+                              >
                                 <IconTrash className="w-4 h-4" />
                               </Button>
                             </div>
@@ -447,7 +713,241 @@ export default function DocumentsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Investment Documents Tab */}
+        <TabsContent value="investment" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Investment-Level Documents</CardTitle>
+              <CardDescription>
+                Documents related to specific portfolio investments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {investmentDocs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <IconBriefcase className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">No investment documents found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {investmentDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        {getFileIcon(doc.documentName)}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium">{doc.documentName}</p>
+                            <Badge variant="outline">{doc.documentType}</Badge>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <IconBriefcase className="w-3 h-3" />
+                              {doc.entityName || 'Unknown Investment'}
+                            </span>
+                            {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
+                            <span className="flex items-center gap-1">
+                              <IconCalendar className="w-3 h-3" />
+                              {new Date(doc.createdAt).toLocaleDateString()}
+                            </span>
+                            {doc.uploadedBy && <span>by {doc.uploadedBy}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (doc.filePath) {
+                              window.open(doc.filePath, '_blank')
+                            } else {
+                              toast.error('Document file path not available')
+                            }
+                          }}
+                        >
+                          <IconEye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadDocument(doc)}
+                        >
+                          <IconDownload className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteDocument(doc.id)}
+                        >
+                          <IconTrash className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Upload Document Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Upload Document</DialogTitle>
+            <DialogDescription>
+              Upload a new document for a structure, investor, or investment
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* File Upload */}
+            <div className="space-y-2">
+              <Label htmlFor="file">File *</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={handleFileSelect}
+                disabled={isUploading}
+              />
+              {uploadFile && (
+                <p className="text-sm text-muted-foreground">
+                  Selected: {uploadFile.name}
+                </p>
+              )}
+            </div>
+
+            {/* Entity Type */}
+            <div className="space-y-2">
+              <Label htmlFor="entityType">Entity Type *</Label>
+              <Select
+                value={uploadEntityType}
+                onValueChange={(value: 'Structure' | 'Investor' | 'Investment') => {
+                  setUploadEntityType(value)
+                  setUploadEntityId('') // Reset entity ID when type changes
+                }}
+                disabled={isUploading}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Structure">Structure</SelectItem>
+                  <SelectItem value="Investor">Investor</SelectItem>
+                  <SelectItem value="Investment">Investment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Entity Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="entityId">
+                {uploadEntityType === 'Structure' ? 'Structure' : uploadEntityType === 'Investor' ? 'Investor' : 'Investment'} *
+              </Label>
+              <Select
+                value={uploadEntityId}
+                onValueChange={setUploadEntityId}
+                disabled={isUploading}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={`Select ${uploadEntityType.toLowerCase()}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {uploadEntityType === 'Structure' ? (
+                    structures.map(structure => (
+                      <SelectItem key={structure.id} value={structure.id}>
+                        {structure.name}
+                      </SelectItem>
+                    ))
+                  ) : uploadEntityType === 'Investor' ? (
+                    investors.map(investor => (
+                      <SelectItem key={investor.id} value={investor.id}>
+                        {investor.name || `${investor.firstName || ''} ${investor.lastName || ''}`.trim() || investor.email}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    investments.map(investment => (
+                      <SelectItem key={investment.id} value={investment.id}>
+                        {investment.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Document Type */}
+            <div className="space-y-2">
+              <Label htmlFor="documentType">Document Type *</Label>
+              <Input
+                id="documentType"
+                value={uploadDocumentType}
+                onChange={(e) => setUploadDocumentType(e.target.value)}
+                placeholder="e.g., Financial Report, Legal Document, K-1 Tax Form"
+                disabled={isUploading}
+              />
+            </div>
+
+            {/* Document Name */}
+            <div className="space-y-2">
+              <Label htmlFor="documentName">Document Name</Label>
+              <Input
+                id="documentName"
+                value={uploadDocumentName}
+                onChange={(e) => setUploadDocumentName(e.target.value)}
+                placeholder="Auto-filled from file name"
+                disabled={isUploading}
+              />
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags</Label>
+              <Input
+                id="tags"
+                value={uploadTags}
+                onChange={(e) => setUploadTags(e.target.value)}
+                placeholder="Comma-separated tags"
+                disabled={isUploading}
+              />
+            </div>
+
+            {/* Metadata */}
+            <div className="space-y-2">
+              <Label htmlFor="metadata">Metadata</Label>
+              <Textarea
+                id="metadata"
+                value={uploadMetadata}
+                onChange={(e) => setUploadMetadata(e.target.value)}
+                placeholder="Additional metadata (JSON format)"
+                rows={3}
+                disabled={isUploading}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setUploadDialogOpen(false)
+                resetUploadForm()
+              }}
+              disabled={isUploading}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUploadDocument} disabled={isUploading}>
+              {isUploading ? 'Uploading...' : 'Upload'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

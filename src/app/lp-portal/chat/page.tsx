@@ -30,6 +30,7 @@ import {
   IconDownload,
   IconPlus,
   IconUser,
+  IconTrash,
 } from '@tabler/icons-react'
 import { getStructures } from '@/lib/structures-storage'
 import {
@@ -339,7 +340,8 @@ export default function LPChatPage() {
       const result = await response.json()
 
       if (result.success && result.data) {
-        setMessages(result.data.reverse()) // Reverse to show oldest first
+        // Messages should be ordered oldest to newest (chronological)
+        setMessages(result.data)
 
         // Mark unread messages as read
         result.data.forEach((msg: Message) => {
@@ -480,6 +482,92 @@ export default function LPChatPage() {
     } catch (error: any) {
       console.error('Error deleting message:', error)
       toast.error(error.message || 'Failed to delete message')
+    }
+  }
+
+  const deleteConversation = async (conversationId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation() // Prevent conversation selection when clicking delete
+    }
+
+    // Confirmation dialog
+    const confirmed = window.confirm('Are you sure you want to delete this conversation? This action cannot be undone.')
+    if (!confirmed) {
+      return
+    }
+
+    const token = getAuthToken()
+    if (!token) {
+      toast.error('Authentication required')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.deleteConversation(conversationId)),
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      // Handle HTTP errors
+      if (!response.ok) {
+        let errorMessage = 'Failed to delete conversation'
+
+        try {
+          const responseText = await response.text()
+          console.log('Raw error response:', responseText)
+
+          if (responseText) {
+            const errorData = JSON.parse(responseText)
+            console.error('Parsed error response:', errorData)
+
+            // Try multiple fields to get the error message
+            if (errorData.message) {
+              errorMessage = errorData.message
+            } else if (errorData.error) {
+              errorMessage = errorData.error
+            } else if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+              // Extract message from errors array
+              errorMessage = errorData.errors[0].message || errorMessage
+            }
+          }
+        } catch (parseError) {
+          // If response is not JSON, use status text
+          console.error('Failed to parse error response:', parseError)
+          errorMessage = `${errorMessage} (${response.status}: ${response.statusText})`
+        }
+
+        console.log('Showing error toast:', errorMessage)
+        toast.error(errorMessage)
+        return
+      }
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Remove conversation from list
+        setConversations(prev => prev.filter(conv => conv.id !== conversationId))
+
+        // If deleted conversation was selected, clear selection
+        if (selectedConversation === conversationId) {
+          setSelectedConversation(null)
+          setMessages([])
+        }
+
+        toast.success('Conversation deleted successfully')
+      } else {
+        // API returned success: false
+        toast.error(result.error || result.message || 'Failed to delete conversation')
+      }
+    } catch (error: any) {
+      console.error('Error deleting conversation:', error)
+      // Network error or other exception
+      toast.error(error.message || 'Network error: Unable to delete conversation')
     }
   }
 
@@ -666,14 +754,14 @@ export default function LPChatPage() {
           ) : (
             <div className="space-y-1 p-2">
               {filteredConversations.map((conversation) => (
-                <button
+                <div
                   key={conversation.id}
-                  onClick={() => setSelectedConversation(conversation.id)}
-                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                  className={`relative group w-full text-left p-3 rounded-lg transition-colors cursor-pointer ${
                     selectedConversation === conversation.id
                       ? 'bg-primary/10 border-l-4 border-primary'
                       : 'hover:bg-muted/50'
                   }`}
+                  onClick={() => setSelectedConversation(conversation.id)}
                 >
                   <div className="flex items-start gap-3">
                     <div className="relative">
@@ -691,6 +779,13 @@ export default function LPChatPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="font-semibold text-sm truncate">{conversation.name}</p>
+                        <button
+                          onClick={(e) => deleteConversation(conversation.id, e)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                          title="Delete conversation"
+                        >
+                          <IconTrash className="w-4 h-4 text-destructive" />
+                        </button>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <p className="text-xs text-muted-foreground">
@@ -709,7 +804,7 @@ export default function LPChatPage() {
                       )}
                     </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

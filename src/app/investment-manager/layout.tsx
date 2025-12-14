@@ -7,6 +7,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
+import { Toaster } from "@/components/ui/sonner"
 import { UserProvider } from "@/contexts/UserContext"
 import { AuthGuard } from "@/components/auth-guard"
 import { useState } from "react"
@@ -37,6 +38,7 @@ export default function InvestmentManagerLayout({
               {children}
             </div>
           </SidebarInset>
+          <Toaster />
         </SidebarProvider>
       </UserProvider>
     </AuthGuard>

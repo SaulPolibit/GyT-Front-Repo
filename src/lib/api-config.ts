@@ -49,10 +49,13 @@ export const API_CONFIG = {
     // User profile
     updateUserProfile: '/api/custom/user/profile',
     uploadProfileImage: '/api/custom/user/profile-image',
+    getUsersByRole: (roles: string) => `/api/users/filter?role=${roles}`,
+    createInvestor: '/api/investors',
 
     // Chat/Messages API
     getConversations: '/api/conversations',
     createConversation: '/api/conversations',
+    deleteConversation: (conversationId: string) => `/api/conversations/${conversationId}`,
     getMessages: (conversationId: string) => `/api/conversations/${conversationId}/messages`,
     sendMessage: (conversationId: string) => `/api/conversations/${conversationId}/messages`,
     sendFileMessage: (conversationId: string) => `/api/conversations/${conversationId}/messages/file`,
@@ -62,6 +65,7 @@ export const API_CONFIG = {
     getAvailableUsers: '/api/messages/available-users',
 
     // Documents API
+    getAllDocuments: '/api/documents/all',
     getCombinedDocuments: '/api/documents/combined',
     uploadDocument: '/api/documents',
     getEntityDocuments: (entityType: string, entityId: string) => `/api/documents/entity/${entityType}/${entityId}`,

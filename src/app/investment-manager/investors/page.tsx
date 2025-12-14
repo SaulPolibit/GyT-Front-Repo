@@ -65,7 +65,7 @@ export default function InvestorsPage() {
             ...inv,
             // Map API fields to expected fields
             name: inv.name || `${inv.firstName || ''} ${inv.lastName || ''}`.trim() || inv.email,
-            type: inv.type || 'Individual',
+            type: inv.investorType || 'n/d',
             status: inv.kycStatus || inv.status || 'Pending',
             // Map structures array to fundOwnerships for backward compatibility
             fundOwnerships: (inv.structures || []).map((struct: any) => ({
@@ -339,12 +339,22 @@ export default function InvestorsPage() {
     // Handle special cases first, then apply normal case transformation
     if (!status) return 'Pending'
     const normalized = status.toLowerCase()
+
+    // KYC/Onboarding statuses
+    if (normalized === 'not started') return 'Not Started'
+    if (normalized === 'in progress') return 'In Progress'
+    if (normalized === 'completed') return 'Completed'
+    if (normalized === 'approved') return 'Approved'
+    if (normalized === 'rejected') return 'Rejected'
+
+    // Standard statuses
     if (normalized === 'kyc/kyb') return 'KYC/KYB'
     if (normalized === 'pending') return 'Pending'
     if (normalized === 'contracts') return 'Contracts'
     if (normalized === 'commitment') return 'Commitment'
     if (normalized === 'active') return 'Active'
     if (normalized === 'inactive') return 'Inactive'
+
     return status // Return as-is if unrecognized
   }
 
@@ -352,23 +362,21 @@ export default function InvestorsPage() {
     // Handle both formats: lowercase and capitalized
     const normalizedStatus = formatStatus(status)
     switch (normalizedStatus) {
+      // KYC/Onboarding statuses
+      case 'Not Started': return 'secondary'
+      case 'In Progress': return 'outline'
+      case 'Completed': return 'default'
+      case 'Approved': return 'default'
+      case 'Rejected': return 'destructive'
+
+      // Standard statuses
       case 'Pending': return 'outline'        // Pre-registered
       case 'KYC/KYB': return 'outline'        // Identity verification
       case 'Contracts': return 'outline'      // Contract signing
       case 'Commitment': return 'outline'     // Capital commitment setup
       case 'Active': return 'default'         // Fully onboarded
       case 'Inactive': return 'secondary'     // Previously active
-      default: return 'secondary'
-    }
-  }
 
-  const getK1StatusColor = (status: string) => {
-    switch (status) {
-      case 'Delivered': return 'default'
-      case 'Completed': return 'default'
-      case 'In Progress': return 'outline'
-      case 'Not Started': return 'secondary'
-      case 'Amended': return 'outline'
       default: return 'secondary'
     }
   }
@@ -619,12 +627,12 @@ export default function InvestorsPage() {
                   </div>
                 </div>
 
-                {/* K-1 Status */}
+                {/* KYC Status */}
                 <div className="pt-2 border-t">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">K-1 Status</span>
-                    <Badge variant={getK1StatusColor(investor.k1Status)} className="text-xs">
-                      {investor.k1Status}
+                    <span className="text-muted-foreground">KYC Status</span>
+                    <Badge variant={getStatusColor((investor as any).kycStatus || investor.status)} className="text-xs">
+                      {formatStatus((investor as any).kycStatus || investor.status)}
                     </Badge>
                   </div>
                 </div>
