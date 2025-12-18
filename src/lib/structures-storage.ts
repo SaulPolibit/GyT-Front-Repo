@@ -175,6 +175,19 @@ export interface Structure {
   }
   // Optional banner image for structure display
   bannerImage?: string
+  // Payment Configurations - Flat structure
+  localBankName?: string
+  localAccountBank?: string
+  localRoutingBank?: string
+  localAccountHolder?: string
+  localBankAddress?: string
+  internationalBankName?: string
+  internationalAccountBank?: string
+  internationalSwift?: string
+  internationalHolderName?: string
+  internationalBankAddress?: string
+  blockchainNetwork?: string
+  walletAddress?: string
 }
 
 const STORAGE_KEY = 'polibit_structures'

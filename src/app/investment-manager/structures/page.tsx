@@ -8,13 +8,14 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Building2, Plus, MapPin, Search, TrendingUp, Users, Calendar, LayoutGrid, List, ChevronDown, ChevronRight, Loader2, AlertCircle } from 'lucide-react'
+import { Building2, Plus, MapPin, Search, TrendingUp, Users, Calendar, LayoutGrid, List, ChevronDown, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { Structure } from '@/lib/structures-storage'
-import { getVisibilitySettings, VisibilitySettings } from '@/lib/visibility-storage'
-import { getApiUrl } from '@/lib/api-config'
-import { getAuthToken } from '@/lib/auth-storage'
+import { getStructures, Structure, migrateStructures } from '@/lib/structures-storage'
+import { getVisibilitySettings } from '@/lib/visibility-storage'
+import { getApiUrl, API_CONFIG } from '@/lib/api-config'
+import { getAuthState } from '@/lib/auth-storage'
+import { toast } from 'sonner'
 
 // Type labels
 const TYPE_LABELS: Record<string, string> = {
@@ -31,86 +32,60 @@ const STATUS_VARIANTS: Record<string, 'default' | 'outline' | 'destructive' | 's
   closed: 'outline',
 }
 
-// Default visibility settings
-const DEFAULT_VISIBILITY: VisibilitySettings = {
-  navMainItems: {},
-  navManagementItems: {},
-  navSecondaryItems: {},
-  currentStageOptions: {},
-  structureStatusFilters: {
-    all: true,
-    fundraising: true,
-    active: true,
-    closed: true,
-  },
-  economicTermsOptions: {},
-  setupCompleteButtons: {},
-  actionButtons: {},
-}
-
 export default function StructuresPage() {
   const router = useRouter()
   const [structures, setStructures] = useState<Structure[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
-  const [visibilitySettings, setVisibilitySettings] = useState<VisibilitySettings>(DEFAULT_VISIBILITY)
+  const [visibilitySettings, setVisibilitySettings] = useState(getVisibilitySettings())
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  // Load visibility settings on mount
-  useEffect(() => {
-    setVisibilitySettings(getVisibilitySettings())
-  }, [])
 
   // Load structures from API on mount
   useEffect(() => {
     const fetchStructures = async () => {
       try {
-        setIsLoading(true)
-        setError(null)
+        const authState = getAuthState()
+        const token = authState.token
 
-        const apiUrl = getApiUrl('/api/structures')
-        console.log('🔄 Fetching structures from:', apiUrl)
-
-        // Get authentication token
-        const token = getAuthToken()
         if (!token) {
-          throw new Error('No authentication token found. Please login first.')
+          console.warn('No auth token found, loading from localStorage as fallback')
+          // Fallback to localStorage if no token
+          migrateStructures()
+          const loadedStructures = getStructures()
+          setStructures(loadedStructures)
+          return
         }
 
-        const response = await fetch(apiUrl, {
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAllStructures), {
           method: 'GET',
           headers: {
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+          },
         })
 
         if (!response.ok) {
-          throw new Error(`Failed to fetch structures: ${response.statusText}`)
+          throw new Error('Failed to fetch structures')
         }
 
         const data = await response.json()
-        console.log('📊 Loaded structures from API:', data)
+        console.log('📊 Loaded structures from API:', data.data?.map((s: Structure) => ({
+          id: s.id,
+          name: s.name,
+          parentStructureId: s.parentStructureId,
+          parentStructureOwnershipPercentage: s.parentStructureOwnershipPercentage
+        })))
 
-        // Handle API response format: { success: true, count: number, data: Structure[] }
-        if (data.success && Array.isArray(data.data)) {
-          setStructures(data.data)
-        } else if (Array.isArray(data)) {
-          // Fallback for direct array response
-          setStructures(data)
-        } else {
-          throw new Error('Invalid response format from API')
-        }
-      } catch (err) {
-        console.error('❌ Error fetching structures:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load structures')
-        setStructures([])
-      } finally {
-        setIsLoading(false)
+        setStructures(data.data || [])
+      } catch (error) {
+        console.error('Error fetching structures:', error)
+        toast.error('Failed to load structures')
+        // Fallback to localStorage on error
+        migrateStructures()
+        const loadedStructures = getStructures()
+        setStructures(loadedStructures)
       }
     }
 
@@ -336,27 +311,8 @@ export default function StructuresPage() {
         )}
       </div>
 
-      {/* Loading State */}
-      {isLoading ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Loading structures...</h3>
-            <p className="text-muted-foreground">Please wait while we fetch your data</p>
-          </CardContent>
-        </Card>
-      ) : error ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Error Loading Structures</h3>
-            <p className="text-muted-foreground mb-4 max-w-md">{error}</p>
-            <Button onClick={() => window.location.reload()} variant="outline">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      ) : structures.length === 0 ? (
+      {/* Structures Grid */}
+      {structures.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />

@@ -18,14 +18,17 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { CalendarIcon, ChevronLeft, ChevronRight, Info, AlertCircle, CheckCircle2, Building2, DollarSign, Users, TrendingUp, Upload, Download, X, Edit, Trash2, Plus } from 'lucide-react'
+import { CalendarIcon, ChevronLeft, ChevronRight, Info, AlertCircle, CheckCircle2, Building2, DollarSign, Users, TrendingUp, Upload, Download, X, Edit, Trash2, Plus, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from '@/hooks/useTranslation'
-import { saveStructure, getStructures } from '@/lib/structures-storage'
+import { saveStructure, getStructures, Structure } from '@/lib/structures-storage'
 import { saveInvestor, getInvestors } from '@/lib/investors-storage'
 import { useRouter } from 'next/navigation'
+import { getVisibilitySettings } from '@/lib/visibility-storage'
+import { getApiUrl, API_CONFIG } from '@/lib/api-config'
+import { getAuthState } from '@/lib/auth-storage'
 
 // V3.1: Investor Pre-Registration Interface
 interface InvestorPreRegistration {
@@ -76,19 +79,13 @@ const STRUCTURE_TYPES = {
   'fund': {
     label: 'Fund',
     description: 'Investment fund for single or multiple projects with capital calls',
-    subtypes: [
-      { value: 'single-project', label: 'Single-Asset Fund', description: 'Fund for one specific asset' },
-      { value: 'multi-project', label: 'Multi-Asset Fund', description: 'Fund for multiple properties/assets' },
-    ],
+    subtypes: [],
     regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
   },
   'fideicomiso': {
     label: 'Trust',
     description: 'Bank trust structure with tax incentives, can hold multiple properties',
-    subtypes: [
-      { value: 'single-property', label: 'Single-Asset Trust', description: 'Trust for one specific asset' },
-      { value: 'multi-property', label: 'Multi-Asset Trust', description: 'Trust holding multiple properties/assets' },
-    ],
+    subtypes: [],
     regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
   },
   'private-debt': {
@@ -233,7 +230,7 @@ const getEquityAndDebtSubtypes = (structureType: string) => {
 
     case 'fund':
       // Fund structure
-      equityOptions.push({ value: 'fund-shares', label: 'Fund Shares' })
+      equityOptions.push({ value: 'fund-units', label: 'Fund Units' })
       return { equityOptions, debtOptions: commonDebtOptions }
 
     default:
@@ -332,12 +329,19 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [setupComplete, setSetupComplete] = useState(false)
+  const [inReviewMode, setInReviewMode] = useState(false)
+  const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false)
+  const [createdStructureId, setCreatedStructureId] = useState<string | null>(null)
+  const [visibilitySettings, setVisibilitySettings] = useState<ReturnType<typeof getVisibilitySettings> | null>(null)
 
   // V3.1: Investor Pre-Registration State
   const [showInvestorForm, setShowInvestorForm] = useState(false)
   const [editingInvestor, setEditingInvestor] = useState<InvestorPreRegistration | null>(null)
   const [selectedInvestorType, setSelectedInvestorType] = useState<'individual' | 'institution' | 'fund-of-funds' | 'family-office'>('individual')
   const csvFileInputRef = useRef<HTMLInputElement>(null)
+
+  // Available parent structures from API
+  const [availableParentStructures, setAvailableParentStructures] = useState<Structure[]>([])
 
   // Confirmation dialog states
   const [removeInvestorDialogOpen, setRemoveInvestorDialogOpen] = useState(false)
@@ -386,10 +390,10 @@ export default function OnboardingPage() {
     hurdleRate: '8',
     preferredReturn: '8',
     waterfallStructure: 'european',
-    waterfallScenarios: [ // Multiple waterfall scenarios (up to 3)
+    waterfallScenarios: [ // Multiple waterfall tiers (up to 3)
       {
         id: '1',
-        name: 'Scenario 1',
+        name: 'Tier 1',
         managementFee: '2',
         gpSplit: '20',
         irrHurdle: '8',
@@ -443,8 +447,8 @@ export default function OnboardingPage() {
     preRegisteredInvestors: [] as InvestorPreRegistration[],
 
     // Document tracking
-    uploadedFundDocuments: [] as { name: string; addedAt: Date }[],
-    uploadedInvestorDocuments: [] as { name: string; addedAt: Date }[],
+    uploadedFundDocuments: [] as { name: string; addedAt: Date; file: File }[],
+    uploadedInvestorDocuments: [] as { name: string; addedAt: Date; file: File }[],
 
     // V4: Multi-Level Hierarchy
     hierarchyMode: false,
@@ -468,9 +472,34 @@ export default function OnboardingPage() {
     // V5: ILPA Performance Methodology
     performanceMethodology: '' as '' | 'granular' | 'grossup',
     calculationLevel: '' as '' | 'fund-level' | 'portfolio-level',
+
+    // V6: Structure Banner Image
+    bannerImage: null as File | null, // Actual file object
+    bannerImagePreview: '' as string, // Base64 preview for display
+
+    // V6.1: Blockchain Owner Information
+    walletOwnerAddress: '' as string, // Wallet owner address (hexadecimal)
+    operatingAgreementHash: '' as string, // Operating agreement hash (hexadecimal)
+
+    // V7: Payment Configurations
+    paymentLocalBankEnabled: false,
+    paymentLocalBankName: '',
+    paymentLocalAccountNumber: '',
+    paymentLocalRoutingNumber: '',
+    paymentLocalAccountHolder: '',
+    paymentLocalBankAddress: '',
+    paymentIntlBankEnabled: false,
+    paymentIntlBankName: '',
+    paymentIntlAccountNumber: '',
+    paymentIntlSwiftCode: '',
+    paymentIntlAccountHolder: '',
+    paymentIntlBankAddress: '',
+    paymentCryptoEnabled: false,
+    paymentCryptoBlockchain: 'Polygon' as 'Polygon' | 'Arbitrum',
+    paymentCryptoWalletAddress: '',
   })
 
-  const totalSteps = 6
+  const totalSteps = 8
   const progress = (currentStep / totalSteps) * 100
 
   // V3.1: Convert any currency amount to USD for tier calculation
@@ -595,6 +624,44 @@ export default function OnboardingPage() {
     }))
   }
 
+  // Fetch available parent structures from API on mount
+  useEffect(() => {
+    const fetchParentStructures = async () => {
+      try {
+        const authState = getAuthState()
+        const token = authState.token
+
+        if (!token) {
+          console.warn('[Parent Structures] No auth token, using localStorage fallback')
+          setAvailableParentStructures(getStructures())
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAllStructures), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch structures')
+        }
+
+        const data = await response.json()
+        setAvailableParentStructures(data.data || [])
+        console.log('[Parent Structures] Loaded from API:', data.data?.length || 0)
+      } catch (error) {
+        console.error('[Parent Structures] Error fetching from API:', error)
+        // Fallback to localStorage
+        setAvailableParentStructures(getStructures())
+      }
+    }
+
+    fetchParentStructures()
+  }, [])
+
   // Update tier when AUM or currency changes (V3.1 - with currency conversion)
   useEffect(() => {
     if (formData.totalCapitalCommitment) {
@@ -633,6 +700,24 @@ export default function OnboardingPage() {
       setFormData(prev => ({ ...prev, distributionModel: 'waterfall' }))
     }
   }, [formData.structureType])
+
+  // Listen for visibility settings changes
+  useEffect(() => {
+    // Initialize visibility settings on mount
+    setVisibilitySettings(getVisibilitySettings())
+
+    const handleVisibilityChange = () => {
+      setVisibilitySettings(getVisibilitySettings())
+    }
+
+    window.addEventListener('visibility-settings-changed', handleVisibilityChange)
+    window.addEventListener('storage', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('visibility-settings-changed', handleVisibilityChange)
+      window.removeEventListener('storage', handleVisibilityChange)
+    }
+  }, [])
 
   // Initialize hierarchy structures when levels change (all-at-once mode)
   useEffect(() => {
@@ -690,8 +775,24 @@ export default function OnboardingPage() {
           errors.push('Please select a structure subtype')
         }
         // Validate parent structure ownership percentage if parent is selected
-        if (formData.parentStructureId && (formData.parentStructureOwnershipPercentage === null || formData.parentStructureOwnershipPercentage === undefined || formData.parentStructureOwnershipPercentage === '')) {
+        if (formData.parentStructureId && (formData.parentStructureOwnershipPercentage === null || formData.parentStructureOwnershipPercentage === undefined)) {
           errors.push('Please enter the parent structure ownership percentage (0-100%)')
+        }
+        // Validate banner image is uploaded
+        if (!formData.bannerImage) {
+          errors.push('Please upload a structure banner image')
+        }
+        // Validate wallet owner address (mandatory)
+        if (!formData.walletOwnerAddress || formData.walletOwnerAddress.trim() === '') {
+          errors.push('Please enter the wallet owner address')
+        } else if (!/^0x[a-fA-F0-9]{40}$/.test(formData.walletOwnerAddress)) {
+          errors.push('Please enter a valid hexadecimal wallet address (0x followed by 40 hex characters)')
+        }
+        // Validate operating agreement hash (mandatory)
+        if (!formData.operatingAgreementHash || formData.operatingAgreementHash.trim() === '') {
+          errors.push('Please enter the operating agreement hash')
+        } else if (!/^0x[a-fA-F0-9]+$/.test(formData.operatingAgreementHash)) {
+          errors.push('Please enter a valid hexadecimal hash (0x followed by hex characters)')
         }
         break
 
@@ -732,9 +833,38 @@ export default function OnboardingPage() {
         if (!formData.maxCheckSize) {
           errors.push('Please enter maximum check size')
         }
-        if (formData.minCheckSize && formData.maxCheckSize &&
-            parseFloat(formData.minCheckSize) > parseFloat(formData.maxCheckSize)) {
-          errors.push('Minimum check size cannot be greater than maximum check size')
+        if (!formData.tokenName) {
+          errors.push('Please enter ticket name')
+        }
+        if (!formData.tokenSymbol) {
+          errors.push('Please enter ticket symbol')
+        }
+
+        // CRITICAL: Validate that total commitment is evenly divisible by minCheckSize
+        if (formData.totalCapitalCommitment && formData.minCheckSize) {
+          const totalCommitment = parseFloat(formData.totalCapitalCommitment)
+          const minCheck = parseFloat(formData.minCheckSize)
+
+          if (totalCommitment > 0 && minCheck > 0) {
+            const calculatedTokens = totalCommitment / minCheck
+            if (!Number.isInteger(calculatedTokens)) {
+              errors.push(`Total commitment (${formData.currency} ${totalCommitment.toLocaleString()}) must be evenly divisible by minimum ticket size (${formData.currency} ${minCheck.toLocaleString()}). Please adjust one of these values.`)
+            }
+          }
+        }
+
+        if (formData.minCheckSize && formData.maxCheckSize) {
+          const min = parseFloat(formData.minCheckSize)
+          const max = parseFloat(formData.maxCheckSize)
+
+          if (min > max) {
+            errors.push('Minimum check size cannot be greater than maximum check size')
+          }
+
+          // Validate that max is a multiple of min
+          if (min > 0 && max % min !== 0) {
+            errors.push('Maximum check size must be a multiple of minimum check size')
+          }
         }
         // Validate equity/debt subtype selection
         if (formData.financingStrategy === 'equity' && !formData.equitySubtype) {
@@ -759,7 +889,8 @@ export default function OnboardingPage() {
         }
         break
 
-      // Steps 4 and 6 have no required fields (all have defaults or are optional)
+      // Steps 4 and 7 have no required fields (all have defaults or are optional)
+      // Step 4 = Payment Configurations, Step 7 = Document Upload
       default:
         break
     }
@@ -801,7 +932,7 @@ export default function OnboardingPage() {
 
     try {
       // Validate that if parent structure is selected, ownership percentage must be provided
-      if (formData.parentStructureId && (formData.parentStructureOwnershipPercentage === null || formData.parentStructureOwnershipPercentage === undefined || formData.parentStructureOwnershipPercentage === '')) {
+      if (formData.parentStructureId && (formData.parentStructureOwnershipPercentage === null || formData.parentStructureOwnershipPercentage === undefined)) {
         toast.error('Please enter the parent structure ownership percentage')
         setIsSubmitting(false)
         return
@@ -854,8 +985,7 @@ export default function OnboardingPage() {
         minTokensPerInvestor: formData.minTokensPerInvestor,
         maxTokensPerInvestor: formData.maxTokensPerInvestor,
         preRegisteredInvestors: formData.preRegisteredInvestors as any,
-        uploadedFundDocuments: formData.uploadedFundDocuments,
-        uploadedInvestorDocuments: formData.uploadedInvestorDocuments,
+        // Note: Documents are uploaded separately via POST /api/documents after structure creation
         // V4: Multi-Level Hierarchy
         hierarchyMode: formData.hierarchyMode,
         numberOfLevels: formData.hierarchyLevels, // Pass number of levels for multi-level creation
@@ -872,6 +1002,21 @@ export default function OnboardingPage() {
         // V5: ILPA Performance Methodology
         performanceMethodology: formData.performanceMethodology as 'granular' | 'grossup' | undefined,
         calculationLevel: formData.calculationLevel as 'fund-level' | 'portfolio-level' | undefined,
+        // V6: Structure Banner Image
+        bannerImage: formData.bannerImagePreview, // Save preview for localStorage
+        // V7: Payment Configurations - Flat structure
+        localBankName: formData.paymentLocalBankEnabled ? formData.paymentLocalBankName : undefined,
+        localAccountBank: formData.paymentLocalBankEnabled ? formData.paymentLocalAccountNumber : undefined,
+        localRoutingBank: formData.paymentLocalBankEnabled ? formData.paymentLocalRoutingNumber : undefined,
+        localAccountHolder: formData.paymentLocalBankEnabled ? formData.paymentLocalAccountHolder : undefined,
+        localBankAddress: formData.paymentLocalBankEnabled ? formData.paymentLocalBankAddress : undefined,
+        internationalBankName: formData.paymentIntlBankEnabled ? formData.paymentIntlBankName : undefined,
+        internationalAccountBank: formData.paymentIntlBankEnabled ? formData.paymentIntlAccountNumber : undefined,
+        internationalSwift: formData.paymentIntlBankEnabled ? formData.paymentIntlSwiftCode : undefined,
+        internationalHolderName: formData.paymentIntlBankEnabled ? formData.paymentIntlAccountHolder : undefined,
+        internationalBankAddress: formData.paymentIntlBankEnabled ? formData.paymentIntlBankAddress : undefined,
+        blockchainNetwork: formData.paymentCryptoEnabled ? formData.paymentCryptoBlockchain : undefined,
+        walletAddress: formData.paymentCryptoEnabled ? formData.paymentCryptoWalletAddress : undefined,
       })
 
       // Update hierarchyPath with the generated structure ID
@@ -1008,13 +1153,521 @@ export default function OnboardingPage() {
       }
 
       setIsSubmitting(false)
-      setSetupComplete(true)
+      setCreatedStructureId(newStructure.id)
+      setInReviewMode(true)
 
-      // Don't auto-redirect - let user review the summary and choose where to go
+      // Show review page - user can then confirm to complete setup
     } catch (error) {
       console.error('Error saving structure:', error)
       setIsSubmitting(false)
       toast.error('Failed to save structure. Please try again.')
+    }
+  }
+
+  // Complete Setup Confirmation Handler
+  const handleCompleteSetupConfirmation = async () => {
+    setShowCompleteConfirmation(false)
+    setIsSubmitting(true)
+
+    try {
+      // Get auth token from storage (using getAuthState)
+      const { getAuthState } = await import('@/lib/auth-storage')
+      const authState = getAuthState()
+      const authToken = authState.token || 'mock_token_user-001_test'
+
+      // Step 1: Create structure via API using FormData for file upload
+      const formDataPayload = new FormData()
+
+      // Basic Information
+      formDataPayload.append('name', formData.structureName)
+      formDataPayload.append('type', formData.structureType)
+      formDataPayload.append('subtype', formData.structureSubtype)
+      formDataPayload.append('status', formData.currentStage === 'fundraising' ? 'fundraising' : 'active')
+      formDataPayload.append('description', 'null')
+
+      // Hierarchy
+      if (formData.parentStructureId) {
+        formDataPayload.append('parentStructureId', formData.parentStructureId)
+        // Parent structure ownership percentage (required if parent exists)
+        if (formData.parentStructureOwnershipPercentage !== null && formData.parentStructureOwnershipPercentage !== undefined) {
+          formDataPayload.append('parentStructureOwnershipPercentage', formData.parentStructureOwnershipPercentage.toString())
+        }
+      }
+
+      // Financial Terms
+      formDataPayload.append('totalCommitment', formData.totalCapitalCommitment)
+      formDataPayload.append('managementFee', formData.managementFee.toString())
+      formDataPayload.append('carriedInterest', formData.performanceFee.toString())
+      formDataPayload.append('hurdleRate', formData.hurdleRate.toString())
+      formDataPayload.append('waterfallType', formData.waterfallStructure)
+      formDataPayload.append('performanceFee', formData.performanceFee.toString())
+      formDataPayload.append('preferredReturn', formData.preferredReturn.toString())
+
+      // Performance Methodology
+      if (formData.performanceMethodology) {
+        formDataPayload.append('performanceMethodology', formData.performanceMethodology)
+      } else {
+        formDataPayload.append('performanceMethodology', 'null')
+      }
+
+      // Dates & Term
+      // Format inceptionDate as YYYY-MM-DD
+      if (formData.inceptionDate) {
+        const date = new Date(formData.inceptionDate)
+        const formattedDate = date.toISOString().split('T')[0] // YYYY-MM-DD format
+        formDataPayload.append('inceptionDate', formattedDate)
+      } else {
+        formDataPayload.append('inceptionDate', 'null')
+      }
+      formDataPayload.append('termYears', formData.fundTerm.toString())
+      formDataPayload.append('extensionYears', 'null')
+
+      // Fund Type
+      if (formData.fundType) {
+        formDataPayload.append('fundType', formData.fundType)
+      } else {
+        formDataPayload.append('fundType', 'null')
+      }
+
+      // Service Providers (not captured in current form)
+      formDataPayload.append('gp', 'null')
+      formDataPayload.append('fundAdmin', 'null')
+      formDataPayload.append('legalCounsel', 'null')
+      formDataPayload.append('auditor', 'null')
+      formDataPayload.append('taxAdvisor', 'null')
+      formDataPayload.append('bankAccounts', 'null')
+
+      // Currency & Jurisdiction
+      formDataPayload.append('baseCurrency', formData.currency)
+      // Merge jurisdiction with US state information
+      let jurisdictionValue = formData.jurisdiction
+      if (formData.jurisdiction === 'United States' && formData.usState) {
+        if (formData.usState === 'Other' && formData.usStateOther) {
+          jurisdictionValue = `${formData.jurisdiction} - ${formData.usStateOther}`
+        } else {
+          jurisdictionValue = `${formData.jurisdiction} - ${formData.usState}`
+        }
+      }
+      formDataPayload.append('taxJurisdiction', jurisdictionValue)
+      formDataPayload.append('regulatoryStatus', 'null')
+
+      // Investment Details
+      formDataPayload.append('investmentStrategy', formData.financingStrategy)
+      formDataPayload.append('targetReturns', 'null')
+      formDataPayload.append('riskProfile', 'null')
+      formDataPayload.append('stage', formData.currentStage)
+      formDataPayload.append('plannedInvestments', formData.plannedInvestments.toString())
+      formDataPayload.append('investors', formData.totalInvestors)
+
+      // Income Flow Target
+      if (formData.incomeFlowTarget) {
+        formDataPayload.append('incomeFlowTarget', formData.incomeFlowTarget)
+      } else {
+        formDataPayload.append('incomeFlowTarget', 'null')
+      }
+
+      // Tier and Issuances
+      if (formData.determinedTier) {
+        formDataPayload.append('determinedTier', formData.determinedTier)
+      } else {
+        formDataPayload.append('determinedTier', 'null')
+      }
+      formDataPayload.append('calculatedIssuances', formData.calculatedIssuances.toString())
+
+      // Debt Interest Rates (for private-debt structures)
+      if (formData.debtInterestRate) {
+        formDataPayload.append('debtInterestRate', formData.debtInterestRate)
+      } else {
+        formDataPayload.append('debtInterestRate', 'null')
+      }
+      if (formData.debtGrossInterestRate) {
+        formDataPayload.append('debtGrossInterestRate', formData.debtGrossInterestRate)
+      } else {
+        formDataPayload.append('debtGrossInterestRate', 'null')
+      }
+
+      // Capital Call Configuration
+      if (formData.capitalCallNoticePeriod) {
+        formDataPayload.append('capitalCallNoticePeriod', formData.capitalCallNoticePeriod)
+      } else {
+        formDataPayload.append('capitalCallNoticePeriod', 'null')
+      }
+      if (formData.capitalCallPaymentDeadline) {
+        formDataPayload.append('capitalCallPaymentDeadline', formData.capitalCallPaymentDeadline)
+      } else {
+        formDataPayload.append('capitalCallPaymentDeadline', 'null')
+      }
+      if (formData.capitalCallDefaultPercentage) {
+        formDataPayload.append('capitalCallDefaultPercentage', formData.capitalCallDefaultPercentage)
+      } else {
+        formDataPayload.append('capitalCallDefaultPercentage', 'null')
+      }
+
+      // Distribution Configuration
+      formDataPayload.append('distributionFrequency', formData.distributionFrequency)
+
+      // Tax Configuration
+      // Default Tax Rate
+      if (formData.defaultTaxRate) {
+        formDataPayload.append('defaultTaxRate', formData.defaultTaxRate)
+      } else {
+        formDataPayload.append('defaultTaxRate', 'null')
+      }
+
+      // VAT Rates
+      if (formData.sameTaxTreatment) {
+        // Same treatment - use main VAT rate
+        if (formData.vatRate) {
+          formDataPayload.append('vatRate', formData.vatRate)
+        } else {
+          formDataPayload.append('vatRate', 'null')
+        }
+      } else {
+        // Different treatment - use separate VAT rates
+        if (formData.vatRateNaturalPersons) {
+          formDataPayload.append('vatRateNaturalPersons', formData.vatRateNaturalPersons)
+        } else {
+          formDataPayload.append('vatRateNaturalPersons', 'null')
+        }
+        if (formData.vatRateLegalEntities) {
+          formDataPayload.append('vatRateLegalEntities', formData.vatRateLegalEntities)
+        } else {
+          formDataPayload.append('vatRateLegalEntities', 'null')
+        }
+      }
+
+      // Withholding / Dividend Tax
+      if (formData.sameTaxTreatment) {
+        // Same treatment for all - use the main fields
+        if (formData.witholdingDividendTaxRate) {
+          formDataPayload.append('witholdingDividendTaxRate', formData.witholdingDividendTaxRate)
+        } else {
+          formDataPayload.append('witholdingDividendTaxRate', 'null')
+        }
+      } else {
+        // Different treatment for natural persons vs legal entities
+        if (formData.witholdingDividendTaxRateNaturalPersons) {
+          formDataPayload.append('witholdingDividendTaxRateNaturalPersons', formData.witholdingDividendTaxRateNaturalPersons)
+        } else {
+          formDataPayload.append('witholdingDividendTaxRateNaturalPersons', 'null')
+        }
+        if (formData.witholdingDividendTaxRateLegalEntities) {
+          formDataPayload.append('witholdingDividendTaxRateLegalEntities', formData.witholdingDividendTaxRateLegalEntities)
+        } else {
+          formDataPayload.append('witholdingDividendTaxRateLegalEntities', 'null')
+        }
+      }
+
+      // Income Tax
+      if (formData.sameTaxTreatment) {
+        // Same treatment for all
+        if (formData.incomeDebtTaxRate) {
+          formDataPayload.append('incomeDebtTaxRate', formData.incomeDebtTaxRate)
+        } else {
+          formDataPayload.append('incomeDebtTaxRate', 'null')
+        }
+        if (formData.incomeEquityTaxRate) {
+          formDataPayload.append('incomeEquityTaxRate', formData.incomeEquityTaxRate)
+        } else {
+          formDataPayload.append('incomeEquityTaxRate', 'null')
+        }
+      } else {
+        // Different treatment
+        if (formData.incomeDebtTaxRateNaturalPersons) {
+          formDataPayload.append('incomeDebtTaxRateNaturalPersons', formData.incomeDebtTaxRateNaturalPersons)
+        } else {
+          formDataPayload.append('incomeDebtTaxRateNaturalPersons', 'null')
+        }
+        if (formData.incomeEquityTaxRateNaturalPersons) {
+          formDataPayload.append('incomeEquityTaxRateNaturalPersons', formData.incomeEquityTaxRateNaturalPersons)
+        } else {
+          formDataPayload.append('incomeEquityTaxRateNaturalPersons', 'null')
+        }
+        if (formData.incomeDebtTaxRateLegalEntities) {
+          formDataPayload.append('incomeDebtTaxRateLegalEntities', formData.incomeDebtTaxRateLegalEntities)
+        } else {
+          formDataPayload.append('incomeDebtTaxRateLegalEntities', 'null')
+        }
+        if (formData.incomeEquityTaxRateLegalEntities) {
+          formDataPayload.append('incomeEquityTaxRateLegalEntities', formData.incomeEquityTaxRateLegalEntities)
+        } else {
+          formDataPayload.append('incomeEquityTaxRateLegalEntities', 'null')
+        }
+      }
+
+      // Ticket Sizes
+      formDataPayload.append('minimumTicket', formData.minCheckSize)
+      formDataPayload.append('maximumTicket', formData.maxCheckSize)
+      formDataPayload.append('strategyInstrumentType', formData.equitySubtype || formData.debtSubtype || '')
+
+      // Legal Terms (placeholder - not captured in form)
+      formDataPayload.append('managementControl', 'null')
+      formDataPayload.append('capitalContributions', 'null')
+      formDataPayload.append('allocationsDistributions', 'null')
+      formDataPayload.append('limitedPartnerObligations', 'null')
+      formDataPayload.append('limitedPartnerRights', 'null')
+      formDataPayload.append('lockUpPeriod', 'null')
+      formDataPayload.append('withdrawalConditions', 'null')
+      formDataPayload.append('withdrawalProcess', 'null')
+      formDataPayload.append('generalProhibition', 'null')
+      formDataPayload.append('permittedTransfers', 'null')
+      formDataPayload.append('transferRequirements', 'null')
+
+      // Reporting
+      formDataPayload.append('quarterlyReports', 'null')
+      formDataPayload.append('annualReports', 'null')
+      formDataPayload.append('taxForms', 'null')
+      formDataPayload.append('capitalCallDistributionsNotices', 'null')
+      formDataPayload.append('additionalCommunications', 'null')
+
+      // Liability & Indemnification
+      formDataPayload.append('limitedLiability', 'null')
+      formDataPayload.append('exceptionsLiability', 'null')
+      formDataPayload.append('maximumExposure', 'null')
+      formDataPayload.append('indemnifiesPartnership', 'null')
+      formDataPayload.append('lpIndemnifiesPartnership', 'null')
+      formDataPayload.append('indemnifiesProcedures', 'null')
+
+      // Additional Legal
+      formDataPayload.append('amendments', 'null')
+      formDataPayload.append('dissolution', 'null')
+      formDataPayload.append('disputesResolution', 'null')
+      formDataPayload.append('governingLaw', 'null')
+      formDataPayload.append('additionalProvisions', 'null')
+
+      // Payment Configurations - Flat structure
+      if (formData.paymentLocalBankEnabled) {
+        formDataPayload.append('localBankName', formData.paymentLocalBankName || '')
+        formDataPayload.append('localAccountBank', formData.paymentLocalAccountNumber || '')
+        formDataPayload.append('localRoutingBank', formData.paymentLocalRoutingNumber || '')
+        formDataPayload.append('localAccountHolder', formData.paymentLocalAccountHolder || '')
+        formDataPayload.append('localBankAddress', formData.paymentLocalBankAddress || '')
+      } else {
+        formDataPayload.append('localBankName', 'null')
+        formDataPayload.append('localAccountBank', 'null')
+        formDataPayload.append('localRoutingBank', 'null')
+        formDataPayload.append('localAccountHolder', 'null')
+        formDataPayload.append('localBankAddress', 'null')
+      }
+
+      if (formData.paymentIntlBankEnabled) {
+        formDataPayload.append('internationalBankName', formData.paymentIntlBankName || '')
+        formDataPayload.append('internationalAccountBank', formData.paymentIntlAccountNumber || '')
+        formDataPayload.append('internationalSwift', formData.paymentIntlSwiftCode || '')
+        formDataPayload.append('internationalHolderName', formData.paymentIntlAccountHolder || '')
+        formDataPayload.append('internationalBankAddress', formData.paymentIntlBankAddress || '')
+      } else {
+        formDataPayload.append('internationalBankName', 'null')
+        formDataPayload.append('internationalAccountBank', 'null')
+        formDataPayload.append('internationalSwift', 'null')
+        formDataPayload.append('internationalHolderName', 'null')
+        formDataPayload.append('internationalBankAddress', 'null')
+      }
+
+      if (formData.paymentCryptoEnabled) {
+        formDataPayload.append('blockchainNetwork', formData.paymentCryptoBlockchain || '')
+        formDataPayload.append('walletAddress', formData.paymentCryptoWalletAddress || '')
+      } else {
+        formDataPayload.append('blockchainNetwork', 'null')
+        formDataPayload.append('walletAddress', 'null')
+      }
+
+      // Banner Image - Append as file if exists
+      if (formData.bannerImage) {
+        formDataPayload.append('bannerImage', formData.bannerImage)
+      }
+
+      // Blockchain Owner Information
+      if (formData.walletOwnerAddress) {
+        formDataPayload.append('walletOwnerAddress', formData.walletOwnerAddress)
+      } else {
+        formDataPayload.append('walletOwnerAddress', 'null')
+      }
+      if (formData.operatingAgreementHash) {
+        formDataPayload.append('operatingAgreementHash', formData.operatingAgreementHash)
+      } else {
+        formDataPayload.append('operatingAgreementHash', 'null')
+      }
+
+      const structureResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures`, {
+        method: 'POST',
+        headers: {
+          // Note: No Content-Type header - browser sets it automatically with boundary for FormData
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: formDataPayload
+      })
+
+      if (!structureResponse.ok) {
+        throw new Error('Failed to create structure')
+      }
+
+      const structureData = await structureResponse.json()
+      const structureId = structureData.data?.id
+
+      // Step 2: Create waterfall tiers
+      if (formData.waterfallScenarios && formData.waterfallScenarios.length > 0) {
+        const waterfallPayload = {
+          structureId: structureId,
+          tiers: formData.waterfallScenarios.map(scenario => ({
+            name: scenario.name,
+            gpSplit: parseFloat(scenario.gpSplit),
+            managementFee: parseFloat(scenario.managementFee),
+            preferredReturn: parseFloat(scenario.preferredReturn),
+          }))
+        }
+
+        console.log('[Waterfall Tiers] Creating tiers for structure:', structureId)
+        console.log('[Waterfall Tiers] Payload:', waterfallPayload)
+
+        const waterfallResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/waterfall-tiers/bulk-create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify(waterfallPayload)
+        })
+
+        if (!waterfallResponse.ok) {
+          const errorData = await waterfallResponse.json().catch(() => ({}))
+          console.error('[Waterfall Tiers] Failed to create:', errorData)
+        } else {
+          const responseData = await waterfallResponse.json()
+          console.log('[Waterfall Tiers] Created successfully:', responseData)
+        }
+      }
+
+      // Step 3: Create capital calls (if enabled)
+      if (formData.enableCapitalCalls && formData.capitalCalls && formData.capitalCalls.length > 0) {
+        console.log('[Capital Calls] Creating capital calls for structure:', structureId)
+
+        for (let index = 0; index < formData.capitalCalls.length; index++) {
+          const call = formData.capitalCalls[index]
+
+          try {
+            const capitalCallPayload = {
+              structureId: structureId,
+              callNumber: index + 1, // Index starts at 0, but callNumber starts at 1
+              callDate: call.date,
+              totalCallAmount: call.callPercentage
+            }
+
+            console.log(`[Capital Call ${index + 1}] Sending:`, capitalCallPayload)
+
+            const capitalCallResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/capital-calls`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+              },
+              body: JSON.stringify(capitalCallPayload)
+            })
+
+            if (!capitalCallResponse.ok) {
+              const errorData = await capitalCallResponse.json()
+              console.error(`[Capital Call ${index + 1}] Failed:`, errorData)
+            } else {
+              const responseData = await capitalCallResponse.json()
+              console.log(`[Capital Call ${index + 1}] Created successfully:`, responseData)
+            }
+          } catch (error) {
+            console.error(`[Capital Call ${index + 1}] Error:`, error)
+          }
+        }
+      }
+
+      // Step 3: Deploy blockchain contract
+      const totalCapitalCommitment = parseFloat(formData.totalCapitalCommitment)
+      const minTicketSize = parseFloat(formData.minCheckSize)
+      const maxTokens = Math.floor(totalCapitalCommitment / minTicketSize)
+
+      const blockchainPayload = {
+        structureId: structureId,
+        contractTokenName: formData.tokenName,
+        contractTokenSymbol: formData.tokenSymbol,
+        contractTokenValue: totalCapitalCommitment,
+        contractMaxTokens: maxTokens,
+        company: formData.structureName,
+        currency: formData.currency,
+        projectName: formData.structureName,
+        network: formData.paymentCryptoEnabled ? formData.paymentCryptoBlockchain : null,
+        operatingAgreementHash: formData.operatingAgreementHash,
+      }
+
+      const blockchainApiKey = process.env.NEXT_PUBLIC_BLOCKCHAIN_API_KEY || ''
+      console.log('[Blockchain] API Key loaded:', blockchainApiKey ? 'Yes (' + blockchainApiKey.substring(0, 20) + '...)' : 'No (empty)')
+      console.log('[Blockchain] Deploying contract for structure:', structureId)
+
+      const blockchainResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/blockchain/deploy/erc3643`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+          'x-api-key': blockchainApiKey
+        },
+        body: JSON.stringify(blockchainPayload)
+      })
+
+      console.log('[Blockchain] Response status:', blockchainResponse.status)
+      if (!blockchainResponse.ok) {
+        const errorData = await blockchainResponse.json().catch(() => ({}))
+        console.error('[Blockchain] Error response:', errorData)
+      }
+
+      if (!blockchainResponse.ok) {
+        console.error('Failed to deploy blockchain contract')
+      }
+
+      // Step 4: Upload documents
+      const allDocuments = [
+        ...formData.uploadedFundDocuments.map(doc => ({ ...doc, category: 'fund' })),
+        ...formData.uploadedInvestorDocuments.map(doc => ({ ...doc, category: 'investor' }))
+      ]
+
+      if (allDocuments.length > 0) {
+        for (const doc of allDocuments) {
+          try {
+            const documentFormData = new FormData()
+            documentFormData.append('entityType', 'Structure')
+            documentFormData.append('entityId', structureId)
+            documentFormData.append('file', doc.file)
+            documentFormData.append('documentType', doc.name)
+            documentFormData.append('documentName', doc.name)
+            documentFormData.append('tags', doc.category)
+            documentFormData.append('metadata', doc.category)
+            documentFormData.append('notes', 'Uploaded during structure setup')
+
+            const documentResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/documents`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${authToken}`
+              },
+              body: documentFormData
+            })
+
+            if (!documentResponse.ok) {
+              console.error(`Failed to upload document: ${doc.name}`)
+            }
+          } catch (error) {
+            console.error(`Error uploading document ${doc.name}:`, error)
+          }
+        }
+      }
+
+      // Success - redirect or show success message
+      toast.success('Structure setup completed successfully!')
+      setIsSubmitting(false)
+
+      // Redirect to the structures page or show success screen
+      setTimeout(() => {
+        window.location.href = '/investment-manager/structures'
+      }, 2000)
+
+    } catch (error) {
+      console.error('Error completing setup:', error)
+      setIsSubmitting(false)
+      toast.error('Failed to complete setup. Please try again.')
     }
   }
 
@@ -1344,17 +1997,18 @@ export default function OnboardingPage() {
   }
 
   // V3: SUCCESS PAGE with comprehensive summary
-  if (setupComplete) {
+  if (setupComplete || inReviewMode) {
+    const isReviewing = inReviewMode && !setupComplete
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className={`min-h-screen bg-gradient-to-br py-12 px-4 sm:px-6 lg:px-8 ${isReviewing ? 'from-blue-50 to-indigo-50' : 'from-green-50 to-blue-50'}`}>
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-              <CheckCircle2 className="w-10 h-10 text-green-600" />
+            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${isReviewing ? 'bg-blue-100' : 'bg-green-100'}`}>
+              <CheckCircle2 className={`w-10 h-10 ${isReviewing ? 'text-blue-600' : 'text-green-600'}`} />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Setup Complete!</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{isReviewing ? 'Review Your Setup' : 'Setup Complete!'}</h1>
             <p className="text-lg text-gray-600">
-              Your investment structure is ready to accept investors
+              {isReviewing ? 'Please review your investment structure configuration below. Once confirmed, it cannot be modified.' : 'Your investment structure is ready to accept investors'}
             </p>
           </div>
 
@@ -1480,7 +2134,7 @@ export default function OnboardingPage() {
                     <span className="text-gray-500">Total Capital Commitment:</span>
                     <p className="font-medium">
                       {formData.currency} {formData.totalCapitalCommitment && !isNaN(parseFloat(formData.totalCapitalCommitment))
-                        ? parseFloat(formData.totalCapitalCommitment).toLocaleString()
+                        ? parseFloat(formData.totalCapitalCommitment).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         : 'N/A'}
                     </p>
                   </div>
@@ -1492,7 +2146,7 @@ export default function OnboardingPage() {
                     <span className="text-gray-500">Minimum Check Size:</span>
                     <p className="font-medium">
                       {formData.currency} {formData.minCheckSize && !isNaN(parseFloat(formData.minCheckSize))
-                        ? parseFloat(formData.minCheckSize).toLocaleString()
+                        ? parseFloat(formData.minCheckSize).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         : 'N/A'}
                     </p>
                   </div>
@@ -1500,7 +2154,7 @@ export default function OnboardingPage() {
                     <span className="text-gray-500">Maximum Check Size:</span>
                     <p className="font-medium">
                       {formData.currency} {formData.maxCheckSize && !isNaN(parseFloat(formData.maxCheckSize))
-                        ? parseFloat(formData.maxCheckSize).toLocaleString()
+                        ? parseFloat(formData.maxCheckSize).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         : 'N/A'}
                     </p>
                   </div>
@@ -1827,24 +2481,76 @@ export default function OnboardingPage() {
           {/* Next Steps */}
           <Card>
             <CardFooter className="flex gap-3 pt-6">
-              <Button
-                className="flex-1"
-                size="lg"
-                onClick={() => router.push('/investment-manager/structures')}
-              >
-                Check New Structure Created
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                size="lg"
-                onClick={() => router.push('/investment-manager/investors')}
-              >
-                Invite Investors
-              </Button>
+              {isReviewing ? (
+                <>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    size="lg"
+                    onClick={() => setInReviewMode(false)}
+                  >
+                    Back to Edit
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    size="lg"
+                    onClick={() => setShowCompleteConfirmation(true)}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      'Complete Setup'
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {visibilitySettings?.setupCompleteButtons['check-structure'] && (
+                    <Button
+                      className="flex-1"
+                      size="lg"
+                      onClick={() => router.push(`/investment-manager/structures/${createdStructureId}/edit`)}
+                    >
+                      Edit Offering
+                    </Button>
+                  )}
+                  {visibilitySettings?.setupCompleteButtons['invite-investors'] && (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      size="lg"
+                      onClick={() => router.push('/investment-manager/investors')}
+                    >
+                      Invite Investors
+                    </Button>
+                  )}
+                </>
+              )}
             </CardFooter>
           </Card>
         </div>
+
+        {/* Complete Setup Confirmation Dialog */}
+        <AlertDialog open={showCompleteConfirmation} onOpenChange={setShowCompleteConfirmation}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Complete Setup?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Once the setup is complete, <span className="font-semibold text-red-600">no modifications can be made</span> to this structure configuration. Please ensure all details are correct before confirming.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleCompleteSetupConfirmation} className="bg-primary">
+                Complete Setup
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     )
   }
@@ -1892,17 +2598,21 @@ export default function OnboardingPage() {
               {currentStep === 1 && t.onboarding.selectStructureType}
               {currentStep === 2 && 'Basic Information'}
               {currentStep === 3 && 'Capital Structure & Issuances'}
-              {currentStep === 4 && 'Economic Terms'}
-              {currentStep === 5 && 'Distribution & Tax Settings'}
-              {currentStep === 6 && 'Document Upload'}
+              {currentStep === 4 && 'Payment Configurations'}
+              {currentStep === 5 && 'Capital Calls Configuration'}
+              {currentStep === 6 && 'Economic Terms'}
+              {currentStep === 7 && 'Distribution & Tax Settings'}
+              {currentStep === 8 && 'Document Upload'}
             </CardTitle>
             <CardDescription>
               {currentStep === 1 && t.onboarding.selectStructureSubtitle}
               {currentStep === 2 && 'Provide essential information about your structure'}
               {currentStep === 3 && 'Define capital requirements, financing strategy, and investor parameters'}
-              {currentStep === 4 && 'Set up fee structures and distribution terms'}
-              {currentStep === 5 && 'Configure distribution schedule and tax settings'}
-              {currentStep === 6 && 'Upload fund and investor documents'}
+              {currentStep === 4 && 'Configure payment methods for investor contributions'}
+              {currentStep === 5 && 'Set up capital call schedule and payment requirements'}
+              {currentStep === 6 && 'Set up fee structures and distribution terms'}
+              {currentStep === 7 && 'Configure distribution schedule and tax settings'}
+              {currentStep === 8 && 'Upload fund and investor documents'}
             </CardDescription>
           </CardHeader>
 
@@ -1971,7 +2681,7 @@ export default function OnboardingPage() {
                 )}
 
                 {/* Parent Structure Configuration */}
-                {formData.structureType && (availableSubtypes.length === 0 || formData.structureSubtype) && (
+                {formData.structureType && (
                   <div className="space-y-4 pt-6 border-t">
                     <div className="flex items-start space-x-3">
                       <Checkbox
@@ -2010,12 +2720,17 @@ export default function OnboardingPage() {
                               <SelectValue placeholder="Choose a parent structure..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {getStructures()
-                                .map((structure) => (
+                              {availableParentStructures.length === 0 ? (
+                                <SelectItem value="none" disabled>
+                                  No structures available
+                                </SelectItem>
+                              ) : (
+                                availableParentStructures.map((structure) => (
                                   <SelectItem key={structure.id} value={structure.id}>
                                     {structure.name} ({structure.type})
                                   </SelectItem>
-                                ))}
+                                ))
+                              )}
                             </SelectContent>
                           </Select>
                           <p className="text-xs text-muted-foreground">
@@ -2054,6 +2769,115 @@ export default function OnboardingPage() {
                     )}
                   </div>
                 )}
+
+                {/* Structure Banner Image */}
+                <div className="space-y-4 pt-6 border-t">
+                  <Label className="text-base font-semibold">Structure Banner Image *</Label>
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      id="bannerImage"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          // Store the actual file object
+                          updateFormData('bannerImage', file)
+
+                          // Create preview for display
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            const base64 = event.target?.result as string
+                            updateFormData('bannerImagePreview', base64)
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-primary file:text-white
+                        hover:file:bg-primary/90"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Upload a banner image (JPG, PNG) to be displayed in the structure summary. Recommended: 500x200px or wider
+                    </p>
+                  </div>
+                  {formData.bannerImagePreview && (
+                    <div className="mt-4">
+                      <div className="text-sm text-muted-foreground mb-2">Preview:</div>
+                      <img
+                        src={formData.bannerImagePreview}
+                        alt="Banner preview"
+                        className="max-w-full h-auto rounded-md border max-h-48"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Blockchain Owner Information */}
+                <div className="space-y-4 pt-6 border-t">
+                  <Label className="text-base font-semibold">Blockchain Owner Information *</Label>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="walletOwnerAddress">Wallet Owner Address *</Label>
+                    <Input
+                      id="walletOwnerAddress"
+                      value={formData.walletOwnerAddress}
+                      onChange={(e) => {
+                        const address = e.target.value
+                        updateFormData('walletOwnerAddress', address)
+                      }}
+                      placeholder="0x..."
+                      required
+                      className={
+                        formData.walletOwnerAddress &&
+                        !/^0x[a-fA-F0-9]{40}$/.test(formData.walletOwnerAddress)
+                          ? 'border-red-500'
+                          : ''
+                      }
+                    />
+                    {formData.walletOwnerAddress &&
+                      !/^0x[a-fA-F0-9]{40}$/.test(formData.walletOwnerAddress) && (
+                        <p className="text-xs text-red-600">
+                          Please enter a valid hexadecimal wallet address (0x followed by 40 hexadecimal characters)
+                        </p>
+                      )}
+                    <p className="text-xs text-muted-foreground">
+                      Enter the wallet owner address for blockchain operations
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="operatingAgreementHash">Operating Agreement Hash *</Label>
+                    <Input
+                      id="operatingAgreementHash"
+                      value={formData.operatingAgreementHash}
+                      onChange={(e) => {
+                        const hash = e.target.value
+                        updateFormData('operatingAgreementHash', hash)
+                      }}
+                      placeholder="0x..."
+                      required
+                      className={
+                        formData.operatingAgreementHash &&
+                        !/^0x[a-fA-F0-9]+$/.test(formData.operatingAgreementHash)
+                          ? 'border-red-500'
+                          : ''
+                      }
+                    />
+                    {formData.operatingAgreementHash &&
+                      !/^0x[a-fA-F0-9]+$/.test(formData.operatingAgreementHash) && (
+                        <p className="text-xs text-red-600">
+                          Please enter a valid hexadecimal hash (0x followed by hexadecimal characters)
+                        </p>
+                      )}
+                    <p className="text-xs text-muted-foreground">
+                      Enter the operating agreement hash for document verification
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -2204,9 +3028,15 @@ export default function OnboardingPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fundraising">Fundraising</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="closed">Closed</SelectItem>
+                      {visibilitySettings?.currentStageOptions.fundraising && (
+                        <SelectItem value="fundraising">Fundraising</SelectItem>
+                      )}
+                      {visibilitySettings?.currentStageOptions.active && (
+                        <SelectItem value="active">Active</SelectItem>
+                      )}
+                      {visibilitySettings?.currentStageOptions.closed && (
+                        <SelectItem value="closed">Closed</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -2235,11 +3065,11 @@ export default function OnboardingPage() {
                       >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="closed-end" id="closed-end" />
-                          <Label htmlFor="closed-end">Closed-End (Standard)</Label>
+                          <Label htmlFor="closed-end">Closed-End</Label>
                         </div>
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="open-end" id="open-end" />
-                          <Label htmlFor="open-end">Open-End (Rare)</Label>
+                          <Label htmlFor="open-end">Open-End</Label>
                         </div>
                       </RadioGroup>
                     </div>
@@ -2293,9 +3123,9 @@ export default function OnboardingPage() {
                     <Input
                       id="totalCapitalCommitment"
                       type="text"
-                      placeholder="10,000,000"
+                      placeholder="10,000,000.00"
                       className="rounded-l-none"
-                      value={formData.totalCapitalCommitment ? parseFloat(formData.totalCapitalCommitment.replace(/,/g, '')).toLocaleString() : ''}
+                      value={formData.totalCapitalCommitment ? parseFloat(formData.totalCapitalCommitment.replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
                       onChange={(e) => {
                         const rawValue = e.target.value.replace(/,/g, '')
                         if (rawValue === '' || !isNaN(parseFloat(rawValue))) {
@@ -2313,30 +3143,6 @@ export default function OnboardingPage() {
                   <h4 className="font-medium text-sm text-primary">Investment & Financing Configuration</h4>
 
                   <div className="space-y-2">
-                    <Label htmlFor="plannedInvestments">
-                      How many investments/properties will this structure hold? *
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Number of properties, projects, or companies you plan to invest in</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
-                    <Input
-                      id="plannedInvestments"
-                      type="number"
-                      min="1"
-                      placeholder="1"
-                      value={formData.plannedInvestments}
-                      onChange={(e) => updateFormData('plannedInvestments', e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
                     <Label>What financing strategy will you use? *</Label>
                     <RadioGroup
                       value={formData.financingStrategy}
@@ -2346,14 +3152,12 @@ export default function OnboardingPage() {
                         <RadioGroupItem value="equity" id="equity" />
                         <div>
                           <Label htmlFor="equity" className="cursor-pointer font-medium">Equity Only</Label>
-                          <p className="text-xs text-gray-500">1 issuance per investment</p>
                         </div>
                       </div>
                       <div className="flex items-start space-x-2">
                         <RadioGroupItem value="debt" id="debt" />
                         <div>
                           <Label htmlFor="debt" className="cursor-pointer font-medium">Debt Only</Label>
-                          <p className="text-xs text-gray-500">1 issuance per investment</p>
                         </div>
                       </div>
                     </RadioGroup>
@@ -2413,23 +3217,6 @@ export default function OnboardingPage() {
                     ) : null
                   })()}
 
-                  <Alert className="border-primary/30 bg-white">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-primary">Calculated Token Issuances</AlertTitle>
-                    <AlertDescription className="text-primary/80">
-                      <p className="font-medium">Total Issuances: {calculatedIssuances}</p>
-                      <p className="text-xs mt-1">
-                        {formData.plannedInvestments} investment(s) × {formData.financingStrategy === 'mixed' ? '2' : '1'}
-                        {formData.financingStrategy === 'mixed' ? ' (equity + debt)' : ` (${formData.financingStrategy} only)`}
-                      </p>
-                      {currentTier && calculatedIssuances > currentTier.maxIssuances && currentTier.maxIssuances !== Infinity && (
-                        <p className="text-xs mt-2 text-orange-600">
-                          ⚠️ You'll have {calculatedIssuances - currentTier.maxIssuances} issuances above your plan limit.
-                          Additional cost: ${(calculatedIssuances - currentTier.maxIssuances) * 3000} one-time
-                        </p>
-                      )}
-                    </AlertDescription>
-                  </Alert>
                 </div>
                 )}
 
@@ -2502,9 +3289,9 @@ export default function OnboardingPage() {
                       <Input
                         id="minCheckSize"
                         type="text"
-                        placeholder="50,000"
+                        placeholder="50,000.00"
                         className="rounded-l-none"
-                        value={formData.minCheckSize ? parseFloat(formData.minCheckSize.replace(/,/g, '')).toLocaleString() : ''}
+                        value={formData.minCheckSize ? parseFloat(formData.minCheckSize.replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
                         onChange={(e) => {
                           const rawValue = e.target.value.replace(/,/g, '')
                           if (rawValue === '' || !isNaN(parseFloat(rawValue))) {
@@ -2525,9 +3312,9 @@ export default function OnboardingPage() {
                       <Input
                         id="maxCheckSize"
                         type="text"
-                        placeholder="150,000"
+                        placeholder="150,000.00"
                         className="rounded-l-none"
-                        value={formData.maxCheckSize ? parseFloat(formData.maxCheckSize.replace(/,/g, '')).toLocaleString() : ''}
+                        value={formData.maxCheckSize ? parseFloat(formData.maxCheckSize.replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
                         onChange={(e) => {
                           const rawValue = e.target.value.replace(/,/g, '')
                           if (rawValue === '' || !isNaN(parseFloat(rawValue))) {
@@ -2537,14 +3324,583 @@ export default function OnboardingPage() {
                         required
                       />
                     </div>
+                    <p className="text-xs text-gray-600">Must be a multiple of the minimum ticket size</p>
+                  </div>
+                </div>
+
+                {/* Token Economics Validation */}
+                {(() => {
+                  const totalCommitment = parseFloat(formData.totalCapitalCommitment) || 0
+                  const minCheck = parseFloat(formData.minCheckSize) || 0
+                  const maxCheck = parseFloat(formData.maxCheckSize) || 0
+
+                  // Check both validations
+                  const calculatedTokens = totalCommitment / minCheck
+                  const isTokensInteger = Number.isInteger(calculatedTokens)
+                  const isMaxMultipleOfMin = minCheck > 0 && maxCheck > 0 ? maxCheck % minCheck === 0 : true
+
+                  const hasErrors = (totalCommitment > 0 && minCheck > 0 && !isTokensInteger) ||
+                                   (minCheck > 0 && maxCheck > 0 && !isMaxMultipleOfMin)
+                  const showValidation = totalCommitment > 0 && minCheck > 0
+
+                  if (!showValidation) return null
+
+                  if (hasErrors) {
+                    return (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex gap-3">
+                          <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium text-red-800">Invalid Ticket Configuration</h3>
+
+                            {!isTokensInteger && (
+                              <>
+                                <p className="text-sm text-red-700 mt-2">
+                                  <strong>Issue 1:</strong> Total commitment ({formData.currency} {totalCommitment.toLocaleString()}) must be evenly divisible by minimum ticket size ({formData.currency} {minCheck.toLocaleString()}).
+                                </p>
+                                <p className="text-sm text-red-700 mt-1">
+                                  Current calculation: {totalCommitment.toLocaleString()} ÷ {minCheck.toLocaleString()} = <strong>{calculatedTokens.toFixed(2)} tickets</strong> (must be a whole number)
+                                </p>
+                              </>
+                            )}
+
+                            {!isMaxMultipleOfMin && maxCheck > 0 && (
+                              <p className="text-sm text-red-700 mt-2">
+                                <strong>Issue {!isTokensInteger ? '2' : '1'}:</strong> Maximum ticket size ({formData.currency} {maxCheck.toLocaleString()}) must be a multiple of minimum ticket size ({formData.currency} {minCheck.toLocaleString()}).
+                              </p>
+                            )}
+
+                            <p className="text-sm font-semibold text-red-800 mt-3">
+                              Please adjust your ticket sizes to resolve {(!isTokensInteger && !isMaxMultipleOfMin) ? 'these issues' : 'this issue'}.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  } else {
+                    return (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex gap-3">
+                          <div className="flex-shrink-0">
+                            <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-sm font-medium text-green-800">Ticket Configuration Valid</h3>
+                            <p className="text-sm text-green-700 mt-1">
+                              Your structure will have <strong>{calculatedTokens.toLocaleString()} tickets</strong> at {formData.currency} {minCheck.toLocaleString()} each.
+                            </p>
+                            {maxCheck > 0 && (
+                              <p className="text-sm text-green-700 mt-1">
+                                Maximum investment: <strong>{Math.floor(maxCheck / minCheck)} tickets</strong> ({formData.currency} {maxCheck.toLocaleString()})
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+                })()}
+
+                {/* Token Name and Symbol */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="tokenName">Ticket Name *</Label>
+                    <Input
+                      id="tokenName"
+                      type="text"
+                      placeholder="e.g., Alpha Fund Tickets"
+                      value={formData.tokenName}
+                      onChange={(e) => updateFormData('tokenName', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tokenSymbol">Ticket Symbol *</Label>
+                    <Input
+                      id="tokenSymbol"
+                      type="text"
+                      placeholder="e.g., ALPHA"
+                      value={formData.tokenSymbol}
+                      onChange={(e) => updateFormData('tokenSymbol', e.target.value.toUpperCase())}
+                      maxLength={10}
+                      required
+                    />
                   </div>
                 </div>
               </div>
               )
             })()}
 
-            {/* STEP 4: Economic Terms (V3 ENHANCED) */}
-            {currentStep === 4 && (() => {
+            {/* STEP 4: Payment Configurations */}
+            {currentStep === 4 && (
+              <div className="space-y-6">
+                {/* Local Bank Transfer */}
+                <div className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="paymentLocalBank"
+                      checked={formData.paymentLocalBankEnabled}
+                      onCheckedChange={(checked) => updateFormData('paymentLocalBankEnabled', checked)}
+                    />
+                    <Label htmlFor="paymentLocalBank" className="cursor-pointer font-medium">
+                      Local Bank Transfer
+                    </Label>
+                  </div>
+
+                  {formData.paymentLocalBankEnabled && (
+                    <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentLocalBankName">Bank Name *</Label>
+                          <Input
+                            id="paymentLocalBankName"
+                            value={formData.paymentLocalBankName}
+                            onChange={(e) => updateFormData('paymentLocalBankName', e.target.value)}
+                            placeholder="Enter bank name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentLocalAccountNumber">Account Number *</Label>
+                          <Input
+                            id="paymentLocalAccountNumber"
+                            value={formData.paymentLocalAccountNumber}
+                            onChange={(e) => updateFormData('paymentLocalAccountNumber', e.target.value)}
+                            placeholder="Enter account number"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentLocalRoutingNumber">Routing / ABA Number</Label>
+                          <Input
+                            id="paymentLocalRoutingNumber"
+                            value={formData.paymentLocalRoutingNumber}
+                            onChange={(e) => updateFormData('paymentLocalRoutingNumber', e.target.value)}
+                            placeholder="Enter routing number"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentLocalAccountHolder">Account Holder Name *</Label>
+                          <Input
+                            id="paymentLocalAccountHolder"
+                            value={formData.paymentLocalAccountHolder}
+                            onChange={(e) => updateFormData('paymentLocalAccountHolder', e.target.value)}
+                            placeholder="Enter account holder name"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="paymentLocalBankAddress">Bank Address</Label>
+                        <Input
+                          id="paymentLocalBankAddress"
+                          value={formData.paymentLocalBankAddress}
+                          onChange={(e) => updateFormData('paymentLocalBankAddress', e.target.value)}
+                          placeholder="Enter bank address"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* International Bank Transfer */}
+                <div className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="paymentIntlBank"
+                      checked={formData.paymentIntlBankEnabled}
+                      onCheckedChange={(checked) => updateFormData('paymentIntlBankEnabled', checked)}
+                    />
+                    <Label htmlFor="paymentIntlBank" className="cursor-pointer font-medium">
+                      International Bank Transfer
+                    </Label>
+                  </div>
+
+                  {formData.paymentIntlBankEnabled && (
+                    <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentIntlBankName">Bank Name *</Label>
+                          <Input
+                            id="paymentIntlBankName"
+                            value={formData.paymentIntlBankName}
+                            onChange={(e) => updateFormData('paymentIntlBankName', e.target.value)}
+                            placeholder="Enter bank name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentIntlAccountNumber">Account Number / IBAN *</Label>
+                          <Input
+                            id="paymentIntlAccountNumber"
+                            value={formData.paymentIntlAccountNumber}
+                            onChange={(e) => updateFormData('paymentIntlAccountNumber', e.target.value)}
+                            placeholder="Enter account number or IBAN"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentIntlSwiftCode">SWIFT / BIC Code *</Label>
+                          <Input
+                            id="paymentIntlSwiftCode"
+                            value={formData.paymentIntlSwiftCode}
+                            onChange={(e) => updateFormData('paymentIntlSwiftCode', e.target.value)}
+                            placeholder="Enter SWIFT/BIC code"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentIntlAccountHolder">Account Holder Name *</Label>
+                          <Input
+                            id="paymentIntlAccountHolder"
+                            value={formData.paymentIntlAccountHolder}
+                            onChange={(e) => updateFormData('paymentIntlAccountHolder', e.target.value)}
+                            placeholder="Enter account holder name"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="paymentIntlBankAddress">Bank Address</Label>
+                        <Input
+                          id="paymentIntlBankAddress"
+                          value={formData.paymentIntlBankAddress}
+                          onChange={(e) => updateFormData('paymentIntlBankAddress', e.target.value)}
+                          placeholder="Enter bank address"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Crypto Payments */}
+                <div className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="paymentCrypto"
+                      checked={formData.paymentCryptoEnabled}
+                      onCheckedChange={(checked) => updateFormData('paymentCryptoEnabled', checked)}
+                    />
+                    <Label htmlFor="paymentCrypto" className="cursor-pointer font-medium">
+                      Payments with Crypto
+                    </Label>
+                  </div>
+
+                  {formData.paymentCryptoEnabled && (
+                    <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentCryptoCoin">Coin</Label>
+                          <Input
+                            id="paymentCryptoCoin"
+                            value="USDC"
+                            disabled
+                            className="bg-gray-100 cursor-not-allowed"
+                          />
+                          <p className="text-xs text-gray-500">Only USDC is supported at this time</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="paymentCryptoBlockchain">Blockchain *</Label>
+                          <Select
+                            value={formData.paymentCryptoBlockchain}
+                            onValueChange={(value) => updateFormData('paymentCryptoBlockchain', value)}
+                          >
+                            <SelectTrigger id="paymentCryptoBlockchain">
+                              <SelectValue placeholder="Select blockchain" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Polygon">Polygon</SelectItem>
+                              <SelectItem value="Arbitrum">Arbitrum</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="paymentCryptoWallet">Destination Wallet Address *</Label>
+                        <Input
+                          id="paymentCryptoWallet"
+                          value={formData.paymentCryptoWalletAddress}
+                          onChange={(e) => {
+                            const address = e.target.value
+                            updateFormData('paymentCryptoWalletAddress', address)
+                          }}
+                          placeholder="0x..."
+                          className={
+                            formData.paymentCryptoWalletAddress &&
+                            !/^0x[a-fA-F0-9]{40}$/.test(formData.paymentCryptoWalletAddress)
+                              ? 'border-red-500'
+                              : ''
+                          }
+                        />
+                        {formData.paymentCryptoWalletAddress &&
+                          !/^0x[a-fA-F0-9]{40}$/.test(formData.paymentCryptoWalletAddress) && (
+                            <p className="text-xs text-red-600">
+                              Please enter a valid EVM wallet address (0x followed by 40 hexadecimal characters)
+                            </p>
+                          )}
+                        <p className="text-xs text-gray-500">
+                          Enter the wallet address where investors will send their USDC contributions
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {!formData.paymentLocalBankEnabled &&
+                  !formData.paymentIntlBankEnabled &&
+                  !formData.paymentCryptoEnabled && (
+                    <Alert className="border-yellow-200 bg-yellow-50">
+                      <AlertCircle className="h-4 w-4 text-yellow-600" />
+                      <AlertDescription className="text-yellow-700 text-sm">
+                        Please select at least one payment method to continue
+                      </AlertDescription>
+                    </Alert>
+                  )}
+              </div>
+            )}
+
+            {/* STEP 5: Capital Calls Configuration */}
+            {currentStep === 5 && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-bold text-gray-900">Capital calls configuration</h3>
+
+                <div className="flex items-center gap-3">
+                  <input
+                    id="enableCapitalCalls"
+                    type="checkbox"
+                    checked={formData.enableCapitalCalls}
+                    onChange={(e) => updateFormData('enableCapitalCalls', e.target.checked)}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <Label htmlFor="enableCapitalCalls" className="cursor-pointer font-medium">
+                    Capital Calls
+                  </Label>
+                </div>
+
+                {formData.enableCapitalCalls && (
+                  <div className="p-4 bg-green-50 rounded-lg space-y-4">
+                    {/* Global Capital Call Settings */}
+                    <div className="bg-white rounded-lg p-4 space-y-4">
+                      <h4 className="font-medium text-sm text-gray-900">Capital Call Settings</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="capitalCallNoticePeriod">Notice Period (Days)</Label>
+                          <Input
+                            id="capitalCallNoticePeriod"
+                            type="number"
+                            min="1"
+                            placeholder="e.g., 10"
+                            value={formData.capitalCallNoticePeriod}
+                            onChange={(e) => updateFormData('capitalCallNoticePeriod', e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Number of days notice before capital call is due
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="capitalCallPaymentDeadline">Payment Deadline (Days)</Label>
+                          <Input
+                            id="capitalCallPaymentDeadline"
+                            type="number"
+                            min="1"
+                            placeholder="e.g., 30"
+                            value={formData.capitalCallPaymentDeadline}
+                            onChange={(e) => updateFormData('capitalCallPaymentDeadline', e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Number of days investors have to pay after notice
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-medium text-sm text-green-900">Capital Call Schedule</h4>
+                        <p className="text-xs text-green-700 mt-1">
+                          Define capital call schedule. Total must equal 100%.
+                        </p>
+                      </div>
+                      {formData.capitalCalls.length < 4 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            const newCall = {
+                              id: `call-${Date.now()}`,
+                              date: '',
+                              callPercentage: 0
+                            }
+                            updateFormData('capitalCalls', [...formData.capitalCalls, newCall])
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Call
+                        </Button>
+                      )}
+                    </div>
+
+                    {formData.capitalCalls.length === 0 ? (
+                      <p className="text-xs text-green-700 italic">No capital calls added yet. Click "Add Call" to create one.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {formData.capitalCalls.map((call, index) => (
+                          <div key={call.id} className="bg-white rounded-lg p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h5 className="font-medium text-sm text-gray-900">Capital Call {index + 1}</h5>
+                              {formData.capitalCalls.length > 1 && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    updateFormData('capitalCalls', formData.capitalCalls.filter(c => c.id !== call.id))
+                                  }}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor={`call-date-${call.id}`}>Date</Label>
+                                <Input
+                                  id={`call-date-${call.id}`}
+                                  type="date"
+                                  value={call.date}
+                                  onChange={(e) => {
+                                    const updated = formData.capitalCalls.map(c =>
+                                      c.id === call.id ? { ...c, date: e.target.value } : c
+                                    )
+                                    updateFormData('capitalCalls', updated)
+                                  }}
+                                  className="bg-white"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`call-percent-${call.id}`}>Call % (0-100)</Label>
+                                <Input
+                                  id={`call-percent-${call.id}`}
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.1"
+                                  value={call.callPercentage}
+                                  onChange={(e) => {
+                                    const updated = formData.capitalCalls.map(c =>
+                                      c.id === call.id ? { ...c, callPercentage: parseFloat(e.target.value) || 0 } : c
+                                    )
+                                    updateFormData('capitalCalls', updated)
+                                  }}
+                                  className="bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="bg-white rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm text-gray-900">Total Call %:</span>
+                            <span className={`font-bold text-sm ${formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0) === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                              {formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-6">
+                  <h3 className="text-lg font-bold text-gray-900">Reporting configuration</h3>
+
+                  <div className="space-y-3">
+                    <Label className="text-base font-medium text-gray-900">
+                      What level of detail do you want in your performance reporting?
+                    </Label>
+                  <p className="text-xs text-gray-700">
+                    Choose your preferred methodology for calculating and reporting investment performance metrics.
+                  </p>
+
+                  <RadioGroup
+                    value={formData.performanceMethodology}
+                    onValueChange={(value) => updateFormData('performanceMethodology', value)}
+                  >
+                    <div className="flex items-start space-x-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50/50 cursor-pointer">
+                      <RadioGroupItem value="granular" id="granular" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="granular" className="cursor-pointer font-medium text-gray-900">
+                          Yes - Use Granular Methodology
+                        </Label>
+                        <p className="text-xs text-gray-700 mt-1">
+                          Detailed tracking of capital call purposes. Most accurate for performance reporting.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50/50 cursor-pointer">
+                      <RadioGroupItem value="grossup" id="grossup-fund" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="grossup-fund" className="cursor-pointer font-medium text-gray-900">
+                          No - Use Gross Up Methodology
+                        </Label>
+                        <p className="text-xs text-gray-700 mt-1">
+                          Simplified calculation. Suitable when capital call purposes aren't tracked in detail.
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                  </div>
+                </div>
+
+                {/* ILPA Performance Reporting Methodology */}
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-6 space-y-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-2">
+                      ILPA Performance Reporting Methodology
+                    </h3>
+                    <p className="text-sm text-gray-700">
+                      Select how you will calculate gross performance for investor reporting. This follows ILPA
+                      (Institutional Limited Partners Association) standards.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Granular Methodology */}
+                    <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                      <h4 className="font-semibold text-sm text-gray-900 mb-2">
+                        Granular Methodology (Most Detailed)
+                      </h4>
+                      <p className="text-sm text-gray-700">
+                        Use when you track detailed capital calls where the specific purpose (management fees,
+                        investment financing, etc.) is known at the time of each capital call. This provides
+                        the most accurate Fund-to-Investor cash flow performance.
+                      </p>
+                    </div>
+
+                    {/* Gross Up Methodology */}
+                    <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                      <h4 className="font-semibold text-sm text-gray-900 mb-2">
+                        Gross Up Methodology (Simplified)
+                      </h4>
+                      <p className="text-sm text-gray-700">
+                        Use when capital call purposes are not tracked in detail, or when you calculate
+                        performance at the Portfolio-Level (Fund-to-Investment cash flows). Management fees
+                        and expenses are grossed up in the calculation.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 5: Economic Terms (V3 ENHANCED) */}
+            {currentStep === 6 && (() => {
               // Calculate structure features based on type and subtype
               const features = getStructureFeatures(formData.structureType, (formData as any).subtype || formData.structureSubtype)
 
@@ -2558,28 +3914,32 @@ export default function OnboardingPage() {
                     value={formData.economicTermsApplication}
                     onValueChange={(value) => updateFormData('economicTermsApplication', value)}
                   >
-                    <div className="flex items-start space-x-2">
-                      <RadioGroupItem value="all-investors" id="all-investors" />
-                      <div>
-                        <Label htmlFor="all-investors" className="cursor-pointer font-medium">
-                          Apply to all investors equally
-                        </Label>
-                        <p className="text-xs text-blue-700">
-                          Same terms for every investor (standard approach)
-                        </p>
+                    {visibilitySettings?.economicTermsOptions['all-investors'] && (
+                      <div className="flex items-start space-x-2">
+                        <RadioGroupItem value="all-investors" id="all-investors" />
+                        <div>
+                          <Label htmlFor="all-investors" className="cursor-pointer font-medium">
+                            Apply to all investors equally
+                          </Label>
+                          <p className="text-xs text-blue-700">
+                            Same terms for every investor (standard approach)
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <RadioGroupItem value="per-investor" id="per-investor" />
-                      <div>
-                        <Label htmlFor="per-investor" className="cursor-pointer font-medium">
-                          Configure per investor type
-                        </Label>
-                        <p className="text-xs text-blue-700">
-                          Set different terms for different investor types or large check sizes (configure during investor onboarding)
-                        </p>
+                    )}
+                    {visibilitySettings?.economicTermsOptions['per-investor'] && (
+                      <div className="flex items-start space-x-2">
+                        <RadioGroupItem value="per-investor" id="per-investor" />
+                        <div>
+                          <Label htmlFor="per-investor" className="cursor-pointer font-medium">
+                            Configure per investor type
+                          </Label>
+                          <p className="text-xs text-blue-700">
+                            Set different terms for different investor types or large check sizes (configure during investor onboarding)
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </RadioGroup>
                   {formData.economicTermsApplication === 'per-investor' && (
                     <Alert className="border-blue-300 bg-white">
@@ -3125,24 +4485,41 @@ export default function OnboardingPage() {
                     </AlertDescription>
                   </Alert>
                 ) : formData.financingStrategy === 'equity' ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="distributionModel">Distribution Model *</Label>
-                    <Select
-                      value={formData.distributionModel}
-                      onValueChange={(value) => updateFormData('distributionModel', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="simple">Simple Pro-Rata Distribution</SelectItem>
-                        <SelectItem value="waterfall">Waterfall Distribution</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-gray-500">
-                      {formData.distributionModel === 'simple' && 'Profits distributed proportionally based on ownership percentage'}
-                      {formData.distributionModel === 'waterfall' && 'Distributions are calculated on total fund performance'}
-                    </p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="distributionModel">Distribution Model *</Label>
+                      <Select
+                        value={formData.distributionModel}
+                        onValueChange={(value) => updateFormData('distributionModel', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="simple">Simple Pro-Rata Distribution</SelectItem>
+                          <SelectItem value="waterfall">Waterfall Distribution</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">
+                        {formData.distributionModel === 'simple' && 'Profits distributed proportionally based on ownership percentage'}
+                        {formData.distributionModel === 'waterfall' && 'Distributions are calculated on total fund performance'}
+                      </p>
+                    </div>
+
+                    {formData.distributionModel === 'simple' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="preferredReturnSimple">Preferred return %</Label>
+                        <Input
+                          id="preferredReturnSimple"
+                          type="number"
+                          step="0.1"
+                          placeholder="8.0"
+                          value={formData.preferredReturn || ''}
+                          onChange={(e) => updateFormData('preferredReturn', parseFloat(e.target.value) || 0)}
+                        />
+                        <p className="text-xs text-gray-500">Minimum annual return to LPs before distributions</p>
+                      </div>
+                    )}
                   </div>
                 ) : formData.financingStrategy === 'debt' ? (
                   <div className="grid grid-cols-2 gap-4">
@@ -3178,7 +4555,7 @@ export default function OnboardingPage() {
                 <>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-base font-medium text-gray-900">Waterfall Scenarios</h4>
+                    <h4 className="text-base font-medium text-gray-900">Waterfall Tiers</h4>
                     <Button
                       type="button"
                       variant="outline"
@@ -3187,10 +4564,8 @@ export default function OnboardingPage() {
                         if (formData.waterfallScenarios.length < 3) {
                           const newScenario = {
                             id: Date.now().toString(),
-                            name: `Scenario ${formData.waterfallScenarios.length + 1}`,
-                            managementFee: '2',
+                            name: `Tier ${formData.waterfallScenarios.length + 1}`,
                             gpSplit: '20',
-                            irrHurdle: '8',
                             preferredReturn: '8',
                             isExpanded: true
                           }
@@ -3199,8 +4574,21 @@ export default function OnboardingPage() {
                       }}
                       disabled={formData.waterfallScenarios.length >= 3}
                     >
-                      + Add Scenario {formData.waterfallScenarios.length < 3 ? `(${formData.waterfallScenarios.length}/3)` : '(Max)'}
+                      + Add Tier {formData.waterfallScenarios.length < 3 ? `(${formData.waterfallScenarios.length}/3)` : '(Max)'}
                     </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="managementFee">Management Fee (%)</Label>
+                    <Input
+                      id="managementFee"
+                      type="number"
+                      step="0.1"
+                      placeholder="2.0"
+                      value={formData.managementFee}
+                      onChange={(e) => updateFormData('managementFee', e.target.value)}
+                    />
+                    <p className="text-xs text-gray-500">Annual % of AUM - applies to all tiers</p>
                   </div>
 
                   {formData.waterfallScenarios.map((scenario, index) => (
@@ -3232,188 +4620,52 @@ export default function OnboardingPage() {
 
                       {scenario.isExpanded && (
                         <div className="p-4 border-t border-gray-200 space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor={`managementFee-${scenario.id}`}>Management Fee (%)</Label>
-                              <Input
-                                id={`managementFee-${scenario.id}`}
-                                type="number"
-                                step="0.1"
-                                placeholder="2.0"
-                                value={scenario.managementFee}
-                                onChange={(e) => {
-                                  const updated = [...formData.waterfallScenarios]
-                                  updated[index].managementFee = e.target.value
-                                  updateFormData('waterfallScenarios', updated)
-                                }}
-                              />
-                              <p className="text-xs text-gray-500">Annual % of AUM</p>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor={`gpSplit-${scenario.id}`}>GP Split / Carry (%)</Label>
-                              <Input
-                                id={`gpSplit-${scenario.id}`}
-                                type="number"
-                                step="0.1"
-                                placeholder="20.0"
-                                value={scenario.gpSplit}
-                                onChange={(e) => {
-                                  const updated = [...formData.waterfallScenarios]
-                                  updated[index].gpSplit = e.target.value
-                                  updateFormData('waterfallScenarios', updated)
-                                }}
-                              />
-                              <p className="text-xs text-gray-500">% of profits above hurdle</p>
-                            </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`gpSplit-${scenario.id}`}>GP Split / Carry (%)</Label>
+                            <Input
+                              id={`gpSplit-${scenario.id}`}
+                              type="number"
+                              step="0.1"
+                              placeholder="20.0"
+                              value={scenario.gpSplit}
+                              onChange={(e) => {
+                                const updated = [...formData.waterfallScenarios]
+                                updated[index].gpSplit = e.target.value
+                                updateFormData('waterfallScenarios', updated)
+                              }}
+                            />
+                            <p className="text-xs text-gray-500">% of profits above hurdle</p>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor={`irrHurdle-${scenario.id}`}>IRR Hurdle / Hurdle Rate (%)</Label>
-                              <Input
-                                id={`irrHurdle-${scenario.id}`}
-                                type="number"
-                                step="0.1"
-                                placeholder="8.0"
-                                value={scenario.irrHurdle}
-                                onChange={(e) => {
-                                  const updated = [...formData.waterfallScenarios]
-                                  updated[index].irrHurdle = e.target.value
-                                  updateFormData('waterfallScenarios', updated)
-                                }}
-                              />
-                              <p className="text-xs text-gray-500">Minimum return before carry</p>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor={`preferredReturn-${scenario.id}`}>Preferred Return (%)</Label>
-                              <Input
-                                id={`preferredReturn-${scenario.id}`}
-                                type="number"
-                                step="0.1"
-                                placeholder="8.0"
-                                value={scenario.preferredReturn}
-                                onChange={(e) => {
-                                  const updated = [...formData.waterfallScenarios]
-                                  updated[index].preferredReturn = e.target.value
-                                  updateFormData('waterfallScenarios', updated)
-                                }}
-                              />
-                              <p className="text-xs text-gray-500">Annual preferred return to LPs</p>
-                            </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`preferredReturn-${scenario.id}`}>Preferred Return/Hurdle Rate (%)</Label>
+                            <Input
+                              id={`preferredReturn-${scenario.id}`}
+                              type="number"
+                              step="0.1"
+                              placeholder="8.0"
+                              value={scenario.preferredReturn}
+                              onChange={(e) => {
+                                const updated = [...formData.waterfallScenarios]
+                                updated[index].preferredReturn = e.target.value
+                                updateFormData('waterfallScenarios', updated)
+                              }}
+                            />
+                            <p className="text-xs text-gray-500">Annual preferred return to LPs</p>
                           </div>
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
-
-                {/* Performance Methodology Selection - moved before 2-and-20 */}
-                <div className="space-y-3">
-                  <Label className="text-base font-medium text-gray-900">
-                    Do you track detailed capital calls?
-                  </Label>
-                  <p className="text-xs text-gray-700">
-                    Do you call capital specifically to pay management fees, finance an investment, and is the use known at the time of the capital call?
-                  </p>
-
-                  <RadioGroup
-                    value={formData.performanceMethodology}
-                    onValueChange={(value) => updateFormData('performanceMethodology', value)}
-                  >
-                    <div className="flex items-start space-x-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50/50 cursor-pointer">
-                      <RadioGroupItem value="granular" id="granular" className="mt-1" />
-                      <div className="flex-1">
-                        <Label htmlFor="granular" className="cursor-pointer font-medium text-gray-900">
-                          Yes - Use Granular Methodology
-                        </Label>
-                        <p className="text-xs text-gray-700 mt-1">
-                          Detailed tracking of capital call purposes. Most accurate for performance reporting.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-2 p-3 border border-gray-200 rounded-lg hover:bg-gray-50/50 cursor-pointer">
-                      <RadioGroupItem value="grossup" id="grossup-fund" className="mt-1" />
-                      <div className="flex-1">
-                        <Label htmlFor="grossup-fund" className="cursor-pointer font-medium text-gray-900">
-                          No - Use Gross Up Methodology
-                        </Label>
-                        <p className="text-xs text-gray-700 mt-1">
-                          Simplified calculation. Suitable when capital call purposes aren't tracked in detail.
-                        </p>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                </div>
-
                 </>
-                )}
-
-                {/* Information alert for Simple Distribution Model - only for non-private-debt */}
-                {formData.distributionModel === 'simple' && formData.structureType !== 'private-debt' && (
-                  <Alert className="border-primary/30 bg-white">
-                    <Info className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-primary">Simplified Distribution Model</AlertTitle>
-                    <AlertDescription className="text-primary/80">
-                      <p className="mb-2">
-                        This structure uses a simple pro-rata distribution model rather than complex waterfall distributions.
-                      </p>
-                      <p className="text-sm">
-                        Profits are distributed proportionally to each investor based on their ownership percentage.
-                      </p>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* V5: ILPA Performance Methodology Selector - only show for equity with waterfall distribution */}
-                {formData.financingStrategy === 'equity' && formData.distributionModel === 'waterfall' && (
-                <div className="mt-8 p-6 bg-purple-50 rounded-lg border-2 border-purple-200 space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-5 h-5 text-gray-700" />
-                    <h4 className="font-semibold text-gray-900">ILPA Performance Reporting Methodology</h4>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-4">
-                    Select how you will calculate gross performance for investor reporting. This follows ILPA (Institutional Limited Partners Association) standards.
-                  </p>
-
-                  {/* Decision Tree Explanation */}
-                  <div className="bg-white p-4 rounded-lg border border-purple-200 space-y-3">
-                    <h5 className="font-semibold text-purple-900 text-sm">Understanding the Methodologies</h5>
-                    <div className="space-y-3 text-xs text-purple-700">
-                      <div className="p-3 bg-purple-50/50 rounded">
-                        <p className="font-semibold mb-1">Granular Methodology (Most Detailed)</p>
-                        <p>Use when you track detailed capital calls where the specific purpose (management fees, investment financing, etc.) is known at the time of each capital call. This provides the most accurate Fund-to-Investor cash flow performance.</p>
-                      </div>
-                      <div className="p-3 bg-purple-50/50 rounded">
-                        <p className="font-semibold mb-1">Gross Up Methodology (Simplified)</p>
-                        <p>Use when capital call purposes are not tracked in detail, or when you calculate performance at the Portfolio-Level (Fund-to-Investment cash flows). Management fees and expenses are grossed up in the calculation.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ILPA Reporting Note */}
-                  {formData.performanceMethodology && (
-                    <Alert className="border-purple-300 bg-white">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600" />
-                      <AlertTitle className="text-purple-900">ILPA Reporting</AlertTitle>
-                      <AlertDescription className="text-purple-700">
-                        <p className="text-sm">
-                          {formData.performanceMethodology === 'granular'
-                            ? 'Granular methodology with detailed capital call tracking provides the most accurate ILPA-compliant performance reporting.'
-                            : 'Gross Up methodology enables simplified ILPA reporting with management fees and expenses grossed up.'}
-                        </p>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
                 )}
               </div>
               )
             })()}
 
-            {/* STEP 5: Distribution & Tax */}
-            {currentStep === 5 && (
+            {/* STEP 6: Distribution & Tax */}
+            {currentStep === 7 && (
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="distributionFrequency">Distribution Frequency</Label>
@@ -3768,137 +5020,26 @@ export default function OnboardingPage() {
                   )
                 )}
 
-                <div className="p-4 bg-blue-50 rounded-lg space-y-2">
-                  <h4 className="font-medium text-sm text-blue-900">Investor-Level Tax Configuration</h4>
-                  <p className="text-xs text-blue-700">
-                    Individual investor tax rates will be configured during investor onboarding based on:
-                  </p>
-                  <ul className="text-xs text-blue-700 list-disc list-inside space-y-1">
-                    <li>Investor nationality</li>
-                    <li>Investor type (Individual, Institutional, Pension, Family Office)</li>
-                    <li>Negotiated terms for large tickets</li>
-                  </ul>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    id="enableCapitalCalls"
-                    type="checkbox"
-                    checked={formData.enableCapitalCalls}
-                    onChange={(e) => updateFormData('enableCapitalCalls', e.target.checked)}
-                    className="w-4 h-4 cursor-pointer"
-                  />
-                  <Label htmlFor="enableCapitalCalls" className="cursor-pointer font-medium">
-                    Capital Calls
-                  </Label>
-                </div>
-
-                {formData.enableCapitalCalls && (
-                  <div className="p-4 bg-green-50 rounded-lg space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-sm text-green-900">Capital Calls</h4>
-                        <p className="text-xs text-green-700 mt-1">
-                          Define capital call schedule. Total must equal 100%.
-                        </p>
-                      </div>
-                      {formData.capitalCalls.length < 4 && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => {
-                            const newCall = {
-                              id: `call-${Date.now()}`,
-                              date: '',
-                              callPercentage: 0
-                            }
-                            updateFormData('capitalCalls', [...formData.capitalCalls, newCall])
-                          }}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Call
-                        </Button>
-                      )}
-                    </div>
-
-                    {formData.capitalCalls.length === 0 ? (
-                      <p className="text-xs text-green-700 italic">No capital calls added yet. Click "Add Call" to create one.</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {formData.capitalCalls.map((call, index) => (
-                          <div key={call.id} className="bg-white rounded-lg p-4 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h5 className="font-medium text-sm text-gray-900">Capital Call {index + 1}</h5>
-                              {formData.capitalCalls.length > 1 && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    updateFormData('capitalCalls', formData.capitalCalls.filter(c => c.id !== call.id))
-                                  }}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  Remove
-                                </Button>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor={`call-date-${call.id}`}>Date</Label>
-                                <Input
-                                  id={`call-date-${call.id}`}
-                                  type="date"
-                                  value={call.date}
-                                  onChange={(e) => {
-                                    const updated = formData.capitalCalls.map(c =>
-                                      c.id === call.id ? { ...c, date: e.target.value } : c
-                                    )
-                                    updateFormData('capitalCalls', updated)
-                                  }}
-                                  className="bg-white"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`call-percent-${call.id}`}>Call % (0-100)</Label>
-                                <Input
-                                  id={`call-percent-${call.id}`}
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.1"
-                                  value={call.callPercentage}
-                                  onChange={(e) => {
-                                    const updated = formData.capitalCalls.map(c =>
-                                      c.id === call.id ? { ...c, callPercentage: parseFloat(e.target.value) || 0 } : c
-                                    )
-                                    updateFormData('capitalCalls', updated)
-                                  }}
-                                  className="bg-white"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="bg-white rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm text-gray-900">Total Call %:</span>
-                            <span className={`font-bold text-sm ${formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0) === 100 ? 'text-green-600' : 'text-red-600'}`}>
-                              {formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             )}
 
-            {/* STEP 6: Document Upload */}
-            {currentStep === 6 && (
+            {/* STEP 7: Document Upload */}
+            {currentStep === 8 && (
               <div className="space-y-6">
+                {/* No Documents Uploaded Alert */}
+                {(formData.uploadedFundDocuments.length === 0 || formData.uploadedInvestorDocuments.length === 0) && (
+                  <Alert className="border-red-200 bg-red-50">
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                    <AlertTitle className="text-red-900">Documents Required</AlertTitle>
+                    <AlertDescription className="text-red-700 text-sm">
+                      Documents are required for both sections to complete the setup.
+                      {formData.uploadedFundDocuments.length === 0 && formData.uploadedInvestorDocuments.length === 0 && ' Please upload offering-related documents and investor-related documents below.'}
+                      {formData.uploadedFundDocuments.length === 0 && formData.uploadedInvestorDocuments.length > 0 && ' Please upload offering-related documents below.'}
+                      {formData.uploadedFundDocuments.length > 0 && formData.uploadedInvestorDocuments.length === 0 && ' Please upload investor-related documents below.'}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Upload Error Alert */}
                 {uploadError && (
                   <Alert className="border-red-200 bg-red-50">
@@ -3956,8 +5097,8 @@ export default function OnboardingPage() {
                           return
                         }
 
-                        // Store valid files in state
-                        const newDocs = files.map(f => ({ name: f.name, addedAt: new Date() }))
+                        // Store valid files in state with File objects
+                        const newDocs = files.map(f => ({ name: f.name, addedAt: new Date(), file: f }))
                         setFormData(prev => ({
                           ...prev,
                           uploadedFundDocuments: [...prev.uploadedFundDocuments, ...newDocs]
@@ -4048,8 +5189,8 @@ export default function OnboardingPage() {
                           return
                         }
 
-                        // Store valid files in state
-                        const newDocs = files.map(f => ({ name: f.name, addedAt: new Date() }))
+                        // Store valid files in state with File objects
+                        const newDocs = files.map(f => ({ name: f.name, addedAt: new Date(), file: f }))
                         setFormData(prev => ({
                           ...prev,
                           uploadedInvestorDocuments: [...prev.uploadedInvestorDocuments, ...newDocs]
@@ -4093,18 +5234,9 @@ export default function OnboardingPage() {
                     </div>
                   )}
 
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p className="font-medium">Suggested documents:</p>
-                    <ul className="list-disc list-inside space-y-0.5 ml-2">
-                      <li>Investor Questionnaire</li>
-                      <li>Accreditation Verification Form</li>
-                      <li>W-8/W-9 Tax Forms</li>
-                      <li>Wire Instructions Template</li>
-                    </ul>
-                    <p className="text-xs text-gray-600 italic mt-2">
-                      Note: KYC/AML verification is included in Polibit's automated investor onboarding process
-                    </p>
-                  </div>
+                  <p className="text-xs text-gray-600 italic mt-2">
+                    Note: KYC/AML verification is included in Polibit's automated investor onboarding process
+                  </p>
                 </div>
 
                 <Alert className="border-blue-200 bg-blue-50">
@@ -4137,24 +5269,27 @@ export default function OnboardingPage() {
               <Button
                 onClick={handleSubmit}
                 className="bg-primary hover:bg-primary/90"
-                disabled={isSubmitting}
+                disabled={isSubmitting || formData.uploadedFundDocuments.length === 0 || formData.uploadedInvestorDocuments.length === 0}
+                title={formData.uploadedFundDocuments.length === 0 || formData.uploadedInvestorDocuments.length === 0 ? 'Please upload documents to both sections to complete setup' : ''}
               >
                 {isSubmitting ? (
                   <>
                     <span className="animate-spin mr-2">⏳</span>
-                    Finalizing Setup...
+                    Loading Review...
                   </>
                 ) : (
-                  'Complete Setup'
+                  'Review Setup'
                 )}
               </Button>
             )}
           </CardFooter>
         </Card>
 
-        <div className="mt-6 text-center text-sm text-gray-500">
-          Need help? Visit the <span className="text-primary font-medium">Get Help</span> tab in the navigation menu
-        </div>
+        {visibilitySettings?.navSecondaryItems.getHelp && (
+          <div className="mt-6 text-center text-sm text-gray-500">
+            Need help? Visit the <span className="text-primary font-medium">Get Help</span> tab in the navigation menu
+          </div>
+        )}
       </div>
 
       {/* Remove Single Investor Confirmation Dialog */}

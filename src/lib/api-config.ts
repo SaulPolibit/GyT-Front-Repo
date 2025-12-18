@@ -3,7 +3,7 @@
 export const API_CONFIG = {
   // Base URL for API requests
   // Set via NEXT_PUBLIC_API_URL environment variable
-  baseUrl: process.env.NEXT_PUBLIC_API_URL || '',
+  baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
 
   endpoints: {
     login: '/api/custom/login',
@@ -77,5 +77,7 @@ export const API_CONFIG = {
 
 // Helper function to get full API URL
 export function getApiUrl(endpoint: string): string {
-  return `${API_CONFIG.baseUrl}${endpoint}`
+  // If baseUrl is empty or not set, use localhost
+  const baseUrl = API_CONFIG.baseUrl?.trim() || 'http://localhost:3000'
+  return `${baseUrl}${endpoint}`
 }

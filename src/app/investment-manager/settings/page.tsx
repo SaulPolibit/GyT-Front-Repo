@@ -61,6 +61,19 @@ export default function InvestmentManagerSettingsPage() {
   const [reportDeliveryFormat, setReportDeliveryFormat] = React.useState('both')
   const [notificationFrequency, setNotificationFrequency] = React.useState('immediate')
 
+  // Email notification sub-settings
+  const [capitalCallNotices, setCapitalCallNotices] = React.useState(true)
+  const [distributionNotices, setDistributionNotices] = React.useState(true)
+  const [quarterlyReports, setQuarterlyReports] = React.useState(true)
+  const [investorActivity, setInvestorActivity] = React.useState(true)
+  const [documentUploads, setDocumentUploads] = React.useState(false)
+  const [generalAnnouncements, setGeneralAnnouncements] = React.useState(false)
+
+  // SMS notification sub-settings
+  const [urgentCapitalCalls, setUrgentCapitalCalls] = React.useState(true)
+  const [paymentConfirmations, setPaymentConfirmations] = React.useState(true)
+  const [securityAlerts, setSecurityAlerts] = React.useState(true)
+
   // Security settings
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
 
@@ -105,10 +118,25 @@ export default function InvestmentManagerSettingsPage() {
       if (notifResponse.ok) {
         const notifData = await notifResponse.json()
         if (notifData.success && notifData.data) {
+          // Main notification toggles
           setEmailNotifications(notifData.data.emailNotifications ?? true)
           setSmsNotifications(notifData.data.smsNotifications ?? false)
           setPortalNotifications(notifData.data.pushNotifications ?? true)
 
+          // Email notification sub-settings
+          setCapitalCallNotices(notifData.data.capitalCallNotices ?? true)
+          setDistributionNotices(notifData.data.distributionNotices ?? true)
+          setQuarterlyReports(notifData.data.quarterlyReports ?? true)
+          setInvestorActivity(notifData.data.investorActivityNotifications ?? true)
+          setDocumentUploads(notifData.data.documentUploads ?? false)
+          setGeneralAnnouncements(notifData.data.generalAnnouncements ?? false)
+
+          // SMS notification sub-settings
+          setUrgentCapitalCalls(notifData.data.urgentCapitalCalls ?? true)
+          setPaymentConfirmations(notifData.data.paymentConfirmations ?? true)
+          setSecurityAlerts(notifData.data.securityAlerts ?? true)
+
+          // Communication preferences
           if (notifData.data.preferredContactMethod) {
             setPreferredContactMethod(notifData.data.preferredContactMethod)
           }
@@ -182,13 +210,17 @@ export default function InvestmentManagerSettingsPage() {
           },
           body: JSON.stringify({
             emailNotifications,
-            portfolioNotifications: emailNotifications,
-            reportNotifications: emailNotifications,
-            investorActivityNotifications: emailNotifications,
-            systemUpdateNotifications: emailNotifications,
-            marketingEmailNotifications: emailNotifications,
+            capitalCallNotices,
+            distributionNotices,
+            quarterlyReports,
+            investorActivityNotifications: investorActivity,
+            documentUploads,
+            generalAnnouncements,
             pushNotifications: portalNotifications,
             smsNotifications,
+            urgentCapitalCalls,
+            paymentConfirmations,
+            securityAlerts,
             preferredContactMethod,
             reportDeliveryFormat,
             notificationFrequency,
@@ -589,27 +621,27 @@ export default function InvestmentManagerSettingsPage() {
                   <div className="ml-6 space-y-3 border-l-2 pl-4">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Capital call notices</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={capitalCallNotices} onCheckedChange={setCapitalCallNotices} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Distribution notices</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={distributionNotices} onCheckedChange={setDistributionNotices} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Quarterly reports</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={quarterlyReports} onCheckedChange={setQuarterlyReports} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Investor activity</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={investorActivity} onCheckedChange={setInvestorActivity} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Document uploads</Label>
-                      <Switch />
+                      <Switch checked={documentUploads} onCheckedChange={setDocumentUploads} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">General announcements</Label>
-                      <Switch />
+                      <Switch checked={generalAnnouncements} onCheckedChange={setGeneralAnnouncements} />
                     </div>
                   </div>
                 )}
@@ -633,15 +665,15 @@ export default function InvestmentManagerSettingsPage() {
                   <div className="ml-6 space-y-3 border-l-2 pl-4">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Urgent capital calls</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={urgentCapitalCalls} onCheckedChange={setUrgentCapitalCalls} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Payment confirmations</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={paymentConfirmations} onCheckedChange={setPaymentConfirmations} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Security alerts</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={securityAlerts} onCheckedChange={setSecurityAlerts} />
                     </div>
                   </div>
                 )}

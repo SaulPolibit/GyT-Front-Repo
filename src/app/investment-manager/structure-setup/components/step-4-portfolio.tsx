@@ -307,6 +307,46 @@ export function Step4Portfolio({ data, onAdd, onRemove }: Step4Props) {
           </li>
         </ul>
       </div>
+
+      {/* ILPA Performance Reporting Methodology */}
+      <Card>
+        <CardHeader>
+          <CardTitle>ILPA Performance Reporting Methodology</CardTitle>
+          <CardDescription>
+            Select how you will calculate gross performance for investor reporting. This follows ILPA
+            (Institutional Limited Partners Association) standards.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Granular Methodology */}
+            <div className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors">
+              <h4 className="font-semibold mb-2 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-primary rounded-full"></div>
+                Granular Methodology (Most Detailed)
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Use when you track detailed capital calls where the specific purpose (management fees,
+                investment financing, etc.) is known at the time of each capital call. This provides
+                the most accurate Fund-to-Investor cash flow performance.
+              </p>
+            </div>
+
+            {/* Gross Up Methodology */}
+            <div className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors">
+              <h4 className="font-semibold mb-2 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-muted-foreground rounded-full"></div>
+                Gross Up Methodology (Simplified)
+              </h4>
+              <p className="text-sm text-muted-foreground">
+                Use when capital call purposes are not tracked in detail, or when you calculate
+                performance at the Portfolio-Level (Fund-to-Investment cash flows). Management fees
+                and expenses are grossed up in the calculation.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
