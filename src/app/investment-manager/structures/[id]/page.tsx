@@ -27,6 +27,7 @@ import { StructureValuationSection } from '@/components/structure-valuation-sect
 import { StructureCapTable } from '@/components/structure-cap-table'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
 import { getAuthToken } from '@/lib/auth-storage'
+import { formatCompactCurrency } from '@/lib/format-utils'
 
 // Type labels
 const TYPE_LABELS: Record<string, string> = {
@@ -465,8 +466,7 @@ export default function StructureDetailPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {structure.currency === 'USD' ? '$' : structure.currency + ' '}
-              {(structure.totalCommitment / 1000000).toFixed(1)}M
+              {formatCompactCurrency(structure.totalCommitment, structure.currency)}
             </div>
           </CardContent>
         </Card>

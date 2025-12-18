@@ -16,6 +16,7 @@ import { getVisibilitySettings } from '@/lib/visibility-storage'
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
 import { getAuthState } from '@/lib/auth-storage'
 import { toast } from 'sonner'
+import { formatCompactCurrency } from '@/lib/format-utils'
 
 // Type labels
 const TYPE_LABELS: Record<string, string> = {
@@ -384,8 +385,7 @@ export default function StructuresPage() {
                   <div>
                     <div className="text-xs text-muted-foreground">Total Commitment</div>
                     <div className="text-sm font-semibold">
-                      {structure.currency === 'USD' ? '$' : structure.currency + ' '}
-                      {(structure.totalCommitment / 1000000).toFixed(1)}M
+                      {formatCompactCurrency(structure.totalCommitment, structure.currency)}
                     </div>
                   </div>
                   <div>
@@ -515,8 +515,7 @@ export default function StructuresPage() {
                     </TableCell>
                     <TableCell>
                       <span className="font-semibold">
-                        {master.currency === 'USD' ? '$' : master.currency + ' '}
-                        {(master.totalCommitment / 1000000).toFixed(1)}M
+                        {formatCompactCurrency(master.totalCommitment, master.currency)}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -562,8 +561,7 @@ export default function StructuresPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {master.currency === 'USD' ? '$' : master.currency + ' '}
-                          {(master.totalCommitment / 1000000).toFixed(1)}M
+                          {formatCompactCurrency(master.totalCommitment, master.currency)}
                         </span>
                       </TableCell>
                       <TableCell>

@@ -46,6 +46,10 @@ export const API_CONFIG = {
     enableAllNotifications: '/api/notifications/settings/enable-all',
     disableAllNotifications: '/api/notifications/settings/disable-all',
 
+    // Firm settings
+    getFirmSettings: '/api/firm-settings',
+    updateFirmSettings: '/api/firm-settings',
+
     // User profile
     updateUserProfile: '/api/custom/user/profile',
     uploadProfileImage: '/api/custom/user/profile-image',

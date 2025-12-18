@@ -36,7 +36,6 @@ import { getFirmSettings, saveFirmSettings, FirmSettings } from '@/lib/firm-sett
 import { getUsers, deleteUser, User, getRoleLabel } from '@/lib/user-management-storage'
 import { InviteUserModal } from '@/components/invite-user-modal'
 import { PermissionsMatrixDialog } from '@/components/permissions-matrix-dialog'
-import { seedDemoData, verifyDemoData } from '@/lib/demo-data-seeder'
 
 export default function InvestmentManagerSettingsPage() {
   const router = useRouter()
@@ -45,6 +44,7 @@ export default function InvestmentManagerSettingsPage() {
   // Firm settings
   const [settings, setSettings] = React.useState<FirmSettings | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [logoFile, setLogoFile] = React.useState<File | null>(null)
 
   // User management
   const [users, setUsers] = React.useState<User[]>([])
@@ -95,9 +95,37 @@ export default function InvestmentManagerSettingsPage() {
         return
       }
 
-      // Load firm settings from localStorage
-      const loadedSettings = getFirmSettings()
-      setSettings(loadedSettings)
+      // Load firm settings from API
+      const firmResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.getFirmSettings),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (firmResponse.ok) {
+        const firmData = await firmResponse.json()
+        if (firmData.success && firmData.data) {
+          setSettings({
+            firmName: firmData.data.firmName || 'My Firm',
+            firmLogo: firmData.data.firmLogo || null,
+            firmDescription: firmData.data.firmDescription || null,
+            firmWebsite: firmData.data.firmWebsite || null,
+            firmAddress: firmData.data.firmAddress || null,
+            firmPhone: firmData.data.firmPhone || null,
+            firmEmail: firmData.data.firmEmail || null,
+            updatedAt: firmData.data.updatedAt ? new Date(firmData.data.updatedAt) : new Date(),
+          })
+        }
+      } else {
+        // Fallback to localStorage if API fails
+        const loadedSettings = getFirmSettings()
+        setSettings(loadedSettings)
+      }
 
       // Load users from localStorage
       const loadedUsers = getUsers()
@@ -165,6 +193,10 @@ export default function InvestmentManagerSettingsPage() {
       return
     }
 
+    // Store the file for upload
+    setLogoFile(file)
+
+    // Create preview URL
     const reader = new FileReader()
     reader.onloadend = () => {
       if (settings) {
@@ -177,15 +209,50 @@ export default function InvestmentManagerSettingsPage() {
     reader.readAsDataURL(file)
   }
 
-  const handleSaveFirmSettings = () => {
+  const handleSaveFirmSettings = async () => {
     if (!settings) return
 
     try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const formData = new FormData()
+
+      // Add text fields
+      formData.append('firmName', settings.firmName || '')
+      formData.append('firmDescription', settings.firmDescription || '')
+      formData.append('firmWebsite', settings.firmWebsite || '')
+      formData.append('firmAddress', settings.firmAddress || '')
+      formData.append('firmPhone', settings.firmPhone || '')
+      formData.append('firmEmail', settings.firmEmail || '')
+
+      // Add logo file if available
+      if (logoFile) {
+        formData.append('firmLogo', logoFile)
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.updateFirmSettings),
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to update firm settings')
+      }
+
+      // Also save to localStorage as backup
       saveFirmSettings(settings)
+
       toast.success('Firm settings saved successfully!')
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
     } catch (error) {
       console.error('Error saving settings:', error)
       toast.error('Failed to save settings')
@@ -262,22 +329,6 @@ export default function InvestmentManagerSettingsPage() {
       toast.success('User removed successfully')
       setDeleteUserDialogOpen(false)
       setUserToDelete(null)
-    }
-  }
-
-  const handleSeedDemoData = () => {
-    try {
-      seedDemoData()
-      setTimeout(() => {
-        verifyDemoData()
-      }, 100)
-      toast.success('Demo data loaded successfully! Refresh the page to see the data.')
-      setTimeout(() => {
-        window.location.reload()
-      }, 2000)
-    } catch (error) {
-      console.error('Error seeding demo data:', error)
-      toast.error('Failed to load demo data')
     }
   }
 
@@ -461,33 +512,6 @@ export default function InvestmentManagerSettingsPage() {
               </div>
 
               <Button onClick={handleSaveFirmSettings}>Save Firm Settings</Button>
-            </CardContent>
-          </Card>
-
-          {/* Demo Data */}
-          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
-            <CardHeader>
-              <CardTitle className="text-amber-900 dark:text-amber-100">Demo Data Setup</CardTitle>
-              <CardDescription className="text-amber-800 dark:text-amber-200">
-                Load realistic sample data for demonstrations and testing
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-amber-900 dark:text-amber-100">
-                This will create sample structures, investors, capital calls, and distributions.
-              </p>
-              <div className="bg-white dark:bg-slate-950 p-3 rounded border border-amber-200 dark:border-amber-800">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-100 mb-2">Sample Data Includes:</p>
-                <ul className="text-sm text-amber-800 dark:text-amber-200 space-y-1 ml-4 list-disc">
-                  <li>3 Fund Structures</li>
-                  <li>5 Investors</li>
-                  <li>2 Capital Calls</li>
-                  <li>3 Distributions</li>
-                </ul>
-              </div>
-              <Button onClick={handleSeedDemoData} variant="outline" className="w-full border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900">
-                Load Demo Data
-              </Button>
             </CardContent>
           </Card>
         </TabsContent>

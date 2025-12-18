@@ -25,6 +25,7 @@ import { getInvestorByEmail } from '@/lib/investors-storage'
 import { getInvestmentsByFundId } from '@/lib/investments-storage'
 import type { Investment } from '@/lib/types'
 import { StructureCapTable } from '@/components/structure-cap-table'
+import { formatCompactCurrency } from '@/lib/format-utils'
 
 // Type labels
 const TYPE_LABELS: Record<string, string> = {
@@ -239,8 +240,10 @@ export default function ChildStructureDetailPage({ params }: PageProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(parentStructure?.currency || childStructure.currency) === 'USD' ? '$' : (parentStructure?.currency || childStructure.currency) + ' '}
-              {((parentStructure?.totalCommitment || childStructure.totalCommitment) / 1000000).toFixed(1)}M
+              {formatCompactCurrency(
+                parentStructure?.totalCommitment || childStructure.totalCommitment,
+                parentStructure?.currency || childStructure.currency
+              )}
             </div>
           </CardContent>
         </Card>
