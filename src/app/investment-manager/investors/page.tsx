@@ -41,8 +41,8 @@ export default function InvestorsPage() {
           return
         }
 
-        // Fetch investors with structures from API
-        const investorsUrl = getApiUrl(API_CONFIG.endpoints.getAllInvestorsWithStructures)
+        // Fetch investors from API
+        const investorsUrl = getApiUrl(API_CONFIG.endpoints.getAllInvestors)
         const investorsResponse = await fetch(investorsUrl, {
           method: 'GET',
           headers: {
@@ -64,43 +64,40 @@ export default function InvestorsPage() {
           const mappedInvestors = investorsResult.data.map((inv: any) => ({
             ...inv,
             // Map API fields to expected fields
-            name: inv.name || `${inv.firstName || ''} ${inv.lastName || ''}`.trim() || inv.email,
+            name: inv.name || (inv.user ? `${inv.user.firstName} ${inv.user.lastName}`.trim() : inv.email),
             type: inv.investorType || 'n/d',
             status: inv.kycStatus || inv.status || 'Pending',
-            // Map structures array to fundOwnerships for backward compatibility
-            fundOwnerships: (inv.structures || []).map((struct: any) => ({
-              fundId: struct.structure_id || struct.id,
-              fundName: struct.name || struct.structure_name || 'Unknown Structure',
-              fundType: struct.type || 'fund',
-              commitment: struct.commitment || struct.totalCommitment || 0,
-              investedDate: struct.investedDate || struct.createdAt,
-            }))
+            // Map structure object to fundOwnerships array for backward compatibility
+            fundOwnerships: inv.structure ? [{
+              fundId: inv.structure.id,
+              fundName: inv.structure.name,
+              fundType: inv.structure.type,
+              commitment: inv.commitment || 0,
+              investedDate: inv.createdAt,
+            }] : []
           }))
 
           setInvestors(mappedInvestors)
 
-          // Extract and populate structures data from investor structures
+          // Extract and populate structures data from investor structure
           const structuresMap = new Map<string, Structure>()
           investorsResult.data.forEach((investor: any) => {
-            if (investor.structures && Array.isArray(investor.structures)) {
-              investor.structures.forEach((struct: any) => {
-                const structureId = struct.structure_id || struct.id
-                if (structureId && !structuresMap.has(structureId)) {
-                  // Create a basic structure object from the structure data
-                  structuresMap.set(structureId, {
-                    id: structureId,
-                    name: struct.name || struct.structure_name || 'Unknown Structure',
-                    type: struct.type || 'fund',
-                    subtype: struct.subtype || '',
-                    status: struct.status || 'active',
-                    jurisdiction: struct.jurisdiction || 'Unknown',
-                    currency: struct.currency || 'USD',
-                    totalCommitment: struct.totalCommitment || 0,
-                    investors: 0, // Will be calculated
-                    createdDate: struct.createdAt ? new Date(struct.createdAt) : new Date(),
-                  } as Structure)
-                }
-              })
+            if (investor.structure) {
+              const structureId = investor.structure.id
+              if (structureId && !structuresMap.has(structureId)) {
+                structuresMap.set(structureId, {
+                  id: structureId,
+                  name: investor.structure.name,
+                  type: investor.structure.type,
+                  subtype: '',
+                  status: investor.structure.status || 'active',
+                  jurisdiction: 'Unknown',
+                  currency: investor.structure.baseCurrency || 'USD',
+                  totalCommitment: 0,
+                  investors: 0,
+                  createdDate: new Date(),
+                } as Structure)
+              }
             }
           })
 
@@ -484,9 +481,7 @@ export default function InvestorsPage() {
             <TabsList>
               <TabsTrigger value="all">All Types</TabsTrigger>
               <TabsTrigger value="Individual">Individual</TabsTrigger>
-              <TabsTrigger value="Institution">Institution</TabsTrigger>
-              <TabsTrigger value="Family Office">Family Office</TabsTrigger>
-              <TabsTrigger value="Fund of Funds">Fund of Funds</TabsTrigger>
+              <TabsTrigger value="Company">Company</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -495,11 +490,10 @@ export default function InvestorsPage() {
         <Tabs value={filterStatus} onValueChange={setFilterStatus}>
           <TabsList>
             <TabsTrigger value="all">All Status</TabsTrigger>
-            <TabsTrigger value="Active">Active</TabsTrigger>
-            <TabsTrigger value="Pending">Pending</TabsTrigger>
-            <TabsTrigger value="KYC/KYB">KYC/KYB</TabsTrigger>
+            <TabsTrigger value="KYC/KYB">KYC</TabsTrigger>
             <TabsTrigger value="Contracts">Contracts</TabsTrigger>
-            <TabsTrigger value="Commitment">Commitment</TabsTrigger>
+            <TabsTrigger value="Payments">Payments</TabsTrigger>
+            <TabsTrigger value="Active">Active</TabsTrigger>
             <TabsTrigger value="Inactive">Inactive</TabsTrigger>
           </TabsList>
         </Tabs>

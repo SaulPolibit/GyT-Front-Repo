@@ -66,6 +66,8 @@ export default function InvestorDetailPage({ params }: PageProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [documents, setDocuments] = useState<any[]>([])
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false)
+  const [showDeleteDocumentDialog, setShowDeleteDocumentDialog] = useState(false)
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [uploadForm, setUploadForm] = useState({
     documentType: '',
     documentName: '',
@@ -412,6 +414,42 @@ export default function InvestorDetailPage({ params }: PageProps) {
     }
   }
 
+  const handleDeleteDocument = async (documentId: string) => {
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        return
+      }
+
+      const deleteUrl = getApiUrl(API_CONFIG.endpoints.deleteDocument(documentId))
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to delete document')
+      }
+
+      toast.success('Document deleted successfully')
+
+      // Close dialog
+      setShowDeleteDocumentDialog(false)
+      setSelectedDocumentId(null)
+
+      // Refresh documents list
+      await fetchDocuments()
+
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete document')
+    }
+  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -1150,20 +1188,31 @@ export default function InvestorDetailPage({ params }: PageProps) {
                       </div>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (doc.filePath) {
-                        window.open(doc.filePath, '_blank')
-                      } else {
-                        toast.error('Document file path not available')
-                      }
-                    }}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    See
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (doc.filePath) {
+                          window.open(doc.filePath, '_blank')
+                        } else {
+                          toast.error('Document file path not available')
+                        }
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedDocumentId(doc.id)
+                        setShowDeleteDocumentDialog(true)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1341,6 +1390,29 @@ export default function InvestorDetailPage({ params }: PageProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Document Confirmation Dialog */}
+      <AlertDialog open={showDeleteDocumentDialog} onOpenChange={setShowDeleteDocumentDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this document? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedDocumentId(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => selectedDocumentId && handleDeleteDocument(selectedDocumentId)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete

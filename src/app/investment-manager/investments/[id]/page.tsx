@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft, MapPin, Building2, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Loader2, AlertCircle, Upload } from "lucide-react"
+import { ArrowLeft, MapPin, Building2, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Loader2, AlertCircle, Upload, Eye } from "lucide-react"
 import type { Investment } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken } from "@/lib/auth-storage"
@@ -328,9 +328,32 @@ export default function InvestmentDetailPage({ params }: PageProps) {
     }
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.deleteInvestment(id)),
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to delete investment')
+      }
+
+      // Also delete from localStorage as backup
       deleteInvestment(id)
+
       toast.success('Investment deleted successfully')
       router.push('/investment-manager/investments')
     } catch (error) {
@@ -711,7 +734,19 @@ export default function InvestmentDetailPage({ params }: PageProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">Download</Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (doc.filePath) {
+                          window.open(doc.filePath, '_blank')
+                        } else {
+                          toast.error('File path not available')
+                        }
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

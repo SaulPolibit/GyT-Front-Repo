@@ -24,6 +24,7 @@ export const API_CONFIG = {
     getSingleInvestment: (investmentId: string) => `/api/investments/${investmentId}`,
     updateInvestment: (investmentId: string) => `/api/investments/${investmentId}`,
     createInvestment: '/api/investments',
+    deleteInvestment: (investmentId: string) => `/api/investments/${investmentId}`,
 
     // Investors API
     getAllInvestors: '/api/investors',

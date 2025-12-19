@@ -45,6 +45,7 @@ export default function EditInvestmentPage({ params }: PageProps) {
   const [totalInvestmentSize, setTotalInvestmentSize] = useState("")
   const [fundCommitment, setFundCommitment] = useState("")
   const [currentValue, setCurrentValue] = useState("")
+  const [status, setStatus] = useState<"Active" | "Pending" | "Closed" | "Exited">("Active")
 
   useEffect(() => {
     // Load structures from API
@@ -126,6 +127,7 @@ export default function EditInvestmentPage({ params }: PageProps) {
           setName(invName)
           setType(foundInvestment.type || "Real Estate")
           setSector(foundInvestment.sector || "")
+          setStatus(foundInvestment.status || "Active")
 
           // Handle geography as string or object
           if (typeof foundInvestment.geography === 'string') {
@@ -292,6 +294,7 @@ export default function EditInvestmentPage({ params }: PageProps) {
         name,
         type,
         sector: (sector || "Multifamily") as AssetSector,
+        status,
         description: description || investment.description || `Investment in ${name}`,
         investmentType: investmentType.toUpperCase() as 'EQUITY' | 'DEBT' | 'MIXED',
         totalInvestmentSize: totalInvestmentSizeNum,
@@ -454,6 +457,21 @@ export default function EditInvestmentPage({ params }: PageProps) {
                   <option value="Real Estate">Real Estate</option>
                   <option value="Private Equity">Private Equity</option>
                   <option value="Private Debt">Private Debt</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as "Active" | "Pending" | "Closed" | "Exited")}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Closed">Closed</option>
+                  <option value="Exited">Exited</option>
                 </select>
               </div>
 

@@ -41,6 +41,7 @@ export default function EditInvestorPage({ params }: PageProps) {
   const [error, setError] = useState<string | null>(null)
   const [structures, setStructures] = useState<Structure[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [associatedUser, setAssociatedUser] = useState<User | null>(null)
 
   // Form state
   const [investorType, setInvestorType] = useState<InvestorType>('Individual')
@@ -164,9 +165,17 @@ export default function EditInvestorPage({ params }: PageProps) {
         setPrincipalContact(investor.principalContact || "")
         setAssetsUnderManagement(investor.assetsUnderManagement?.toString() || "")
 
-        // Get structure from investor's structures array
-        if (investor.structures && investor.structures.length > 0) {
-          setSelectedStructure(investor.structures[0].structure_id || investor.structures[0].id)
+        // Get structure from investor's structureId
+        if (investor.structureId) {
+          setSelectedStructure(investor.structureId)
+        } else if (investor.structure && investor.structure.id) {
+          // Fallback to structure object if structureId not directly available
+          setSelectedStructure(investor.structure.id)
+        }
+
+        // Store associated user data if available
+        if (investor.user) {
+          setAssociatedUser(investor.user)
         }
 
         // Fetch structures
@@ -425,8 +434,8 @@ export default function EditInvestorPage({ params }: PageProps) {
               <Input
                 id="user"
                 value={
-                  firstName || lastName
-                    ? `${firstName} ${lastName}`.trim()
+                  associatedUser
+                    ? `${associatedUser.firstName} ${associatedUser.lastName} (${associatedUser.email})`
                     : 'No user associated'
                 }
                 disabled

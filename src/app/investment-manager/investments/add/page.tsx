@@ -550,12 +550,22 @@ export default function AddInvestmentPage() {
                         </div>
                         <Input
                           id="interestRate"
-                          type="number"
+                          type="text"
+                          inputMode="decimal"
                           value={interestRate}
-                          onChange={(e) => setInterestRate(e.target.value)}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(',', '.')
+                            // Allow empty, numbers, and one decimal point
+                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                              const numValue = parseFloat(value)
+                              if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 100)) {
+                                setInterestRate(value)
+                              }
+                            }
+                          }}
                           placeholder="8.5"
-                          min="0"
-                          step="0.01"
+                          pattern="[0-9]*\.?[0-9]*"
+                          lang="en-US"
                         />
                       </div>
 

@@ -162,12 +162,14 @@ export default function AddInvestorPage() {
       return
     }
 
+    if (!selectedUserId) {
+      toast.error("Please select a user")
+      return
+    }
+
     // Validation based on investor type
     if (investorType === 'Individual') {
-      if (!selectedUserId) {
-        toast.error("Please select a user")
-        return
-      }
+      // Individual type already has user selected (validated above)
     } else {
       if (!email) {
         toast.error("Please enter email")
@@ -212,7 +214,7 @@ export default function AddInvestorPage() {
         riskTolerance,
         investmentPreferences,
         structureId: selectedStructure,
-        userId: selectedUserId || undefined, // Include userId for all types if selected
+        userId: selectedUserId,
       }
 
       if (investorType === 'Individual') {
@@ -359,7 +361,7 @@ export default function AddInvestorPage() {
 
             {/* User Selection - Always shown */}
             <div className="space-y-2">
-              <Label htmlFor="user">Associate User {investorType === 'Individual' ? '*' : '(Optional)'}</Label>
+              <Label htmlFor="user">Associate User *</Label>
               <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a user" />
@@ -375,7 +377,7 @@ export default function AddInvestorPage() {
               <p className="text-sm text-muted-foreground">
                 {investorType === 'Individual'
                   ? 'Email and name will be taken from the selected user'
-                  : 'Optionally associate a user account with this investor'}
+                  : 'Associate a user account with this investor'}
               </p>
             </div>
 
