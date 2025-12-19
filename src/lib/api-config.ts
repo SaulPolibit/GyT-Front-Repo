@@ -51,9 +51,11 @@ export const API_CONFIG = {
     updateFirmSettings: '/api/firm-settings',
 
     // User profile
-    updateUserProfile: '/api/custom/user/profile',
-    uploadProfileImage: '/api/custom/user/profile-image',
+    updateUserProfile: '/api/users/profile',
+    uploadProfileImage: '/api/users/profile-image',
     getUsersByRole: (roles: string) => `/api/users/filter?role=${roles}`,
+    getAllUsers: '/api/users',
+    deleteUser: (userId: string) => `/api/users/${userId}`,
     createInvestor: '/api/investors',
 
     // Chat/Messages API

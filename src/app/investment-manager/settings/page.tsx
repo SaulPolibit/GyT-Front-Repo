@@ -48,6 +48,7 @@ export default function InvestmentManagerSettingsPage() {
 
   // User management
   const [users, setUsers] = React.useState<User[]>([])
+  const [currentUserRole, setCurrentUserRole] = React.useState<number | null>(null)
   const [showInviteModal, setShowInviteModal] = React.useState(false)
   const [showPermissionsDialog, setShowPermissionsDialog] = React.useState(false)
   const [deleteUserDialogOpen, setDeleteUserDialogOpen] = React.useState(false)
@@ -127,9 +128,41 @@ export default function InvestmentManagerSettingsPage() {
         setSettings(loadedSettings)
       }
 
-      // Load users from localStorage
-      const loadedUsers = getUsers()
-      setUsers(loadedUsers)
+      // Get current user role
+      const userRole = user.role ?? null
+      setCurrentUserRole(userRole)
+
+      // Load users from API (only for root users)
+      if (userRole === 0) {
+        try {
+          const usersResponse = await fetch(
+            getApiUrl(API_CONFIG.endpoints.getAllUsers),
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          )
+
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json()
+            if (usersData.success && usersData.data) {
+              setUsers(usersData.data)
+            }
+          } else {
+            // Fallback to localStorage if API fails
+            const loadedUsers = getUsers()
+            setUsers(loadedUsers)
+          }
+        } catch (error) {
+          console.error('[Settings] Error loading users:', error)
+          // Fallback to localStorage
+          const loadedUsers = getUsers()
+          setUsers(loadedUsers)
+        }
+      }
 
       // Load notification settings from API
       const notifResponse = await fetch(
@@ -321,14 +354,58 @@ export default function InvestmentManagerSettingsPage() {
     setDeleteUserDialogOpen(true)
   }
 
-  const confirmDeleteUser = () => {
-    if (userToDelete) {
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return
+
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.deleteUser(userToDelete)),
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to delete user')
+      }
+
+      // Update users list by filtering out the deleted user
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete))
+
+      // Also remove from localStorage as backup
       deleteUser(userToDelete)
-      const loadedUsers = getUsers()
-      setUsers(loadedUsers)
+
       toast.success('User removed successfully')
       setDeleteUserDialogOpen(false)
       setUserToDelete(null)
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      toast.error('Failed to remove user')
+    }
+  }
+
+  const getRoleLabelFromInt = (role: number): string => {
+    switch (role) {
+      case 0:
+        return 'Root'
+      case 1:
+        return 'Admin'
+      case 2:
+        return 'Staff'
+      case 3:
+        return 'Investor'
+      default:
+        return 'Unknown'
     }
   }
 
@@ -364,9 +441,9 @@ export default function InvestmentManagerSettingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className={`grid w-full ${currentUserRole === 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="firm">Firm</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
+          {currentUserRole === 0 && <TabsTrigger value="users">Users</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
@@ -566,7 +643,9 @@ export default function InvestmentManagerSettingsPage() {
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{getRoleLabel(user.role)}</Badge>
+                          <Badge variant="outline">
+                            {typeof user.role === 'number' ? getRoleLabelFromInt(user.role) : getRoleLabel(user.role)}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge
