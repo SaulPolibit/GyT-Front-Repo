@@ -28,7 +28,7 @@ import {
 } from '@tabler/icons-react'
 import { Loader2 } from 'lucide-react'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken } from '@/lib/auth-storage'
+import { getAuthToken, getAuthState } from '@/lib/auth-storage'
 import { toast } from 'sonner'
 
 interface Document {
@@ -66,6 +66,11 @@ interface Investment {
 }
 
 export default function DocumentsPage() {
+  // Check if user is guest
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
+
   const [documents, setDocuments] = useState<Document[]>([])
   const [structures, setStructures] = useState<Structure[]>([])
   const [investors, setInvestors] = useState<Investor[]>([])
@@ -283,7 +288,7 @@ export default function DocumentsPage() {
         toast.success('Document deleted successfully')
       } else {
         const result = await response.json()
-        toast.error(result.error || 'Failed to delete document')
+        toast.error(result.message || 'Failed to delete document')
       }
     } catch (error) {
       console.error('Error deleting document:', error)
@@ -363,7 +368,7 @@ export default function DocumentsPage() {
         fetchData()
       } else {
         const result = await response.json()
-        toast.error(result.error || 'Failed to upload document')
+        toast.error(result.message || 'Failed to upload document')
       }
     } catch (error) {
       console.error('Error uploading document:', error)
@@ -423,10 +428,12 @@ export default function DocumentsPage() {
             Manage structure and investor documents organized by fund
           </p>
         </div>
-        <Button onClick={() => setUploadDialogOpen(true)}>
-          <IconUpload className="w-4 h-4 mr-2" />
-          Upload Document
-        </Button>
+        {!isGuest && (
+          <Button onClick={() => setUploadDialogOpen(true)}>
+            <IconUpload className="w-4 h-4 mr-2" />
+            Upload Document
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
@@ -598,13 +605,15 @@ export default function DocumentsPage() {
                         >
                           <IconDownload className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteDocument(doc.id)}
-                        >
-                          <IconTrash className="w-4 h-4" />
-                        </Button>
+                        {!isGuest && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteDocument(doc.id)}
+                          >
+                            <IconTrash className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -695,13 +704,15 @@ export default function DocumentsPage() {
                               >
                                 <IconDownload className="w-4 h-4" />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteDocument(doc.id)}
-                              >
-                                <IconTrash className="w-4 h-4" />
-                              </Button>
+                              {!isGuest && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteDocument(doc.id)}
+                                >
+                                  <IconTrash className="w-4 h-4" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -778,13 +789,15 @@ export default function DocumentsPage() {
                         >
                           <IconDownload className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteDocument(doc.id)}
-                        >
-                          <IconTrash className="w-4 h-4" />
-                        </Button>
+                        {!isGuest && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteDocument(doc.id)}
+                          >
+                            <IconTrash className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -43,6 +43,11 @@ export default function StructuresPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
+  // Get current user role
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
+
   // Load structures from API on mount
   useEffect(() => {
     const fetchStructures = async () => {
@@ -203,10 +208,12 @@ export default function StructuresPage() {
             {structures.length} {structures.length === 1 ? 'structure' : 'structures'}
           </p>
         </div>
-        <Button onClick={handleCreateNew} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Add Structure
-        </Button>
+        {!isGuest && (
+          <Button onClick={handleCreateNew} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Add Structure
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}

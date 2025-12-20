@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Plus, TrendingUp, TrendingDown, MapPin, Building2, DollarSign, Loader2, AlertCircle } from "lucide-react"
 import type { Investment } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 
 export default function InvestmentsPage() {
   const [investments, setInvestments] = useState<Investment[]>([])
@@ -19,6 +19,11 @@ export default function InvestmentsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+
+  // Check if user is guest
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
 
   // Load investments from API on mount
   useEffect(() => {
@@ -166,12 +171,14 @@ export default function InvestmentsPage() {
             {filteredInvestments.length} asset{filteredInvestments.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/investment-manager/investments/add">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Asset
-          </Link>
-        </Button>
+        {!isGuest && (
+          <Button asChild>
+            <Link href="/investment-manager/investments/add">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Asset
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -338,7 +345,7 @@ export default function InvestmentsPage() {
             <p className="text-muted-foreground mb-4">
               {searchQuery ? 'Try adjusting your search' : 'Add your first asset to get started'}
             </p>
-            {!searchQuery && (
+            {!searchQuery && !isGuest && (
               <Button asChild>
                 <Link href="/investment-manager/investments/add">
                   <Plus className="h-4 w-4 mr-2" />

@@ -33,7 +33,7 @@ import {
 import { ArrowLeft, MapPin, Building2, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Loader2, AlertCircle, Upload, Eye } from "lucide-react"
 import type { Investment } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -42,6 +42,11 @@ interface PageProps {
 export default function InvestmentDetailPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
+
+  // Check if user is guest
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
   const [investment, setInvestment] = useState<Investment | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -438,16 +443,18 @@ export default function InvestmentDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleEdit}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          <Button variant="outline" onClick={() => setShowDeleteDialog(true)}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        </div>
+        {!isGuest && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleEdit}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(true)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Key Metrics */}
@@ -703,10 +710,12 @@ export default function InvestmentDetailPage({ params }: PageProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Documents</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => setShowUploadDialog(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Document
-            </Button>
+            {!isGuest && (
+              <Button variant="outline" size="sm" onClick={() => setShowUploadDialog(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Document
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -747,16 +756,18 @@ export default function InvestmentDetailPage({ params }: PageProps) {
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedDocumentId(doc.id)
-                        setShowDeleteDocDialog(true)
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    {!isGuest && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedDocumentId(doc.id)
+                          setShowDeleteDocDialog(true)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

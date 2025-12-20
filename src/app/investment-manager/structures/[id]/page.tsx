@@ -26,7 +26,7 @@ import type { Investment } from '@/lib/types'
 import { StructureValuationSection } from '@/components/structure-valuation-section'
 import { StructureCapTable } from '@/components/structure-cap-table'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken } from '@/lib/auth-storage'
+import { getAuthToken, getAuthState } from '@/lib/auth-storage'
 import { formatCompactCurrency } from '@/lib/format-utils'
 
 // Type labels
@@ -66,6 +66,11 @@ export default function StructureDetailPage({ params }: PageProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Get current user role
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
 
   const loadStructureData = async (structureId: string) => {
     try {
@@ -446,16 +451,18 @@ export default function StructureDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleEdit}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          <Button variant="outline" onClick={() => setShowDeleteDialog(true)}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
-        </div>
+        {!isGuest && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleEdit}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(true)}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Key Metrics */}
@@ -894,6 +901,7 @@ export default function StructureDetailPage({ params }: PageProps) {
       <StructureValuationSection
         structure={structure}
         onUpdate={() => loadStructureData(id)}
+        isGuest={isGuest}
       />
 
       {/* Pre-Registered Investors */}
@@ -1100,12 +1108,14 @@ export default function StructureDetailPage({ params }: PageProps) {
                 Comprehensive partnership agreement and legal provisions
               </p>
             </div>
-            <Link href={`/investment-manager/structures/${id}/edit#legal-terms`}>
-              <Button variant="outline" size="sm">
-                <Pencil className="h-4 w-4 mr-2" />
-                Edit Terms
-              </Button>
-            </Link>
+            {!isGuest && (
+              <Link href={`/investment-manager/structures/${id}/edit#legal-terms`}>
+                <Button variant="outline" size="sm">
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit Terms
+                </Button>
+              </Link>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">

@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { Structure } from "@/lib/structures-storage"
 import type { Investment, AssetSector } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -23,6 +23,12 @@ interface PageProps {
 export default function EditInvestmentPage({ params }: PageProps) {
   const { id } = use(params)
   const router = useRouter()
+
+  // Check if user is guest
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
+
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [investment, setInvestment] = useState<Investment | null>(null)
@@ -832,7 +838,9 @@ export default function EditInvestmentPage({ params }: PageProps) {
           <Button type="button" variant="outline" asChild>
             <Link href={`/investment-manager/investments/${id}`}>Cancel</Link>
           </Button>
-          <Button type="submit">Save Changes</Button>
+          {!isGuest && (
+            <Button type="submit">Save Changes</Button>
+          )}
         </div>
       </form>
     </div>

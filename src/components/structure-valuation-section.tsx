@@ -35,9 +35,10 @@ import { format } from 'date-fns'
 interface StructureValuationSectionProps {
   structure: Structure
   onUpdate: () => void
+  isGuest?: boolean
 }
 
-export function StructureValuationSection({ structure, onUpdate }: StructureValuationSectionProps) {
+export function StructureValuationSection({ structure, onUpdate, isGuest = false }: StructureValuationSectionProps) {
   const [open, setOpen] = React.useState(false)
   const [totalNav, setTotalNav] = React.useState('')
   const [navPerShare, setNavPerShare] = React.useState('')
@@ -134,13 +135,14 @@ export function StructureValuationSection({ structure, onUpdate }: StructureValu
               Track Net Asset Value for accurate performance reporting
             </CardDescription>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Update NAV
-              </Button>
-            </DialogTrigger>
+          {!isGuest && (
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Update NAV
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <form onSubmit={handleSubmit}>
                 <DialogHeader>
@@ -210,6 +212,7 @@ export function StructureValuationSection({ structure, onUpdate }: StructureValu
               </form>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </CardHeader>
       <CardContent>

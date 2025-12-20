@@ -14,7 +14,7 @@ import { getCapitalCalls } from "@/lib/capital-calls-storage"
 import { getDistributions } from "@/lib/distributions-storage"
 import { calculateIRR } from "@/lib/performance-calculations"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 
 // Helper function to handle 401 authentication errors
 const handleAuthError = (response: Response, errorData: any) => {
@@ -33,6 +33,11 @@ const handleAuthError = (response: Response, errorData: any) => {
 }
 
 export default function InvestorsPage() {
+  // Check if user is guest
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
+
   const [investors, setInvestors] = useState<Investor[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -477,12 +482,14 @@ export default function InvestorsPage() {
             {filteredInvestors.length} investor{filteredInvestors.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/investment-manager/investors/add">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Investor
-          </Link>
-        </Button>
+        {!isGuest && (
+          <Button asChild>
+            <Link href="/investment-manager/investors/add">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Investor
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Summary Cards */}
@@ -702,7 +709,7 @@ export default function InvestorsPage() {
             <p className="text-muted-foreground mb-4">
               {searchQuery ? 'Try adjusting your search' : 'Add your first investor to get started'}
             </p>
-            {!searchQuery && (
+            {!searchQuery && !isGuest && (
               <Button asChild>
                 <Link href="/investment-manager/investors/add">
                   <Plus className="h-4 w-4 mr-2" />

@@ -13,10 +13,16 @@ import { ArrowLeft, Building2, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Structure } from "@/lib/structures-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 
 export default function AddInvestmentPage() {
   const router = useRouter()
+
+  // Check if user is guest
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
+
   const [structures, setStructures] = useState<Structure[]>([])
   const [selectedStructure, setSelectedStructure] = useState<string>("")
   const [capacityInfo, setCapacityInfo] = useState<{ canAdd: boolean; current: number; max: number } | null>(null)
@@ -661,7 +667,9 @@ export default function AddInvestmentPage() {
           <Button type="button" variant="outline" asChild>
             <Link href="/investment-manager/investments">Cancel</Link>
           </Button>
-          <Button type="submit">Create Investment</Button>
+          {!isGuest && (
+            <Button type="submit">Create Investment</Button>
+          )}
         </div>
       </form>
     </div>
