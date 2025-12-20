@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Camera, Save } from "lucide-react"
+import { Camera, Save, Wallet, Copy, CheckCircle2 } from "lucide-react"
 import { getCurrentUser, getAuthToken, updateUserProfile } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
@@ -22,12 +22,14 @@ export default function AccountPage() {
     phone: '',
     avatarUrl: '',
     languagePreference: 'en',
+    walletAddress: '',
   })
   const [passwordData, setPasswordData] = React.useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   })
+  const [copiedWallet, setCopiedWallet] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
@@ -60,6 +62,7 @@ export default function AccountPage() {
         phone: user.phoneNumber || '', // Load phone number from localStorage
         avatarUrl: avatarUrl,
         languagePreference: user.appLanguage || 'en',
+        walletAddress: user.walletAddress || '',
       })
     }
 
@@ -294,6 +297,30 @@ export default function AccountPage() {
     fileInputRef.current?.click()
   }
 
+  const handleCopyWallet = async () => {
+    if (!formData.walletAddress) return
+
+    try {
+      await navigator.clipboard.writeText(formData.walletAddress)
+      setCopiedWallet(true)
+      toast.success('Wallet address copied to clipboard')
+
+      // Reset copied state after 2 seconds
+      setTimeout(() => {
+        setCopiedWallet(false)
+      }, 2000)
+    } catch (error) {
+      console.error('Error copying wallet address:', error)
+      toast.error('Failed to copy wallet address')
+    }
+  }
+
+  const formatWalletAddress = (address: string) => {
+    if (!address) return ''
+    if (address.length <= 13) return address
+    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`
+  }
+
   const getInitials = (firstName: string, lastName: string) => {
     if (firstName && lastName) {
       return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
@@ -492,6 +519,84 @@ export default function AccountPage() {
           </Card>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Wallet className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Wallet Information</CardTitle>
+              <CardDescription>
+                Your Crossmint blockchain wallet address
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {formData.walletAddress ? (
+            <>
+              <div className="space-y-2">
+                <Label>Wallet Address</Label>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center gap-2 p-3 bg-muted rounded-md font-mono text-sm">
+                    <span className="flex-1 truncate" title={formData.walletAddress}>
+                      {formData.walletAddress}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleCopyWallet}
+                    title="Copy wallet address"
+                  >
+                    {copiedWallet ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This is your EVM-compatible smart wallet address on Polygon. Use it to receive digital assets.
+                </p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Wallet Type</span>
+                  <span className="font-medium">EVM Smart Wallet</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Network</span>
+                  <span className="font-medium">Polygon (Amoy Testnet)</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Provider</span>
+                  <span className="font-medium">Crossmint</span>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm text-blue-900">
+                  <strong className="font-semibold">Note:</strong> This wallet was automatically created for you when you logged in with Prospera. Keep your wallet address safe and only share it with trusted parties.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-center">
+              <Wallet className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
+              <p className="text-sm text-yellow-900 mb-2">
+                <strong className="font-semibold">No wallet found</strong>
+              </p>
+              <p className="text-xs text-yellow-800">
+                Your wallet will be created automatically the next time you log in with Prospera.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

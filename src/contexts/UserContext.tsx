@@ -30,6 +30,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   // Load user data from localStorage on mount
   useEffect(() => {
+    // First, try to load from auth state (primary source)
+    const authState = localStorage.getItem('polibit_auth')
+    if (authState) {
+      try {
+        const parsed = JSON.parse(authState)
+        if (parsed.user) {
+          // Map auth user data to UserContext format
+          setUserData({
+            firstName: parsed.user.firstName || defaultUserData.firstName,
+            lastName: parsed.user.lastName || defaultUserData.lastName,
+            email: parsed.user.email || defaultUserData.email,
+            languagePreference: (parsed.user.appLanguage === 'es' ? 'spanish' : 'english') as 'english' | 'spanish',
+            avatar: parsed.user.profileImage || defaultUserData.avatar
+          })
+          return
+        }
+      } catch (e) {
+        console.error('Failed to parse auth state:', e)
+      }
+    }
+
+    // Fallback to legacy polibit_user_data
     const stored = localStorage.getItem('polibit_user_data')
     if (stored) {
       try {

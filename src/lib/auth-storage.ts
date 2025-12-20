@@ -15,6 +15,7 @@ export interface ApiUser {
   kycUrl: string | null
   address: string | null
   country: string | null
+  walletAddress: string | null
 }
 
 // Supabase object from login response
