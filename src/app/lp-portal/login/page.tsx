@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useRouter } from "next/navigation"
-import { getInvestorByEmail, setCurrentInvestorEmail } from "@/lib/lp-portal-helpers"
+import { Separator } from "@/components/ui/separator"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
-import { getRedirectPathForRole, getUserRoleType, updateUserKycData } from "@/lib/auth-storage"
+import { getUserRoleType, updateUserKycData, saveLoginResponse, getRedirectPathForRole } from "@/lib/auth-storage"
 import { toast } from "sonner"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { AlertCircle } from "lucide-react"
@@ -18,9 +18,23 @@ export default function LPLoginPage() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
+  const [isProsperapLoading, setIsProsperapLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { login, isLoggedIn, user, refreshAuthState } = useAuth()
+
+  // Handle OAuth callback from Prospera
+  React.useEffect(() => {
+    const code = searchParams.get('code')
+    const storedVerifier = sessionStorage.getItem('prospera_code_verifier')
+    const storedNonce = sessionStorage.getItem('prospera_nonce')
+
+    if (code && storedVerifier && storedNonce) {
+      console.log('[LP Login] OAuth callback detected, processing...')
+      handleProsperapCallback(code, storedVerifier, storedNonce)
+    }
+  }, [searchParams])
 
   // If already logged in, redirect to portfolio
   React.useEffect(() => {
@@ -126,46 +140,190 @@ export default function LPLoginPage() {
           }
         }
 
-        // Set current investor email (for LP portal specific functionality)
-        const investor = getInvestorByEmail(email)
-        if (investor) {
-          setCurrentInvestorEmail(email)
-        }
-
-        toast.success(`Welcome back!`)
-        router.push('/lp-portal/portfolio')
+        // Redirect will happen via useEffect once isLoggedIn updates
+        toast.success('Welcome back!')
       }
     } catch (error) {
-      console.error('Login error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.')
+      console.error('[LP Login] Error:', error)
+      setErrorMessage('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleProsperapLogin = async () => {
+    setIsProsperapLoading(true)
+    setErrorMessage('')
+
+    try {
+      console.log('[Prospera Login] Requesting authorization URL...')
+
+      // Get authorization URL from backend
+      const response = await fetch(getApiUrl('/api/custom/prospera/auth-url'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to initiate Prospera login')
+      }
+
+      const data = await response.json()
+
+      if (!data.success || !data.authUrl) {
+        throw new Error('Invalid response from Prospera service')
+      }
+
+      console.log('[Prospera Login] Authorization URL received')
+
+      // Store code verifier and nonce for callback
+      sessionStorage.setItem('prospera_code_verifier', data.codeVerifier)
+      sessionStorage.setItem('prospera_nonce', data.nonce)
+
+      // Redirect to Prospera
+      console.log('[Prospera Login] Redirecting to Prospera...')
+      window.location.href = data.authUrl
+    } catch (error) {
+      console.error('[Prospera Login] Error:', error)
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to connect to Prospera. Please try again.')
+      setIsProsperapLoading(false)
+    }
+  }
+
+  const handleProsperapCallback = async (code: string, codeVerifier: string, nonce: string) => {
+    setIsProsperapLoading(true)
+    setErrorMessage('')
+
+    try {
+      console.log('[Prospera Callback] Processing OAuth callback...')
+
+      const response = await fetch(getApiUrl('/api/custom/prospera/callback'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, codeVerifier, nonce }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Prospera authentication failed')
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.message || 'Prospera authentication failed')
+      }
+
+      console.log('[Prospera Callback] Authentication successful')
+
+      // Save to localStorage (same format as regular login)
+      saveLoginResponse(data)
+
+      // Clear stored verifier and nonce
+      sessionStorage.removeItem('prospera_code_verifier')
+      sessionStorage.removeItem('prospera_nonce')
+
+      // Clear URL parameters
+      window.history.replaceState({}, '', '/lp-portal/login')
+
+      toast.success('Welcome! Logged in with Prospera')
+
+      // Redirect to portfolio (will be handled by useEffect)
+      refreshAuthState()
+    } catch (error) {
+      console.error('[Prospera Callback] Error:', error)
+      setErrorMessage(error instanceof Error ? error.message : 'Prospera authentication failed. Please try again.')
+      sessionStorage.removeItem('prospera_code_verifier')
+      sessionStorage.removeItem('prospera_nonce')
+
+      // Clear URL parameters
+      window.history.replaceState({}, '', '/lp-portal/login')
+    } finally {
+      setIsProsperapLoading(false)
+    }
+  }
+
+  // Show loading state during OAuth callback
+  if (isProsperapLoading && searchParams.get('code')) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+            <p className="text-center mt-4 text-muted-foreground">
+              Authenticating with Prospera...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Investor Portal</CardTitle>
+          <CardTitle className="text-2xl">Investor Login</CardTitle>
           <CardDescription>
-            Enter your credentials to access your portfolio
+            Access your investment portfolio
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Error Alert */}
+          {errorMessage && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Prospera Login Button */}
+          <Button
+            onClick={handleProsperapLogin}
+            disabled={isLoading || isProsperapLoading}
+            className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
+            size="lg"
+          >
+            {isProsperapLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                Connecting to Prospera...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
+                </svg>
+                Login with Prospera
+              </>
+            )}
+          </Button>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with email
+              </span>
+            </div>
+          </div>
+
+          {/* Email/Password Form */}
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
             <Input
               id="email"
               type="email"
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value)
-                setErrorMessage('') // Clear error when user types
-              }}
-              placeholder="investor@example.com"
-              autoFocus
-              disabled={isLoading}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              disabled={isLoading || isProsperapLoading}
             />
           </div>
 
@@ -175,26 +333,34 @@ export default function LPLoginPage() {
               id="password"
               type="password"
               value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                setErrorMessage('') // Clear error when user types
-              }}
+              onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
               placeholder="••••••••"
-              disabled={isLoading}
+              disabled={isLoading || isProsperapLoading}
             />
           </div>
 
-          {errorMessage && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{errorMessage}</AlertDescription>
-            </Alert>
-          )}
-
-          <Button onClick={handleLogin} className="w-full" disabled={isLoading}>
-            {isLoading ? 'Signing in...' : 'Access Portfolio'}
+          <Button
+            onClick={handleLogin}
+            className="w-full"
+            disabled={isLoading || isProsperapLoading}
+            variant="outline"
+          >
+            {isLoading ? 'Signing in...' : 'Sign In with Email'}
           </Button>
+
+          {/* Prospera Sign Up Link */}
+          <div className="text-center text-sm text-muted-foreground border-t pt-4">
+            <p className="mb-2">Don't have a Prospera account?</p>
+            <a
+              href="https://staging-portal.eprospera.com/en/login?returnTo=%2F"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline font-medium"
+            >
+              Create one on Prospera →
+            </a>
+          </div>
         </CardContent>
       </Card>
     </div>
