@@ -76,7 +76,7 @@ export default function AddInvestmentPage() {
       const structure = structures.find(s => s.id === selectedStructure)
       if (structure) {
         const max = parseInt(structure.plannedInvestments || '0')
-        const current = structure.investors || 0
+        const current = structure.currentInvestments || 0
         setCapacityInfo({
           canAdd: current < max,
           current: current,
@@ -189,6 +189,7 @@ export default function AddInvestmentPage() {
         sector: sector || "General",
         geography: location,
         currency: "USD",
+        visibilityType: visibilityType ?? 'private',
         notes: ""
       }
 

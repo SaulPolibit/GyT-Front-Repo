@@ -24,6 +24,8 @@ import {
   Users,
   CheckCircle,
   Upload,
+  Mail,
+  Send,
 } from "lucide-react"
 import { getCurrentUser, getAuthToken } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
@@ -77,6 +79,22 @@ export default function InvestmentManagerSettingsPage() {
 
   // Security settings
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
+
+  // Email configuration state
+  const [emailConfig, setEmailConfig] = React.useState({
+    smtpHost: '',
+    smtpPort: '587',
+    smtpUsername: '',
+    smtpPassword: '',
+    fromEmail: '',
+    fromName: '',
+    replyToEmail: '',
+    smtpSecure: true,
+    encryption: 'tls' as 'tls' | 'ssl' | 'none',
+    testEmail: '',
+  })
+  const [isSendingTest, setIsSendingTest] = React.useState(false)
+  const [isSavingEmail, setIsSavingEmail] = React.useState(false)
 
   React.useEffect(() => {
     loadSettings()
@@ -206,6 +224,38 @@ export default function InvestmentManagerSettingsPage() {
           }
           if (notifData.data.notificationFrequency) {
             setNotificationFrequency(notifData.data.notificationFrequency)
+          }
+        }
+      }
+
+      // Load email configuration from API using user-specific endpoint
+      if (user.id) {
+        const emailConfigResponse = await fetch(
+          getApiUrl(API_CONFIG.endpoints.getUserEmailSettings(user.id)),
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (emailConfigResponse.ok) {
+          const emailData = await emailConfigResponse.json()
+          if (emailData.success && emailData.data) {
+            setEmailConfig({
+              smtpHost: emailData.data.smtpHost || '',
+              smtpPort: emailData.data.smtpPort || '587',
+              smtpUsername: emailData.data.smtpUsername || '',
+              smtpPassword: '', // Don't load password for security
+              fromEmail: emailData.data.fromEmail || '',
+              fromName: emailData.data.fromName || '',
+              replyToEmail: emailData.data.replyToEmail || '',
+              smtpSecure: emailData.data.smtpSecure ?? true,
+              encryption: emailData.data.encryption || 'tls',
+              testEmail: '',
+            })
           }
         }
       }
@@ -417,6 +467,97 @@ export default function InvestmentManagerSettingsPage() {
     })
   }
 
+  const handleSaveEmailConfig = async () => {
+    try {
+      setIsSavingEmail(true)
+      const user = getCurrentUser()
+      const token = getAuthToken()
+
+      if (!token || !user?.id) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.updateUserEmailSettings(user.id)),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            smtpHost: emailConfig.smtpHost,
+            smtpPort: parseInt(emailConfig.smtpPort),
+            smtpSecure: emailConfig.smtpSecure,
+            encryption: emailConfig.encryption,
+            smtpUsername: emailConfig.smtpUsername,
+            smtpPassword: emailConfig.smtpPassword || undefined,
+            fromEmail: emailConfig.fromEmail,
+            fromName: emailConfig.fromName,
+            replyToEmail: emailConfig.replyToEmail,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to save email configuration')
+      }
+
+      toast.success('Email configuration saved successfully!')
+    } catch (error) {
+      console.error('Error saving email config:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to save email configuration')
+    } finally {
+      setIsSavingEmail(false)
+    }
+  }
+
+  const handleSendTestEmail = async () => {
+    if (!emailConfig.testEmail) {
+      toast.error('Please enter a test email address')
+      return
+    }
+
+    try {
+      setIsSendingTest(true)
+      const user = getCurrentUser()
+      const token = getAuthToken()
+
+      if (!token || !user?.id) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.sendTestEmail(user.id)),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: emailConfig.testEmail,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to send test email')
+      }
+
+      toast.success(`Test email sent to ${emailConfig.testEmail}!`)
+    } catch (error) {
+      console.error('Error sending test email:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to send test email')
+    } finally {
+      setIsSendingTest(false)
+    }
+  }
+
   if (loading || !settings) {
     return (
       <div className="space-y-6 p-4 md:p-6">
@@ -441,10 +582,11 @@ export default function InvestmentManagerSettingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={`grid w-full ${currentUserRole === 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${currentUserRole === 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
           <TabsTrigger value="firm">Firm</TabsTrigger>
           {currentUserRole === 0 && <TabsTrigger value="users">Users</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
@@ -847,6 +989,220 @@ export default function InvestmentManagerSettingsPage() {
               </div>
 
               <Button onClick={handleUpdateNotifications}>Save Notification Preferences</Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Email Configuration Tab */}
+        <TabsContent value="email" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Email Configuration
+              </CardTitle>
+              <CardDescription>
+                Configure SMTP settings to enable email notifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="smtpHost">SMTP Host *</Label>
+                  <Input
+                    id="smtpHost"
+                    value={emailConfig.smtpHost}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, smtpHost: e.target.value })}
+                    placeholder="smtp.gmail.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Your email provider&apos;s SMTP server address
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="smtpPort">SMTP Port *</Label>
+                  <Input
+                    id="smtpPort"
+                    value={emailConfig.smtpPort}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, smtpPort: e.target.value })}
+                    placeholder="587"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Usually 587 (TLS) or 465 (SSL)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="smtpUsername">SMTP Username *</Label>
+                  <Input
+                    id="smtpUsername"
+                    value={emailConfig.smtpUsername}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, smtpUsername: e.target.value })}
+                    placeholder="your-email@example.com"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="smtpPassword">SMTP Password</Label>
+                  <Input
+                    id="smtpPassword"
+                    type="password"
+                    value={emailConfig.smtpPassword}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, smtpPassword: e.target.value })}
+                    placeholder="••••••••"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to keep existing password
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fromEmail">From Email *</Label>
+                  <Input
+                    id="fromEmail"
+                    type="email"
+                    value={emailConfig.fromEmail}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, fromEmail: e.target.value })}
+                    placeholder="noreply@yourfirm.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Email address shown as sender
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fromName">From Name *</Label>
+                  <Input
+                    id="fromName"
+                    value={emailConfig.fromName}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, fromName: e.target.value })}
+                    placeholder="Your Firm Name"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Name shown as sender
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="replyToEmail">Reply-To Email</Label>
+                <Input
+                  id="replyToEmail"
+                  type="email"
+                  value={emailConfig.replyToEmail}
+                  onChange={(e) => setEmailConfig({ ...emailConfig, replyToEmail: e.target.value })}
+                  placeholder="reply@yourfirm.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Email address for replies (optional)
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Use Secure Connection</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enable encrypted connection (recommended)
+                    </p>
+                  </div>
+                  <Switch
+                    checked={emailConfig.smtpSecure}
+                    onCheckedChange={(checked) => setEmailConfig({ ...emailConfig, smtpSecure: checked })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="encryption">Encryption Type</Label>
+                  <Select
+                    value={emailConfig.encryption}
+                    onValueChange={(value: 'tls' | 'ssl' | 'none') => setEmailConfig({ ...emailConfig, encryption: value })}
+                  >
+                    <SelectTrigger id="encryption">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tls">TLS/STARTTLS</SelectItem>
+                      <SelectItem value="ssl">SSL</SelectItem>
+                      <SelectItem value="none">None (Not Recommended)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    TLS for port 587, SSL for port 465
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="text-sm font-semibold mb-4">Test Email Configuration</h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="testEmail">Test Email Address</Label>
+                    <Input
+                      id="testEmail"
+                      type="email"
+                      value={emailConfig.testEmail}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, testEmail: e.target.value })}
+                      placeholder="test@example.com"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter an email address to receive a test message
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSendTestEmail}
+                      disabled={isSendingTest || !emailConfig.testEmail}
+                      variant="outline"
+                    >
+                      {isSendingTest ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Test Email
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex gap-2">
+                <Button onClick={handleSaveEmailConfig} disabled={isSavingEmail}>
+                  {isSavingEmail ? 'Saving...' : 'Save Email Configuration'}
+                </Button>
+                <Button
+                  onClick={handleSendTestEmail}
+                  disabled={isSendingTest || !emailConfig.testEmail}
+                  variant="outline"
+                >
+                  {isSendingTest ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
+                      Testing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Test Configuration
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

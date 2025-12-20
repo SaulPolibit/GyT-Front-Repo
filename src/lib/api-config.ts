@@ -51,6 +51,11 @@ export const API_CONFIG = {
     getFirmSettings: '/api/firm-settings',
     updateFirmSettings: '/api/firm-settings',
 
+    // Email configuration
+    getUserEmailSettings: (userId: string) => `/api/users/${userId}/email-settings`,
+    updateUserEmailSettings: (userId: string) => `/api/users/${userId}/email-settings`,
+    sendTestEmail: (userId: string) => `/api/users/${userId}/email-settings/test`,
+
     // User profile
     updateUserProfile: '/api/users/profile',
     uploadProfileImage: '/api/users/profile-image',

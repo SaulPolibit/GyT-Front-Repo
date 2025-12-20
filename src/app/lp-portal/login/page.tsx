@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +15,7 @@ import { toast } from "sonner"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { AlertCircle } from "lucide-react"
 
-export default function LPLoginPage() {
+function LPLoginPageContent() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
@@ -364,5 +365,26 @@ export default function LPLoginPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function LPLoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            </div>
+            <p className="text-center mt-4 text-muted-foreground">
+              Loading...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <LPLoginPageContent />
+    </Suspense>
   )
 }

@@ -46,6 +46,7 @@ export default function EditInvestmentPage({ params }: PageProps) {
   const [fundCommitment, setFundCommitment] = useState("")
   const [currentValue, setCurrentValue] = useState("")
   const [status, setStatus] = useState<"Active" | "Pending" | "Closed" | "Exited">("Active")
+  const [visibilityType, setVisibilityType] = useState<"public" | "fund-specific" | "private">("public")
 
   useEffect(() => {
     // Load structures from API
@@ -153,6 +154,8 @@ export default function EditInvestmentPage({ params }: PageProps) {
             const date = new Date(foundInvestment.maturityDate)
             setMaturityDate(date.toISOString().split('T')[0])
           }
+
+          setVisibilityType(foundInvestment.visibilityType || "public")
         } else {
           setError('Investment not found')
         }
@@ -319,6 +322,7 @@ export default function EditInvestmentPage({ params }: PageProps) {
         multiple: multiple,
         lastValuationDate: currentDate,
         updatedAt: currentDate,
+        visibilityType: visibilityType ?? 'private',
       }
 
       // Get authentication token
@@ -472,6 +476,20 @@ export default function EditInvestmentPage({ params }: PageProps) {
                   <option value="Pending">Pending</option>
                   <option value="Closed">Closed</option>
                   <option value="Exited">Exited</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="visibilityType">Visibility Type</Label>
+                <select
+                  id="visibilityType"
+                  value={visibilityType}
+                  onChange={(e) => setVisibilityType(e.target.value as "public" | "fund-specific" | "private")}
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                >
+                  <option value="public">Public</option>
+                  <option value="fund-specific">Fund Specific</option>
+                  <option value="private">Private</option>
                 </select>
               </div>
 
