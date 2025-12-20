@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation'
 import { getStructures, Structure, migrateStructures } from '@/lib/structures-storage'
 import { getVisibilitySettings } from '@/lib/visibility-storage'
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
-import { getAuthState } from '@/lib/auth-storage'
+import { getAuthState, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
 import { formatCompactCurrency } from '@/lib/format-utils'
 
@@ -73,6 +73,14 @@ export default function StructuresPage() {
         })
 
         if (!response.ok) {
+          // Handle 401 Unauthorized - Invalid or expired token
+          if (response.status === 401) {
+            console.log('[Auth] 401 Unauthorized - Clearing session and redirecting to login')
+            logout()
+            window.location.href = '/sign-in'
+            return
+          }
+
           throw new Error('Failed to fetch structures')
         }
 

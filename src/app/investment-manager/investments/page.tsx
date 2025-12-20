@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Plus, TrendingUp, TrendingDown, MapPin, Building2, DollarSign, Loader2, AlertCircle } from "lucide-react"
 import type { Investment } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken, getAuthState } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState, logout } from "@/lib/auth-storage"
 
 export default function InvestmentsPage() {
   const [investments, setInvestments] = useState<Investment[]>([])
@@ -52,6 +52,14 @@ export default function InvestmentsPage() {
         })
 
         if (!response.ok) {
+          // Handle 401 Unauthorized - Invalid or expired token
+          if (response.status === 401) {
+            console.log('[Auth] 401 Unauthorized - Clearing session and redirecting to login')
+            logout()
+            window.location.href = '/sign-in'
+            return
+          }
+
           const errorData = await response.json()
           setError(errorData.message || 'Failed to fetch investments')
           setIsLoading(false)

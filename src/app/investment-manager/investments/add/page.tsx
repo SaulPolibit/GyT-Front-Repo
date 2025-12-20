@@ -13,7 +13,7 @@ import { ArrowLeft, Building2, Info } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Structure } from "@/lib/structures-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken, getAuthState } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState, logout } from "@/lib/auth-storage"
 
 export default function AddInvestmentPage() {
   const router = useRouter()
@@ -62,7 +62,15 @@ export default function AddInvestmentPage() {
           }
         })
 
-        if (response.ok) {
+        if (!response.ok) {
+          // Handle 401 Unauthorized - Invalid or expired token
+          if (response.status === 401) {
+            console.log('[Auth] 401 Unauthorized - Clearing session and redirecting to login')
+            logout()
+            window.location.href = '/sign-in'
+            return
+          }
+        } else {
           const result = await response.json()
           if (result.success && Array.isArray(result.data)) {
             setStructures(result.data)
@@ -211,6 +219,14 @@ export default function AddInvestmentPage() {
       })
 
       if (!response.ok) {
+        // Handle 401 Unauthorized - Invalid or expired token
+        if (response.status === 401) {
+          console.log('[Auth] 401 Unauthorized - Clearing session and redirecting to login')
+          logout()
+          window.location.href = '/sign-in'
+          return
+        }
+
         const errorData = await response.json()
         toast.error(errorData.message || 'Failed to create investment')
         return
