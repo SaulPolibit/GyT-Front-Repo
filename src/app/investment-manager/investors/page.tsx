@@ -16,6 +16,22 @@ import { calculateIRR } from "@/lib/performance-calculations"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken } from "@/lib/auth-storage"
 
+// Helper function to handle 401 authentication errors
+const handleAuthError = (response: Response, errorData: any) => {
+  if (response.status === 401) {
+    // Check for the specific error message pattern
+    if (errorData.error?.includes('Invalid or expired token') ||
+        errorData.message?.includes('Please provide a valid authentication token')) {
+      // Clear all localStorage data
+      localStorage.clear()
+      // Redirect to login
+      window.location.href = '/sign-in'
+      return true
+    }
+  }
+  return false
+}
+
 export default function InvestorsPage() {
   const [investors, setInvestors] = useState<Investor[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -53,6 +69,12 @@ export default function InvestorsPage() {
 
         if (!investorsResponse.ok) {
           const errorData = await investorsResponse.json()
+
+          // Handle 401 authentication errors
+          if (handleAuthError(investorsResponse, errorData)) {
+            return // Exit early as we're redirecting
+          }
+
           setError(errorData.message || 'Failed to fetch investors')
           setIsLoading(false)
           return
@@ -251,8 +273,42 @@ export default function InvestorsPage() {
     const invEmail = inv.email || (inv as any).investorEmail || ''
     const matchesSearch = invName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          invEmail.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = filterType === "all" || inv.type === filterType
-    const matchesStatus = filterStatus === "all" || inv.status === filterStatus
+
+    // Type filtering logic
+    let matchesType = false
+    if (filterType === "all") {
+      matchesType = true
+    } else if (filterType === "Individual") {
+      // Show individual investors (both formats: "individual" and "Individual")
+      matchesType = inv.type.toLowerCase() === "individual"
+    } else if (filterType === "Company") {
+      // Show company types: institution, family-office, fund-of-funds
+      const companyTypes = ["institution", "family-office", "fund-of-funds"]
+      matchesType = companyTypes.includes(inv.type.toLowerCase())
+    }
+
+    // Status filtering logic with new rules
+    let matchesStatus = false
+    if (filterStatus === "all") {
+      matchesStatus = true
+    } else if (filterStatus === "KYC/KYB") {
+      // Show when kycStatus is 'Not Started'
+      matchesStatus = (inv as any).kycStatus === 'Not Started'
+    } else if (filterStatus === "Contracts") {
+      // Show when hasFreeDocusealSubmission is true
+      matchesStatus = (inv as any).hasFreeDocusealSubmission === true
+    } else if (filterStatus === "Payments") {
+      // Show when there's a payment with status 'pending'
+      const payments = (inv as any).payments
+      matchesStatus = Array.isArray(payments) && payments.some((payment: any) => payment.status === 'pending')
+    } else if (filterStatus === "Active") {
+      // Show when user.isActive is true
+      matchesStatus = (inv as any).user?.isActive === true
+    } else if (filterStatus === "Inactive") {
+      // Show when user.isActive is false
+      matchesStatus = (inv as any).user?.isActive === false
+    }
+
     return matchesSearch && matchesType && matchesStatus
   })
 

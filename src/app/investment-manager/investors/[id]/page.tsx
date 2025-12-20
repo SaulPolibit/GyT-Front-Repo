@@ -46,6 +46,22 @@ import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken } from "@/lib/auth-storage"
 import { deleteInvestor } from "@/lib/investors-storage"
 
+// Helper function to handle 401 authentication errors
+const handleAuthError = (response: Response, errorData: any) => {
+  if (response.status === 401) {
+    // Check for the specific error message pattern
+    if (errorData.error?.includes('Invalid or expired token') ||
+        errorData.message?.includes('Please provide a valid authentication token')) {
+      // Clear all localStorage data
+      localStorage.clear()
+      // Redirect to login
+      window.location.href = '/sign-in'
+      return true
+    }
+  }
+  return false
+}
+
 interface PageProps {
   params: Promise<{ id: string }>
 }
@@ -110,6 +126,12 @@ export default function InvestorDetailPage({ params }: PageProps) {
             return
           }
           const errorData = await response.json()
+
+          // Handle 401 authentication errors
+          if (handleAuthError(response, errorData)) {
+            return // Exit early as we're redirecting
+          }
+
           setError(errorData.message || 'Failed to fetch investor')
           setIsLoading(false)
           return
@@ -228,6 +250,13 @@ export default function InvestorDetailPage({ params }: PageProps) {
       })
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+
+        // Handle 401 authentication errors
+        if (handleAuthError(response, errorData)) {
+          return // Exit early as we're redirecting
+        }
+
         console.error('Failed to fetch documents:', response.status)
         setIsLoadingDocuments(false)
         return
@@ -383,10 +412,16 @@ export default function InvestorDetailPage({ params }: PageProps) {
 
       if (!response.ok) {
         const errorData = await response.json()
+
+        // Handle 401 authentication errors
+        if (handleAuthError(response, errorData)) {
+          return // Exit early as we're redirecting
+        }
+
         throw new Error(errorData.message || 'Failed to upload document')
       }
 
-      const result = await response.json()
+      await response.json()
 
       toast.success('Document uploaded successfully')
 
@@ -433,6 +468,12 @@ export default function InvestorDetailPage({ params }: PageProps) {
 
       if (!response.ok) {
         const errorData = await response.json()
+
+        // Handle 401 authentication errors
+        if (handleAuthError(response, errorData)) {
+          return // Exit early as we're redirecting
+        }
+
         throw new Error(errorData.message || 'Failed to delete document')
       }
 
@@ -693,7 +734,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
             <div className="flex items-center gap-4 text-muted-foreground">
               <div className="flex items-center gap-2">
                 {getTypeIcon(investor.type)}
-                <span>{investor.type}</span>
+                <span>{String(investor.type || 'N/A')}</span>
               </div>
               <span>•</span>
               <div className="flex items-center gap-1">
@@ -956,13 +997,13 @@ export default function InvestorDetailPage({ params }: PageProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Investor ID</div>
-                <div className="font-medium">{investor.id}</div>
+                <div className="font-medium">{String(investor.id)}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Type</div>
                 <div className="flex items-center gap-2">
                   {getTypeIcon(investor.type)}
-                  <span className="font-medium">{investor.type}</span>
+                  <span className="font-medium">{String(investor.type || 'N/A')}</span>
                 </div>
               </div>
             </div>
@@ -970,7 +1011,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
             {investor.type !== 'individual' && investor.contactFirstName && investor.contactLastName && (
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Contact Person</div>
-                <div className="font-medium">{investor.contactFirstName} {investor.contactLastName}</div>
+                <div className="font-medium">{String(investor.contactFirstName)} {String(investor.contactLastName)}</div>
               </div>
             )}
             <div className="space-y-3">
@@ -978,7 +1019,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
                 <Mail className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <div className="text-sm text-muted-foreground">Email</div>
-                  <div className="font-medium">{investor.email}</div>
+                  <div className="font-medium">{String(investor.email || '')}</div>
                 </div>
               </div>
               {investor.phone && (
@@ -986,7 +1027,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
                   <Phone className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <div className="text-sm text-muted-foreground">Phone</div>
-                    <div className="font-medium">{investor.phone}</div>
+                    <div className="font-medium">{String(investor.phone)}</div>
                   </div>
                 </div>
               )}
@@ -996,9 +1037,17 @@ export default function InvestorDetailPage({ params }: PageProps) {
                   <div>
                     <div className="text-sm text-muted-foreground">Address</div>
                     <div className="font-medium space-y-1">
-                      <div>{investor.address.street}</div>
-                      <div>{investor.address.city}, {investor.address.state} {investor.address.zipCode}</div>
-                      <div>{investor.address.country}</div>
+                      {investor.address.street && <div>{String(investor.address.street)}</div>}
+                      {(investor.address.city || investor.address.state || investor.address.zipCode) && (
+                        <div>
+                          {investor.address.city && String(investor.address.city)}
+                          {investor.address.city && investor.address.state && ', '}
+                          {investor.address.state && String(investor.address.state)}
+                          {investor.address.state && investor.address.zipCode && ' '}
+                          {investor.address.zipCode && String(investor.address.zipCode)}
+                        </div>
+                      )}
+                      {investor.address.country && <div>{String(investor.address.country)}</div>}
                     </div>
                   </div>
                 </div>
@@ -1008,7 +1057,7 @@ export default function InvestorDetailPage({ params }: PageProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Preferred Contact</div>
-                <div className="font-medium">{investor.preferredContactMethod}</div>
+                <div className="font-medium">{String(investor.preferredContactMethod || 'Email')}</div>
               </div>
               {investor.lastContactDate && (
                 <div>
@@ -1105,13 +1154,13 @@ export default function InvestorDetailPage({ params }: PageProps) {
               {investor.taxId && (
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">Tax ID</div>
-                  <div className="font-medium">{investor.taxId}</div>
+                  <div className="font-medium">{String(investor.taxId)}</div>
                 </div>
               )}
               <div>
                 <div className="text-sm text-muted-foreground mb-1">K-1 Status</div>
                 <Badge variant={getK1StatusColor(investor.k1Status)}>
-                  {investor.k1Status}
+                  {String(investor.k1Status || 'Not Started')}
                 </Badge>
               </div>
               {investor.k1DeliveryDate && (
@@ -1135,13 +1184,25 @@ export default function InvestorDetailPage({ params }: PageProps) {
       </div>
 
       {/* Notes */}
-      {investor.notes && (
+      {investor.notes && typeof investor.notes !== 'object' && (
         <Card>
           <CardHeader>
             <CardTitle>Notes</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm leading-relaxed text-muted-foreground">{investor.notes}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{String(investor.notes)}</p>
+          </CardContent>
+        </Card>
+      )}
+      {investor.notes && typeof investor.notes === 'object' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap overflow-x-auto">
+              {JSON.stringify(investor.notes, null, 2)}
+            </pre>
           </CardContent>
         </Card>
       )}
