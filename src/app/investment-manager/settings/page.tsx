@@ -454,6 +454,8 @@ export default function InvestmentManagerSettingsPage() {
         return 'Staff'
       case 3:
         return 'Investor'
+      case 4:
+        return 'Guest'
       default:
         return 'Unknown'
     }
