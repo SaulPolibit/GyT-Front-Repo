@@ -21,6 +21,7 @@ import {
   MessageSquare,
   DollarSign,
   TrendingUp,
+  CheckCircle,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -72,6 +73,11 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
         title: t.nav.investors,
         url: "/investment-manager/investors",
         icon: Users,
+      },
+      {
+        title: "Approvals",
+        url: "/investment-manager/approvals",
+        icon: CheckCircle,
       },
       {
         title: t.nav.reports,
