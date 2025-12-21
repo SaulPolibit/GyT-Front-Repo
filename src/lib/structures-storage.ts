@@ -40,6 +40,8 @@ export interface Structure {
   createdDate: Date
   status: 'active' | 'fundraising' | 'closed'
   bannerImage?: string
+  contractTemplateUrlNational?: string  // DocuSeal contract template URL for national (Mexico) investors
+  contractTemplateUrlInternational?: string  // DocuSeal contract template URL for international investors
   // Additional fields from onboarding
   inceptionDate?: Date
   currentStage?: string

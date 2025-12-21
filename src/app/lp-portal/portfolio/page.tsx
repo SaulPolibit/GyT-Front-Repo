@@ -62,16 +62,16 @@ interface CapitalCall {
 }
 
 interface CapitalCallsData {
-  investorId: string
-  investorName: string
-  investorEmail: string
+  userId: string
+  userName: string
+  userEmail: string
   summary: {
     totalCalled: number
     totalPaid: number
     outstanding: number
     totalCalls: number
   }
-  structures: Array<{
+  investors: Array<{
     id: string
     name: string
     type: string
@@ -203,11 +203,11 @@ export default function PortfolioPage() {
             // Map structures from capital calls data
             // TODO: These values need to come from a commitments endpoint
             // For now, using structures from capital calls with placeholder financial data
-            const mappedStructures: InvestorStructure[] = capitalCallsResponseData.data.structures?.map((structure: any) => {
+            const mappedStructures: InvestorStructure[] = capitalCallsResponseData.data.investors?.map((investor: any) => {
               return {
-                id: structure.id,
-                name: structure.name,
-                type: structure.type,
+                id: investor.id,
+                name: investor.name,
+                type: investor.type,
                 // TODO: Get actual investor-specific values from backend
                 commitment: 0, // Placeholder - should come from commitments endpoint
                 calledCapital: 0, // Placeholder

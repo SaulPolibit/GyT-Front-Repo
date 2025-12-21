@@ -48,9 +48,14 @@ export default function ContractsSigningPage({ params }: Props) {
                    user?.country?.toLowerCase() === 'méxico' ||
                    user?.country?.toLowerCase() === 'mex' ||
                    user?.country?.toLowerCase() === 'mx'
+
+  // Get contract template URL from structure (required - no fallback to env vars)
   const contractTemplateUrl = isMexico
-    ? process.env.NEXT_PUBLIC_DOCUSEAL_NATIONAL_CONTRACT_TEMPLATE_URL
-    : process.env.NEXT_PUBLIC_DOCUSEAL_INTERNATIONAL_CONTRACT_TEMPLATE_URL
+    ? structure?.contractTemplateUrlNational
+    : structure?.contractTemplateUrlInternational
+
+  // Check if template URL is missing
+  const hasTemplateError = !contractTemplateUrl || contractTemplateUrl.trim() === ''
 
   React.useEffect(() => {
     const fetchStructure = async () => {
@@ -87,6 +92,8 @@ export default function ContractsSigningPage({ params }: Props) {
           currency: data.data.baseCurrency,
           jurisdiction: data.data.taxJurisdiction,
           fundTerm: data.data.finalDate,
+          contractTemplateUrlNational: data.data.contractTemplateUrlNational, // National template URL
+          contractTemplateUrlInternational: data.data.contractTemplateUrlInternational, // International template URL
         }
 
         setStructure(mappedStructure)
@@ -363,29 +370,55 @@ export default function ContractsSigningPage({ params }: Props) {
             </CardHeader>
             <CardContent className="flex flex-col flex-1 min-h-0 gap-3 pt-0 overflow-y-auto">
               {/* DocuSeal Embed */}
-              <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
-                {/* @ts-expect-error - DocuSeal is a custom web component */}
-                <docuseal-form
-                  data-src={contractTemplateUrl}
-                  data-email={email}
-                  data-language="es"
-                  data-values={JSON.stringify({
-                    Nombre2: userFullName,
-                    Email: email,
-                    Email2: email,
-                    Nombre: userFullName,
-                    Nombre4: userFullName,
-                    Nombre3: userFullName,
-                    Cantidad: tokens,
-                    Cantidad2: tokens,
-                  })}
-                  data-read-only-fields={JSON.stringify(["Nombre2", "Email", "Email2", "Nombre", "Nombre4", "Nombre3", "Cantidad2", "Cantidad"])}
-                  className="w-full h-full"
-                />
-              </div>
+              {!hasTemplateError ? (
+                <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
+                  {/* @ts-expect-error - DocuSeal is a custom web component */}
+                  <docuseal-form
+                    data-src={contractTemplateUrl}
+                    data-email={email}
+                    data-language="es"
+                    data-values={JSON.stringify({
+                      Nombre2: userFullName,
+                      Email: email,
+                      Email2: email,
+                      Nombre: userFullName,
+                      Nombre4: userFullName,
+                      Nombre3: userFullName,
+                      Cantidad: tokens,
+                      Cantidad2: tokens,
+                    })}
+                    data-read-only-fields={JSON.stringify(["Nombre2", "Email", "Email2", "Nombre", "Nombre4", "Nombre3", "Cantidad2", "Cantidad"])}
+                    className="w-full h-full"
+                  />
+                </div>
+              ) : (
+                <div className="border rounded-lg bg-muted/30 flex-1 min-h-0 flex items-center justify-center">
+                  <div className="text-center p-8 max-w-md">
+                    <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-red-900 mb-2">Contract Template Unavailable</h3>
+                    <p className="text-sm text-muted-foreground">
+                      The contract template for {isMexico ? 'national (Mexico)' : 'international'} investors has not been configured for this structure.
+                      Please contact support for assistance.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Status Alert - Compact */}
-              {!isSigned && (
+              {hasTemplateError && (
+                <div className="flex gap-2 p-3 border border-red-200 bg-red-50 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-red-900 mb-1">Contract Template Not Configured</p>
+                    <p className="text-xs text-red-800">
+                      This structure does not have a contract template configured for {isMexico ? 'national (Mexico)' : 'international'} investors.
+                      Please contact support to configure the template before proceeding.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!hasTemplateError && !isSigned && (
                 <div className="flex gap-2 p-3 border border-amber-200 bg-amber-50 rounded-lg">
                   <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800">
@@ -394,7 +427,7 @@ export default function ContractsSigningPage({ params }: Props) {
                 </div>
               )}
 
-              {isSigned && (
+              {!hasTemplateError && isSigned && (
                 <div className="flex gap-2 p-3 border border-green-200 bg-green-50 rounded-lg">
                   <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-green-800">
@@ -405,7 +438,7 @@ export default function ContractsSigningPage({ params }: Props) {
 
               {/* Action Buttons */}
               <div className="flex flex-col gap-3 pt-4">
-                {!isSigned ? (
+                {!hasTemplateError && !isSigned ? (
                   <Button
                     className="w-full"
                     size="lg"
@@ -431,24 +464,26 @@ export default function ContractsSigningPage({ params }: Props) {
                       Cancel
                     </a>
                   </Button>
-                  <Button
-                    className="flex-1"
-                    size="lg"
-                    disabled={!isSigned || !isVerified || isChecking}
-                    onClick={handleProceedToPayment}
-                  >
-                    {isChecking ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Proceed to Payment
-                      </>
-                    )}
-                  </Button>
+                  {!hasTemplateError && (
+                    <Button
+                      className="flex-1"
+                      size="lg"
+                      disabled={!isSigned || !isVerified || isChecking}
+                      onClick={handleProceedToPayment}
+                    >
+                      {isChecking ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Proceed to Payment
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardContent>
