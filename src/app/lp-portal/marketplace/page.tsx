@@ -73,6 +73,7 @@ export default function MarketplacePage() {
           currency: item.baseCurrency,
           jurisdiction: item.taxJurisdiction,
           fundTerm: item.finalDate,
+          bannerImage: item.bannerImage,
         }))
 
         setStructures(mappedStructures)
@@ -284,6 +285,15 @@ export default function MarketplacePage() {
         <div className={viewMode === 'grid' ? 'grid gap-4 md:grid-cols-2 lg:grid-cols-3' : 'space-y-4'}>
           {filteredStructures.map((structure) => (
             <Card key={structure.id} className="hover:shadow-lg transition-shadow overflow-hidden flex flex-col">
+              {structure.bannerImage && (
+                <div className="w-full h-48 overflow-hidden">
+                  <img
+                    src={structure.bannerImage}
+                    alt={structure.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3 flex-1">

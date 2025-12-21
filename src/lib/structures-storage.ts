@@ -39,6 +39,7 @@ export interface Structure {
   investors: number
   createdDate: Date
   status: 'active' | 'fundraising' | 'closed'
+  bannerImage?: string
   // Additional fields from onboarding
   inceptionDate?: Date
   currentStage?: string
