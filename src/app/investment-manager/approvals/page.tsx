@@ -35,29 +35,33 @@ import { useToast } from "@/hooks/use-toast"
 import { getAuthToken } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 
-interface Transaction {
+interface Payment {
   id: string
-  investorId: string
+  email: string
+  submissionId: string
+  paymentImage?: string | null
+  transactionHash?: string | null
+  amount: number
   structureId: string
-  investorEmail: string
-  investorName: string
-  structureName: string
-  ticketsPurchased: number
-  totalAmount: number
-  paymentMethod: 'local-bank-transfer' | 'international-bank-transfer' | 'usdc'
-  receiptUrl?: string | null
-  receiptFileName?: string | null
-  walletAddress?: string | null
+  contractId: string
   status: 'pending' | 'approved' | 'rejected'
-  submittedAt: string
-  processedAt?: string | null
+  tokenId?: string | null
+  userId?: string | null
+  paymentMethod?: 'local-bank-transfer' | 'international-bank-transfer' | 'usdc' | 'credit-card'
+  investorName?: string
+  structureName?: string
+  ticketsPurchased?: number
+  walletAddress?: string | null
+  receiptFileName?: string | null
   processedBy?: string | null
+  processedAt?: string | null
   adminNotes?: string | null
+  submittedAt?: string
   createdAt: string
   updatedAt: string
 }
 
-interface TransactionStats {
+interface PaymentStats {
   total: number
   pending: number
   approved: number
@@ -69,9 +73,9 @@ interface TransactionStats {
 
 export default function ApprovalsPage() {
   const { toast } = useToast()
-  const [transactions, setTransactions] = React.useState<Transaction[]>([])
-  const [stats, setStats] = React.useState<TransactionStats | null>(null)
-  const [selectedTransaction, setSelectedTransaction] = React.useState<Transaction | null>(null)
+  const [payments, setPayments] = React.useState<Payment[]>([])
+  const [stats, setStats] = React.useState<PaymentStats | null>(null)
+  const [selectedPayment, setSelectedPayment] = React.useState<Payment | null>(null)
   const [showDetailDialog, setShowDetailDialog] = React.useState(false)
   const [adminNotes, setAdminNotes] = React.useState("")
   const [isProcessing, setIsProcessing] = React.useState(false)
@@ -80,11 +84,11 @@ export default function ApprovalsPage() {
   const [activeTab, setActiveTab] = React.useState("pending")
 
   React.useEffect(() => {
-    loadTransactions()
+    loadPayments()
     loadStats()
   }, [])
 
-  const loadTransactions = async () => {
+  const loadPayments = async () => {
     setIsLoading(true)
     setError(null)
 
@@ -97,7 +101,7 @@ export default function ApprovalsPage() {
         return
       }
 
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAllTransactions), {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAllPayments), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -106,16 +110,16 @@ export default function ApprovalsPage() {
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch transactions: ${response.statusText}`)
+        throw new Error(`Failed to fetch payments: ${response.statusText}`)
       }
 
       const data = await response.json()
       console.log('[Approvals] API Response:', data)
 
-      setTransactions(data.data || [])
+      setPayments(data.data || [])
     } catch (err) {
-      console.error('[Approvals] Error fetching transactions:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch transactions')
+      console.error('[Approvals] Error fetching payments:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch payments')
     } finally {
       setIsLoading(false)
     }
@@ -126,7 +130,7 @@ export default function ApprovalsPage() {
       const token = getAuthToken()
       if (!token) return
 
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getTransactionStats), {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getPaymentStats), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -159,7 +163,7 @@ export default function ApprovalsPage() {
     })
   }
 
-  const getStatusBadge = (status: Transaction['status']) => {
+  const getStatusBadge = (status: Payment['status']) => {
     switch (status) {
       case 'pending':
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="h-3 w-3 mr-1" />Pending</Badge>
@@ -184,7 +188,7 @@ export default function ApprovalsPage() {
   }
 
   const handleApprove = async () => {
-    if (!selectedTransaction) return
+    if (!selectedPayment) return
 
     setIsProcessing(true)
     try {
@@ -193,7 +197,7 @@ export default function ApprovalsPage() {
         throw new Error('No authentication token found')
       }
 
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.approveTransaction(selectedTransaction.id)), {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.approvePayment(selectedPayment.id)), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -205,24 +209,24 @@ export default function ApprovalsPage() {
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to approve transaction: ${response.statusText}`)
+        throw new Error(`Failed to approve payment: ${response.statusText}`)
       }
 
       toast({
-        title: "Transaction Approved",
-        description: `Payment from ${selectedTransaction.investorName} has been approved.`,
+        title: "Payment Approved",
+        description: `Payment from ${selectedPayment.investorName || selectedPayment.email} has been approved.`,
       })
 
-      await loadTransactions()
+      await loadPayments()
       await loadStats()
       setShowDetailDialog(false)
-      setSelectedTransaction(null)
+      setSelectedPayment(null)
       setAdminNotes("")
     } catch (error) {
-      console.error('[Approvals] Error approving transaction:', error)
+      console.error('[Approvals] Error approving payment:', error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to approve transaction",
+        description: error instanceof Error ? error.message : "Failed to approve payment",
         variant: "destructive",
       })
     } finally {
@@ -231,7 +235,7 @@ export default function ApprovalsPage() {
   }
 
   const handleReject = async () => {
-    if (!selectedTransaction || !adminNotes.trim()) {
+    if (!selectedPayment || !adminNotes.trim()) {
       toast({
         title: "Reason Required",
         description: "Please provide a reason for rejection",
@@ -247,7 +251,7 @@ export default function ApprovalsPage() {
         throw new Error('No authentication token found')
       }
 
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.rejectTransaction(selectedTransaction.id)), {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.rejectPayment(selectedPayment.id)), {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -259,25 +263,25 @@ export default function ApprovalsPage() {
       })
 
       if (!response.ok) {
-        throw new Error(`Failed to reject transaction: ${response.statusText}`)
+        throw new Error(`Failed to reject payment: ${response.statusText}`)
       }
 
       toast({
-        title: "Transaction Rejected",
-        description: `Payment from ${selectedTransaction.investorName} has been rejected.`,
+        title: "Payment Rejected",
+        description: `Payment from ${selectedPayment.investorName || selectedPayment.email} has been rejected.`,
         variant: "destructive",
       })
 
-      await loadTransactions()
+      await loadPayments()
       await loadStats()
       setShowDetailDialog(false)
-      setSelectedTransaction(null)
+      setSelectedPayment(null)
       setAdminNotes("")
     } catch (error) {
-      console.error('[Approvals] Error rejecting transaction:', error)
+      console.error('[Approvals] Error rejecting payment:', error)
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to reject transaction",
+        description: error instanceof Error ? error.message : "Failed to reject payment",
         variant: "destructive",
       })
     } finally {
@@ -285,35 +289,35 @@ export default function ApprovalsPage() {
     }
   }
 
-  const handleViewDetails = (transaction: Transaction) => {
-    setSelectedTransaction(transaction)
-    setAdminNotes(transaction.adminNotes || "")
+  const handleViewDetails = (payment: Payment) => {
+    setSelectedPayment(payment)
+    setAdminNotes(payment.adminNotes || "")
     setShowDetailDialog(true)
   }
 
-  const filteredTransactions = React.useMemo(() => {
+  const filteredPayments = React.useMemo(() => {
     switch (activeTab) {
       case 'all':
-        return transactions
+        return payments
       case 'pending':
-        return transactions.filter(t => t.status === 'pending')
+        return payments.filter(p => p.status === 'pending')
       case 'approved':
-        return transactions.filter(t => t.status === 'approved')
+        return payments.filter(p => p.status === 'approved')
       case 'rejected':
-        return transactions.filter(t => t.status === 'rejected')
+        return payments.filter(p => p.status === 'rejected')
       default:
-        return transactions
+        return payments
     }
-  }, [transactions, activeTab])
+  }, [payments, activeTab])
 
   const localStats = React.useMemo(() => {
     return {
-      total: transactions.length,
-      pending: transactions.filter(t => t.status === 'pending').length,
-      approved: transactions.filter(t => t.status === 'approved').length,
-      rejected: transactions.filter(t => t.status === 'rejected').length,
+      total: payments.length,
+      pending: payments.filter(p => p.status === 'pending').length,
+      approved: payments.filter(p => p.status === 'approved').length,
+      rejected: payments.filter(p => p.status === 'rejected').length,
     }
-  }, [transactions])
+  }, [payments])
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -363,15 +367,15 @@ export default function ApprovalsPage() {
           {isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-lg font-semibold mb-2">Loading transactions...</p>
+              <p className="text-lg font-semibold mb-2">Loading payments...</p>
               <p className="text-sm text-muted-foreground">Please wait</p>
             </div>
           ) : error ? (
             <div className="text-center py-12">
               <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-              <p className="text-lg font-semibold mb-2">Error loading transactions</p>
+              <p className="text-lg font-semibold mb-2">Error loading payments</p>
               <p className="text-sm text-muted-foreground mb-4">{error}</p>
-              <Button onClick={() => loadTransactions()}>Try Again</Button>
+              <Button onClick={() => loadPayments()}>Try Again</Button>
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -385,14 +389,14 @@ export default function ApprovalsPage() {
               </TabsList>
 
               <TabsContent value={activeTab} className="mt-6">
-                {filteredTransactions.length === 0 ? (
+                {filteredPayments.length === 0 ? (
                   <div className="text-center py-12">
                     <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-lg font-semibold mb-2">No transactions found</p>
+                    <p className="text-lg font-semibold mb-2">No payments found</p>
                     <p className="text-sm text-muted-foreground">
                       {activeTab === 'pending'
-                        ? 'There are no pending transactions to review'
-                        : `No ${activeTab} transactions`
+                        ? 'There are no pending payments to review'
+                        : `No ${activeTab} payments`
                       }
                     </p>
                   </div>
@@ -412,31 +416,31 @@ export default function ApprovalsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredTransactions.map((transaction) => (
-                          <TableRow key={transaction.id}>
+                        {filteredPayments.map((payment) => (
+                          <TableRow key={payment.id}>
                             <TableCell>
                               <div>
-                                <p className="font-medium">{transaction.investorName}</p>
-                                <p className="text-xs text-muted-foreground">{transaction.investorEmail}</p>
+                                <p className="font-medium">{payment.investorName || 'N/A'}</p>
+                                <p className="text-xs text-muted-foreground">{payment.email}</p>
                               </div>
                             </TableCell>
                             <TableCell>
-                              <p className="font-medium">{transaction.structureName}</p>
+                              <p className="font-medium">{payment.structureName || 'N/A'}</p>
                             </TableCell>
-                            <TableCell className="text-right">{transaction.ticketsPurchased}</TableCell>
+                            <TableCell className="text-right">{payment.ticketsPurchased || 'N/A'}</TableCell>
                             <TableCell className="text-right font-semibold">
-                              {formatCurrency(transaction.totalAmount)}
+                              {formatCurrency(payment.amount)}
                             </TableCell>
-                            <TableCell>{getPaymentMethodLabel(transaction.paymentMethod)}</TableCell>
+                            <TableCell>{payment.paymentMethod ? getPaymentMethodLabel(payment.paymentMethod) : 'N/A'}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {formatDate(transaction.submittedAt)}
+                              {payment.submittedAt ? formatDate(payment.submittedAt) : formatDate(payment.createdAt)}
                             </TableCell>
-                            <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                            <TableCell>{getStatusBadge(payment.status)}</TableCell>
                             <TableCell className="text-right">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleViewDetails(transaction)}
+                                onClick={() => handleViewDetails(payment)}
                               >
                                 <Eye className="h-4 w-4 mr-1" />
                                 View
@@ -458,73 +462,73 @@ export default function ApprovalsPage() {
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Transaction Details</DialogTitle>
+            <DialogTitle>Payment Details</DialogTitle>
             <DialogDescription>
-              Review payment details and approve or reject the transaction
+              Review payment details and approve or reject the payment
             </DialogDescription>
           </DialogHeader>
 
-          {selectedTransaction && (
+          {selectedPayment && (
             <div className="space-y-6">
-              {/* Transaction Info */}
+              {/* Payment Info */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs text-muted-foreground">Investor</Label>
-                  <p className="font-semibold">{selectedTransaction.investorName}</p>
-                  <p className="text-sm text-muted-foreground">{selectedTransaction.investorEmail}</p>
+                  <p className="font-semibold">{selectedPayment.investorName || 'N/A'}</p>
+                  <p className="text-sm text-muted-foreground">{selectedPayment.email}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Structure</Label>
-                  <p className="font-semibold">{selectedTransaction.structureName}</p>
+                  <p className="font-semibold">{selectedPayment.structureName || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Tickets Purchased</Label>
-                  <p className="font-semibold text-lg">{selectedTransaction.ticketsPurchased}</p>
+                  <p className="font-semibold text-lg">{selectedPayment.ticketsPurchased || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Total Amount</Label>
-                  <p className="font-semibold text-lg">{formatCurrency(selectedTransaction.totalAmount)}</p>
+                  <p className="font-semibold text-lg">{formatCurrency(selectedPayment.amount)}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Payment Method</Label>
-                  <p className="font-semibold">{getPaymentMethodLabel(selectedTransaction.paymentMethod)}</p>
+                  <p className="font-semibold">{selectedPayment.paymentMethod ? getPaymentMethodLabel(selectedPayment.paymentMethod) : 'N/A'}</p>
                 </div>
-                {selectedTransaction.walletAddress && (
+                {selectedPayment.walletAddress && (
                   <div>
                     <Label className="text-xs text-muted-foreground">Wallet Address</Label>
-                    <p className="font-semibold text-xs font-mono">{selectedTransaction.walletAddress}</p>
+                    <p className="font-semibold text-xs font-mono">{selectedPayment.walletAddress}</p>
                   </div>
                 )}
                 <div>
                   <Label className="text-xs text-muted-foreground">Status</Label>
-                  <div className="mt-1">{getStatusBadge(selectedTransaction.status)}</div>
+                  <div className="mt-1">{getStatusBadge(selectedPayment.status)}</div>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Submitted</Label>
-                  <p className="font-semibold text-sm">{formatDate(selectedTransaction.submittedAt)}</p>
+                  <p className="font-semibold text-sm">{selectedPayment.submittedAt ? formatDate(selectedPayment.submittedAt) : formatDate(selectedPayment.createdAt)}</p>
                 </div>
-                {selectedTransaction.processedAt && (
+                {selectedPayment.processedAt && (
                   <div>
                     <Label className="text-xs text-muted-foreground">Processed</Label>
-                    <p className="font-semibold text-sm">{formatDate(selectedTransaction.processedAt)}</p>
+                    <p className="font-semibold text-sm">{formatDate(selectedPayment.processedAt)}</p>
                   </div>
                 )}
               </div>
 
               {/* Receipt */}
-              {selectedTransaction.receiptUrl && (
+              {selectedPayment.paymentImage && (
                 <div>
                   <Label className="text-sm font-semibold mb-2 block">Payment Receipt</Label>
                   <div className="border rounded-lg p-4 bg-muted/30">
-                    {selectedTransaction.receiptFileName && (
+                    {selectedPayment.receiptFileName && (
                       <div className="flex items-center gap-2 mb-3">
                         <FileText className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-sm font-medium">{selectedTransaction.receiptFileName}</span>
+                        <span className="text-sm font-medium">{selectedPayment.receiptFileName}</span>
                       </div>
                     )}
-                    {selectedTransaction.receiptUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                    {selectedPayment.paymentImage.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                       <img
-                        src={selectedTransaction.receiptUrl}
+                        src={selectedPayment.paymentImage}
                         alt="Receipt"
                         className="max-w-full rounded border"
                       />
@@ -532,10 +536,10 @@ export default function ApprovalsPage() {
                       <div className="text-center py-8">
                         <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
                         <p className="text-sm text-muted-foreground mb-3">
-                          {selectedTransaction.receiptFileName || 'Receipt file'}
+                          {selectedPayment.receiptFileName || 'Receipt file'}
                         </p>
                         <Button variant="outline" size="sm" asChild>
-                          <a href={selectedTransaction.receiptUrl} target="_blank" rel="noopener noreferrer">
+                          <a href={selectedPayment.paymentImage} target="_blank" rel="noopener noreferrer">
                             <Download className="h-4 w-4 mr-2" />
                             View Receipt
                           </a>
@@ -549,21 +553,21 @@ export default function ApprovalsPage() {
               {/* Admin Notes */}
               <div>
                 <Label htmlFor="notes" className="text-sm font-semibold">
-                  {selectedTransaction.status === 'pending' ? 'Notes (optional for approval, required for rejection)' : 'Admin Notes'}
+                  {selectedPayment.status === 'pending' ? 'Notes (optional for approval, required for rejection)' : 'Admin Notes'}
                 </Label>
                 <Textarea
                   id="notes"
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="Add notes about this transaction..."
+                  placeholder="Add notes about this payment..."
                   rows={3}
                   className="mt-2"
-                  disabled={selectedTransaction.status !== 'pending'}
+                  disabled={selectedPayment.status !== 'pending'}
                 />
               </div>
 
               {/* Actions */}
-              {selectedTransaction.status === 'pending' && (
+              {selectedPayment.status === 'pending' && (
                 <div className="flex gap-3 pt-4 border-t">
                   <Button
                     variant="outline"

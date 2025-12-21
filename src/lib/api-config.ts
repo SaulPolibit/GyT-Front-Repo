@@ -84,14 +84,12 @@ export const API_CONFIG = {
     getEntityDocuments: (entityType: string, entityId: string) => `/api/documents/entity/${entityType}/${entityId}`,
     deleteDocument: (documentId: string) => `/api/documents/${documentId}`,
 
-    // Transactions API (Payment Approvals)
-    getAllTransactions: '/api/transactions',
-    getTransactionStats: '/api/transactions/stats',
-    getTransactionById: (transactionId: string) => `/api/transactions/${transactionId}`,
-    createTransaction: '/api/transactions',
-    approveTransaction: (transactionId: string) => `/api/transactions/${transactionId}/approve`,
-    rejectTransaction: (transactionId: string) => `/api/transactions/${transactionId}/reject`,
-    deleteTransaction: (transactionId: string) => `/api/transactions/${transactionId}`,
+    // Payment Approvals API
+    getAllPayments: '/api/payments',
+    getPaymentStats: '/api/payments/approvals/stats',
+    getPaymentById: (paymentId: string) => `/api/payments/${paymentId}`,
+    approvePayment: (paymentId: string) => `/api/payments/${paymentId}/approve`,
+    rejectPayment: (paymentId: string) => `/api/payments/${paymentId}/reject`,
 
     // Add other endpoints as needed
   }
