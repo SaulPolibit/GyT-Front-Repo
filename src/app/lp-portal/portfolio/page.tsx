@@ -150,7 +150,7 @@ export default function PortfolioPage() {
 
       // Step 2: Get investor with structures
       const investorResponse = await fetch(
-        getApiUrl(API_CONFIG.endpoints.getInvestorWithStructures(investor.id)),
+        getApiUrl(API_CONFIG.endpoints.getMyInvestorWithStructures),
         {
           method: 'GET',
           headers: {
