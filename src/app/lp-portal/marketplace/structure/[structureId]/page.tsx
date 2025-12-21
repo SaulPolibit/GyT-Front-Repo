@@ -22,6 +22,7 @@ import type { Structure } from "@/lib/structures-storage"
 import { getAuthToken } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { useAuth } from "@/hooks/useAuth"
+import { useBreadcrumb } from "@/contexts/lp-breadcrumb-context"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -50,6 +51,7 @@ interface Document {
 export default function MarketplaceStructureDetailPage({ params }: Props) {
   const { structureId } = use(params)
   const { user } = useAuth()
+  const { setCustomBreadcrumb, clearCustomBreadcrumb } = useBreadcrumb()
   const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -60,6 +62,12 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
 
   // Check if user can buy (KYC approved)
   const canBuy = user?.kycStatus === 'Approved'
+
+  // Hide the structure ID in the breadcrumb
+  React.useEffect(() => {
+    setCustomBreadcrumb(`/lp-portal/marketplace/structure/${structureId}`, ' ')
+    return () => clearCustomBreadcrumb(`/lp-portal/marketplace/structure/${structureId}`)
+  }, [structureId, setCustomBreadcrumb, clearCustomBreadcrumb])
 
   React.useEffect(() => {
     const fetchStructure = async () => {
@@ -327,7 +335,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="terms">Economic Terms</TabsTrigger>
+          <TabsTrigger value="terms">Offering Terms</TabsTrigger>
           <TabsTrigger value="tokens">Token Info</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
         </TabsList>
@@ -421,11 +429,11 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           </Card>
         </TabsContent>
 
-        {/* Economic Terms Tab */}
+        {/* Offering Terms Tab */}
         <TabsContent value="terms" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Economic Terms</CardTitle>
+              <CardTitle>Offering Terms</CardTitle>
               <CardDescription>Fee structure and performance metrics</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

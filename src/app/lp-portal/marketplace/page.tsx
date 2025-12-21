@@ -336,12 +336,6 @@ export default function MarketplacePage() {
                           <p className="text-sm font-semibold">{structure.currency}</p>
                         </div>
                       )}
-                      {structure.investors && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Investors</p>
-                          <p className="text-sm font-semibold">{structure.investors}</p>
-                        </div>
-                      )}
                       {structure.managementFee && (
                         <div>
                           <p className="text-xs text-muted-foreground">Mgmt Fee</p>
