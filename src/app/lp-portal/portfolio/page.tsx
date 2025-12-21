@@ -619,14 +619,14 @@ export default function PortfolioPage() {
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{capitalCallsData.structures.length}</div>
+                <div className="text-2xl font-bold">{capitalCallsData.structures?.length || 0}</div>
                 <p className="text-xs text-muted-foreground">With capital calls</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Capital Calls Table */}
-          {capitalCallsData.capitalCalls.length > 0 ? (
+          {capitalCallsData.capitalCalls?.length > 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle>Capital Call History</CardTitle>
