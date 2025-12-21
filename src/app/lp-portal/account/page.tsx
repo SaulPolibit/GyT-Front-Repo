@@ -361,7 +361,7 @@ export default function AccountPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20">
-                <AvatarImage src={formData.avatarUrl || '/avatars/investor.jpg'} alt={`${formData.firstName} ${formData.lastName}`} />
+                <AvatarImage src={formData.avatarUrl || '/avatars/investor.jpg'} alt={`${formData.firstName} ${formData.lastName}`} className="object-cover" />
                 <AvatarFallback>{getInitials(formData.firstName, formData.lastName)}</AvatarFallback>
               </Avatar>
               <div>
@@ -436,7 +436,8 @@ export default function AccountPage() {
         </Card>
 
         <div className="space-y-6">
-          <Card>
+          {/* Language Preference temporarily hidden - platform is English-only for now */}
+          {/* <Card>
             <CardHeader>
               <CardTitle>Language Preference</CardTitle>
               <CardDescription>
@@ -465,7 +466,7 @@ export default function AccountPage() {
                 Save Preference
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card>
             <CardHeader>
@@ -571,10 +572,6 @@ export default function AccountPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Network</span>
                   <span className="font-medium">Polygon (Amoy Testnet)</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Provider</span>
-                  <span className="font-medium">Crossmint</span>
                 </div>
               </div>
 
