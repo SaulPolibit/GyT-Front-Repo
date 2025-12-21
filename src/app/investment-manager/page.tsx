@@ -18,18 +18,32 @@ import { calculateMetric } from "@/lib/metric-calculations"
 import { getStructures } from "@/lib/structures-storage"
 import { ComparisonTable } from "@/components/comparison-table"
 
-import data from "./investment-data.json"
-
 export default function Page() {
   const [widgets, setWidgets] = React.useState<DashboardWidget[]>([])
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingWidget, setEditingWidget] = React.useState<DashboardWidget | null>(null)
   const [globalFilter, setGlobalFilter] = React.useState<string>('all')
+  const [data, setData] = React.useState<any[]>([])
 
-  // Load widgets from localStorage on mount
+  // Load widgets and data from localStorage on mount
   React.useEffect(() => {
     const config = getDashboardConfig()
     setWidgets(config.widgets)
+
+    // Load structures (funds) data from localStorage and transform to table format
+    const structures = getStructures()
+    const transformedData = structures
+      .filter((s: any) => s.status === 'active') // Only show active structures
+      .map((structure: any, index: number) => ({
+        id: index + 1,
+        header: structure.name || `Fund ${index + 1}`,
+        type: structure.type === 'fund' ? 'Fund' : structure.type === 'sa' ? 'SA/LLC' : structure.type === 'trust' ? 'Trust' : 'SPV',
+        status: 'Active',
+        target: `$${(structure.currentNav || structure.totalCommitment || 0).toLocaleString()}`,
+        limit: `$${(structure.totalCommitment || 0).toLocaleString()}`,
+        irr: `${structure.performance?.irr || 0}%`,
+      }))
+    setData(transformedData)
   }, [])
 
   // Configure drag and drop sensors

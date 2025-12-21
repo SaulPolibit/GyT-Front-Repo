@@ -233,44 +233,46 @@ export default function AccountPage() {
           </CardContent>
         </Card>
 
-        {/* Language Preferences */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-primary" />
-              <CardTitle>{t.account.language.title}</CardTitle>
-            </div>
-            <CardDescription>
-              {t.account.language.subtitle}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="language">{t.account.language.platformLanguage} *</Label>
-              <Select
-                value={accountData.languagePreference}
-                onValueChange={(value) => updateField('languagePreference', value)}
-              >
-                <SelectTrigger id="language">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="english">English</SelectItem>
-                  <SelectItem value="spanish">Spanish</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {t.account.language.languageDescription}
-              </p>
-            </div>
+        {/* Language Preferences - Hidden */}
+        {false && (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" />
+                <CardTitle>{t.account.language.title}</CardTitle>
+              </div>
+              <CardDescription>
+                {t.account.language.subtitle}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="language">{t.account.language.platformLanguage} *</Label>
+                <Select
+                  value={accountData.languagePreference}
+                  onValueChange={(value) => updateField('languagePreference', value)}
+                >
+                  <SelectTrigger id="language">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="spanish">Spanish</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {t.account.language.languageDescription}
+                </p>
+              </div>
 
-            <Alert className="border-blue-200 bg-blue-50">
-              <AlertDescription className="text-blue-700 text-sm">
-                <strong>{t.account.language.noteTitle}</strong> {accountData.languagePreference === 'english' ? t.account.language.noteEnglish : t.account.language.noteSpanish}
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
+              <Alert className="border-blue-200 bg-blue-50">
+                <AlertDescription className="text-blue-700 text-sm">
+                  <strong>{t.account.language.noteTitle}</strong> {accountData.languagePreference === 'english' ? t.account.language.noteEnglish : t.account.language.noteSpanish}
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Password Management */}
         <Card className="mb-6">
