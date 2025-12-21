@@ -62,58 +62,7 @@ const STORAGE_KEY = 'polibit_dashboard_config'
 // Get default dashboard configuration
 export function getDefaultDashboard(): DashboardConfig {
   return {
-    widgets: [
-      // Default "All Structures" section
-      {
-        id: 'section-all-structures',
-        type: 'section',
-        position: 0,
-        config: {
-          title: 'All Structures',
-          structureId: 'all',
-          collapsed: false,
-        },
-        isCustom: false,
-      },
-      {
-        id: 'section-cards',
-        type: 'card',
-        position: 1,
-        config: {},
-        isCustom: false,
-        sectionId: 'section-all-structures',
-      },
-      {
-        id: 'nav-dashboard-card',
-        type: 'card',
-        position: 2,
-        config: {},
-        isCustom: false,
-        sectionId: 'section-all-structures',
-      },
-      {
-        id: 'chart-area-interactive',
-        type: 'chart',
-        position: 3,
-        config: {
-          type: 'area',
-          dataSource: 'nav',
-          metrics: ['nav'],
-          title: 'Portfolio Net Asset Value (NAV)',
-          description: 'As of October 15, 2025',
-        },
-        isCustom: false,
-        sectionId: 'section-all-structures',
-      },
-      {
-        id: 'data-table',
-        type: 'table',
-        position: 4,
-        config: {},
-        isCustom: false,
-        sectionId: 'section-all-structures',
-      },
-    ],
+    widgets: [],
     lastModified: new Date().toISOString(),
   }
 }

@@ -91,6 +91,16 @@ export const API_CONFIG = {
     approvePayment: (paymentId: string) => `/api/payments/${paymentId}/approve`,
     rejectPayment: (paymentId: string) => `/api/payments/${paymentId}/reject`,
 
+    // Capital Calls API
+    getAllCapitalCalls: '/api/capital-calls',
+    getCapitalCallById: (id: string) => `/api/capital-calls/${id}`,
+    getCapitalCallsByStructure: (structureId: string) => `/api/capital-calls/structure/${structureId}/summary`,
+
+    // Distributions API
+    getAllDistributions: '/api/distributions',
+    getDistributionById: (id: string) => `/api/distributions/${id}`,
+    getDistributionsByStructure: (structureId: string) => `/api/distributions/structure/${structureId}/summary`,
+
     // Add other endpoints as needed
   }
 }

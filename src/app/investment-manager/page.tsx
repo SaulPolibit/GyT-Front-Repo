@@ -14,9 +14,12 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { IconPlus } from "@tabler/icons-react"
 import { getDashboardConfig, removeWidget, reorderWidgets, type DashboardWidget } from "@/lib/dashboard-storage"
-import { calculateMetric } from "@/lib/metric-calculations"
+import { calculateMetric, type DashboardData } from "@/lib/metric-calculations"
 import { getStructures } from "@/lib/structures-storage"
 import { ComparisonTable } from "@/components/comparison-table"
+import { getApiUrl, API_CONFIG } from '@/lib/api-config'
+import { getAuthState } from '@/lib/auth-storage'
+import { toast } from 'sonner'
 
 export default function Page() {
   const [widgets, setWidgets] = React.useState<DashboardWidget[]>([])
@@ -24,26 +27,113 @@ export default function Page() {
   const [editingWidget, setEditingWidget] = React.useState<DashboardWidget | null>(null)
   const [globalFilter, setGlobalFilter] = React.useState<string>('all')
   const [data, setData] = React.useState<any[]>([])
+  const [dashboardData, setDashboardData] = React.useState<DashboardData>({})
+  const [structures, setStructures] = React.useState<any[]>([])
 
-  // Load widgets and data from localStorage on mount
+  // Load widgets and fetch data from API on mount
   React.useEffect(() => {
     const config = getDashboardConfig()
     setWidgets(config.widgets)
 
-    // Load structures (funds) data from localStorage and transform to table format
-    const structures = getStructures()
-    const transformedData = structures
-      .filter((s: any) => s.status === 'active') // Only show active structures
-      .map((structure: any, index: number) => ({
-        id: index + 1,
-        header: structure.name || `Fund ${index + 1}`,
-        type: structure.type === 'fund' ? 'Fund' : structure.type === 'sa' ? 'SA/LLC' : structure.type === 'trust' ? 'Trust' : 'SPV',
-        status: 'Active',
-        target: `$${(structure.currentNav || structure.totalCommitment || 0).toLocaleString()}`,
-        limit: `$${(structure.totalCommitment || 0).toLocaleString()}`,
-        irr: `${structure.performance?.irr || 0}%`,
-      }))
-    setData(transformedData)
+    // Fetch all dashboard data from API
+    const fetchDashboardData = async () => {
+      try {
+        const authState = getAuthState()
+        const token = authState.token
+
+        if (!token) {
+          console.warn('No auth token found, using localStorage as fallback')
+          // Fallback to localStorage
+          const localStructures = getStructures()
+          setStructures(localStructures)
+          const transformedData = localStructures
+            .filter((s: any) => s.status === 'active')
+            .map((structure: any, index: number) => ({
+              id: index + 1,
+              header: structure.name || `Fund ${index + 1}`,
+              type: structure.type === 'fund' ? 'Fund' : structure.type === 'sa' ? 'SA/LLC' : structure.type === 'trust' ? 'Trust' : 'SPV',
+              status: 'Active',
+              target: `$${(structure.currentNav || structure.totalCommitment || 0).toLocaleString()}`,
+              limit: `$${(structure.totalCommitment || 0).toLocaleString()}`,
+              irr: `${structure.performance?.irr || 0}%`,
+            }))
+          setData(transformedData)
+          return
+        }
+
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+
+        // Fetch all data in parallel
+        const [
+          structuresRes,
+          investmentsRes,
+          investorsRes,
+          capitalCallsRes,
+          distributionsRes
+        ] = await Promise.all([
+          fetch(getApiUrl(API_CONFIG.endpoints.getAllStructures), { headers }),
+          fetch(getApiUrl(API_CONFIG.endpoints.getAllInvestments), { headers }),
+          fetch(getApiUrl(API_CONFIG.endpoints.getAllInvestors), { headers }),
+          fetch(getApiUrl(API_CONFIG.endpoints.getAllCapitalCalls), { headers }),
+          fetch(getApiUrl(API_CONFIG.endpoints.getAllDistributions), { headers })
+        ])
+
+        const structuresData = structuresRes.ok ? (await structuresRes.json()).data || [] : []
+        const investmentsData = investmentsRes.ok ? (await investmentsRes.json()).data || [] : []
+        const investorsData = investorsRes.ok ? (await investorsRes.json()).data || [] : []
+        const capitalCallsData = capitalCallsRes.ok ? (await capitalCallsRes.json()).data || [] : []
+        const distributionsData = distributionsRes.ok ? (await distributionsRes.json()).data || [] : []
+
+        // Store API data for metric calculations
+        setDashboardData({
+          structures: structuresData,
+          investments: investmentsData,
+          investors: investorsData,
+          capitalCalls: capitalCallsData,
+          distributions: distributionsData
+        })
+
+        // Store structures for filter dropdown
+        setStructures(structuresData)
+
+        // Transform structures for data table
+        const transformedData = structuresData
+          .filter((s: any) => s.status === 'active')
+          .map((structure: any, index: number) => ({
+            id: index + 1,
+            header: structure.name || `Fund ${index + 1}`,
+            type: structure.type === 'fund' ? 'Fund' : structure.type === 'sa' ? 'SA/LLC' : structure.type === 'trust' ? 'Trust' : 'SPV',
+            status: 'Active',
+            target: `$${(structure.currentNav || structure.totalCommitment || 0).toLocaleString()}`,
+            limit: `$${(structure.totalCommitment || 0).toLocaleString()}`,
+            irr: `${structure.performance?.irr || 0}%`,
+          }))
+        setData(transformedData)
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error)
+        toast.error('Failed to load dashboard data')
+        // Fallback to localStorage
+        const localStructures = getStructures()
+        setStructures(localStructures)
+        const transformedData = localStructures
+          .filter((s: any) => s.status === 'active')
+          .map((structure: any, index: number) => ({
+            id: index + 1,
+            header: structure.name || `Fund ${index + 1}`,
+            type: structure.type === 'fund' ? 'Fund' : structure.type === 'sa' ? 'SA/LLC' : structure.type === 'trust' ? 'Trust' : 'SPV',
+            status: 'Active',
+            target: `$${(structure.currentNav || structure.totalCommitment || 0).toLocaleString()}`,
+            limit: `$${(structure.totalCommitment || 0).toLocaleString()}`,
+            irr: `${structure.performance?.irr || 0}%`,
+          }))
+        setData(transformedData)
+      }
+    }
+
+    fetchDashboardData()
   }, [])
 
   // Configure drag and drop sensors
@@ -125,7 +215,7 @@ export default function Page() {
         // Metric card widget
         if (widget.type === 'metric' && widget.config) {
           const config = widget.config as any
-          const calculatedValue = calculateMetric(config.metricId, config.structureId || 'all')
+          const calculatedValue = calculateMetric(config.metricId, config.structureId || 'all', dashboardData)
 
           return (
             <div>
@@ -180,7 +270,7 @@ export default function Page() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Structures</SelectItem>
-                  {getStructures().map(structure => (
+                  {structures.map(structure => (
                     <SelectItem key={structure.id} value={structure.id}>
                       {structure.name}
                     </SelectItem>

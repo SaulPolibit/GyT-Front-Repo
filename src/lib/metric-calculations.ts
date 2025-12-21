@@ -11,6 +11,14 @@ export interface CalculatedMetric {
   description?: string
 }
 
+export interface DashboardData {
+  structures?: any[]
+  investments?: any[]
+  investors?: any[]
+  capitalCalls?: any[]
+  distributions?: any[]
+}
+
 // Helper to format currency
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -30,12 +38,13 @@ function formatPercentage(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
 }
 
-export function calculateMetric(metricId: string, structureId?: string): CalculatedMetric {
-  const structures = getStructures()
-  const allInvestments = getInvestments()
-  const allInvestors = getInvestors()
-  const allCapitalCalls = getCapitalCalls()
-  const allDistributions = getDistributions()
+export function calculateMetric(metricId: string, structureId?: string, dashboardData?: DashboardData): CalculatedMetric {
+  // Use provided data if available, otherwise fallback to localStorage
+  const structures = dashboardData?.structures ?? getStructures()
+  const allInvestments = dashboardData?.investments ?? getInvestments()
+  const allInvestors = dashboardData?.investors ?? getInvestors()
+  const allCapitalCalls = dashboardData?.capitalCalls ?? getCapitalCalls()
+  const allDistributions = dashboardData?.distributions ?? getDistributions()
 
   // Filter by structure if specified
   const investments = structureId && structureId !== 'all'
