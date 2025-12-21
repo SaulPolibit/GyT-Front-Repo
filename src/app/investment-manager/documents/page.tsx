@@ -386,7 +386,7 @@ export default function DocumentsPage() {
     const matchesCategory = selectedCategory === 'all' ||
       (selectedCategory === 'Structure Documents' && doc.entityType === 'Structure') ||
       (selectedCategory === 'Investor Documents' && doc.entityType === 'Investor') ||
-      (selectedCategory === 'Investment Documents' && doc.entityType === 'Investment')
+      (selectedCategory === 'Asset Documents' && doc.entityType === 'Investment')
 
     return matchesSearch && matchesStructure && matchesInvestor && matchesCategory
   })
@@ -458,7 +458,7 @@ export default function DocumentsPage() {
         </Card>
         <Card>
           <CardHeader className="pb-3">
-            <CardDescription>Investment Documents</CardDescription>
+            <CardDescription>Asset Documents</CardDescription>
             <CardTitle className="text-3xl">{investmentDocs.length}</CardTitle>
           </CardHeader>
         </Card>
@@ -517,7 +517,7 @@ export default function DocumentsPage() {
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="Structure Documents">Structure Documents</SelectItem>
                 <SelectItem value="Investor Documents">Investor Documents</SelectItem>
-                <SelectItem value="Investment Documents">Investment Documents</SelectItem>
+                <SelectItem value="Asset Documents">Asset Documents</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -537,7 +537,7 @@ export default function DocumentsPage() {
           </TabsTrigger>
           <TabsTrigger value="investment">
             <IconBriefcase className="w-4 h-4 mr-2" />
-            Investment Documents ({investmentDocs.length})
+            Asset Documents ({investmentDocs.length})
           </TabsTrigger>
         </TabsList>
 
@@ -725,7 +725,7 @@ export default function DocumentsPage() {
           </Card>
         </TabsContent>
 
-        {/* Investment Documents Tab */}
+        {/* Asset Documents Tab */}
         <TabsContent value="investment" className="space-y-4">
           <Card>
             <CardHeader>

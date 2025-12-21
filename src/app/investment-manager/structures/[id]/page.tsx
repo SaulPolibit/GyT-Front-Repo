@@ -44,15 +44,6 @@ const STATUS_COLORS: Record<string, string> = {
   closed: 'secondary',
 }
 
-// Format subtype for display (e.g., "multi-project" -> "Multi Project")
-const formatSubtype = (subtype: string | null | undefined) => {
-  if (!subtype) return 'N/A'
-  return subtype
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
 interface PageProps {
   params: Promise<{ id: string }>
 }
@@ -440,8 +431,6 @@ export default function StructureDetailPage({ params }: PageProps) {
                 <span>{TYPE_LABELS[structure.type]}</span>
               </div>
               <span>•</span>
-              <span>{formatSubtype(structure.subtype)}</span>
-              <span>•</span>
               <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
                 {structure.jurisdiction === 'United States' && structure.usState
@@ -559,7 +548,7 @@ export default function StructureDetailPage({ params }: PageProps) {
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {TYPE_LABELS[level.type] || TYPE_LABELS[structure.type]} • {formatSubtype(structure.subtype)}
+                          {TYPE_LABELS[level.type] || TYPE_LABELS[structure.type]}
                         </div>
                       </div>
                     </div>
@@ -654,10 +643,6 @@ export default function StructureDetailPage({ params }: PageProps) {
                 <div className="font-medium">
                   <Badge variant="outline">{TYPE_LABELS[structure.type]}</Badge>
                 </div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">Subtype</div>
-                <div className="font-medium">{formatSubtype(structure.subtype)}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Jurisdiction</div>
