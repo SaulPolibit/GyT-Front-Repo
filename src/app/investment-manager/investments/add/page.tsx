@@ -300,7 +300,6 @@ export default function AddInvestmentPage() {
                   className="w-full h-10 px-3 rounded-md border border-input bg-background"
                 >
                   <option value="Real Estate">Real Estate</option>
-                  <option value="Private Equity">Private Equity</option>
                   <option value="Private Debt">Private Debt</option>
                 </select>
               </div>
@@ -438,192 +437,194 @@ export default function AddInvestmentPage() {
             </CardContent>
           </Card>
 
-          {/* Investment Details */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Investment Details</CardTitle>
-              <CardDescription>Financial structure and positions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TooltipProvider>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="investmentType">Investment Type</Label>
-                    <select
-                      id="investmentType"
-                      value={investmentType}
-                      onChange={(e) => setInvestmentType(e.target.value as "Equity" | "Debt" | "Mixed")}
-                      className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                    >
-                      <option value="Equity">Equity</option>
-                      <option value="Debt">Debt</option>
-                      <option value="Mixed">Mixed</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1">
-                      <Label htmlFor="totalInvestmentSize">Total Investment Size ($) *</Label>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>The total value/cost of the entire investment (property, company, or asset)</p>
-                        </TooltipContent>
-                      </Tooltip>
+          {/* Investment Details - Hidden */}
+          {false && (
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Investment Details</CardTitle>
+                <CardDescription>Financial structure and positions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TooltipProvider>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="investmentType">Investment Type</Label>
+                      <select
+                        id="investmentType"
+                        value={investmentType}
+                        onChange={(e) => setInvestmentType(e.target.value as "Equity" | "Debt" | "Mixed")}
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                      >
+                        <option value="Equity">Equity</option>
+                        <option value="Debt">Debt</option>
+                        <option value="Mixed">Mixed</option>
+                      </select>
                     </div>
-                    <Input
-                      id="totalInvestmentSize"
-                      type="number"
-                      value={totalInvestmentSize}
-                      onChange={(e) => setTotalInvestmentSize(e.target.value)}
-                      placeholder="5000000"
-                      min="0"
-                      step="0.01"
-                      required
-                    />
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1">
-                      <Label htmlFor="fundCommitment">Fund Commitment ($) *</Label>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>How much your specific fund is contributing to this investment</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <Input
-                      id="fundCommitment"
-                      type="number"
-                      value={fundCommitment}
-                      onChange={(e) => setFundCommitment(e.target.value)}
-                      placeholder="2000000"
-                      min="0"
-                      step="0.01"
-                      required
-                    />
-                  </div>
-
-                  {(investmentType === "Equity" || investmentType === "Mixed") && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-1">
-                        <Label htmlFor="equityPosition">Equity Position ($)</Label>
+                        <Label htmlFor="totalInvestmentSize">Total Investment Size ($) *</Label>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>The portion of your fund's commitment that is equity (ownership capital)</p>
+                            <p>The total value/cost of the entire investment (property, company, or asset)</p>
                           </TooltipContent>
                         </Tooltip>
                       </div>
                       <Input
-                        id="equityPosition"
+                        id="totalInvestmentSize"
                         type="number"
-                        value={equityPosition}
-                        onChange={(e) => setEquityPosition(e.target.value)}
-                        placeholder="1500000"
+                        value={totalInvestmentSize}
+                        onChange={(e) => setTotalInvestmentSize(e.target.value)}
+                        placeholder="5000000"
                         min="0"
                         step="0.01"
+                        required
                       />
                     </div>
-                  )}
 
-                  {(investmentType === "Debt" || investmentType === "Mixed") && (
-                    <>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1">
+                        <Label htmlFor="fundCommitment">Fund Commitment ($) *</Label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>How much your specific fund is contributing to this investment</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Input
+                        id="fundCommitment"
+                        type="number"
+                        value={fundCommitment}
+                        onChange={(e) => setFundCommitment(e.target.value)}
+                        placeholder="2000000"
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+
+                    {(investmentType === "Equity" || investmentType === "Mixed") && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-1">
-                          <Label htmlFor="debtPosition">Debt Position ($)</Label>
+                          <Label htmlFor="equityPosition">Equity Position ($)</Label>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>The portion of your fund's commitment that is debt (loan capital)</p>
+                              <p>The portion of your fund's commitment that is equity (ownership capital)</p>
                             </TooltipContent>
                           </Tooltip>
                         </div>
                         <Input
-                          id="debtPosition"
+                          id="equityPosition"
                           type="number"
-                          value={debtPosition}
-                          onChange={(e) => setDebtPosition(e.target.value)}
-                          placeholder="500000"
+                          value={equityPosition}
+                          onChange={(e) => setEquityPosition(e.target.value)}
+                          placeholder="1500000"
                           min="0"
                           step="0.01"
                         />
                       </div>
+                    )}
 
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1">
-                          <Label htmlFor="interestRate">Interest Rate (%)</Label>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Annual interest rate for the debt position</p>
-                            </TooltipContent>
-                          </Tooltip>
+                    {(investmentType === "Debt" || investmentType === "Mixed") && (
+                      <>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1">
+                            <Label htmlFor="debtPosition">Debt Position ($)</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>The portion of your fund's commitment that is debt (loan capital)</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Input
+                            id="debtPosition"
+                            type="number"
+                            value={debtPosition}
+                            onChange={(e) => setDebtPosition(e.target.value)}
+                            placeholder="500000"
+                            min="0"
+                            step="0.01"
+                          />
                         </div>
-                        <Input
-                          id="interestRate"
-                          type="text"
-                          inputMode="decimal"
-                          value={interestRate}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(',', '.')
-                            // Allow empty, numbers, and one decimal point
-                            if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                              const numValue = parseFloat(value)
-                              if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 100)) {
-                                setInterestRate(value)
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1">
+                            <Label htmlFor="interestRate">Interest Rate (%)</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Annual interest rate for the debt position</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Input
+                            id="interestRate"
+                            type="text"
+                            inputMode="decimal"
+                            value={interestRate}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(',', '.')
+                              // Allow empty, numbers, and one decimal point
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                const numValue = parseFloat(value)
+                                if (value === '' || (!isNaN(numValue) && numValue >= 0 && numValue <= 100)) {
+                                  setInterestRate(value)
+                                }
                               }
-                            }
-                          }}
-                          placeholder="8.5"
-                          pattern="[0-9]*\.?[0-9]*"
-                          lang="en-US"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1">
-                          <Label htmlFor="maturityDate">Maturity Date</Label>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Date when the debt principal is due to be repaid</p>
-                            </TooltipContent>
-                          </Tooltip>
+                            }}
+                            placeholder="8.5"
+                            pattern="[0-9]*\.?[0-9]*"
+                            lang="en-US"
+                          />
                         </div>
-                        <Input
-                          id="maturityDate"
-                          type="date"
-                          value={maturityDate}
-                          onChange={(e) => setMaturityDate(e.target.value)}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </TooltipProvider>
 
-              <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md mt-4">
-                <p className="text-sm text-blue-900 dark:text-blue-100">
-                  <strong>Note:</strong> For new investments, current value will initially match fund commitment.
-                  Performance metrics (IRR, MOIC) will be calculated as the investment matures.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1">
+                            <Label htmlFor="maturityDate">Maturity Date</Label>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Date when the debt principal is due to be repaid</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <Input
+                            id="maturityDate"
+                            type="date"
+                            value={maturityDate}
+                            onChange={(e) => setMaturityDate(e.target.value)}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </TooltipProvider>
+
+                <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md mt-4">
+                  <p className="text-sm text-blue-900 dark:text-blue-100">
+                    <strong>Note:</strong> For new investments, current value will initially match fund commitment.
+                    Performance metrics (IRR, MOIC) will be calculated as the investment matures.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Visibility & Access Control */}
           <Card className="lg:col-span-2">

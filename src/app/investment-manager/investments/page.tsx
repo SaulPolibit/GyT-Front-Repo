@@ -242,7 +242,6 @@ export default function InvestmentsPage() {
               <TabsTrigger value="all">All Types</TabsTrigger>
               <TabsTrigger value="Real Estate">Real Estate</TabsTrigger>
               <TabsTrigger value="Private Equity">Private Equity</TabsTrigger>
-              <TabsTrigger value="Private Debt">Private Debt</TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
