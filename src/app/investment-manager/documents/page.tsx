@@ -328,11 +328,6 @@ export default function DocumentsPage() {
       return
     }
 
-    if (!uploadDocumentType) {
-      toast.error('Please enter a document type')
-      return
-    }
-
     try {
       setIsUploading(true)
       const token = getAuthToken()
@@ -345,10 +340,9 @@ export default function DocumentsPage() {
       formData.append('file', uploadFile)
       formData.append('entityType', uploadEntityType)
       formData.append('entityId', uploadEntityId)
-      formData.append('documentType', uploadDocumentType)
+      formData.append('documentType', uploadDocumentType || 'Document')
       formData.append('documentName', uploadDocumentName || uploadFile.name)
       if (uploadTags) formData.append('tags', uploadTags)
-      if (uploadMetadata) formData.append('metadata', uploadMetadata)
 
       const uploadUrl = getApiUrl(API_CONFIG.endpoints.uploadDocument)
       const response = await fetch(uploadUrl, {
@@ -894,18 +888,6 @@ export default function DocumentsPage() {
               </Select>
             </div>
 
-            {/* Document Type */}
-            <div className="space-y-2">
-              <Label htmlFor="documentType">Document Type *</Label>
-              <Input
-                id="documentType"
-                value={uploadDocumentType}
-                onChange={(e) => setUploadDocumentType(e.target.value)}
-                placeholder="e.g., Financial Report, Legal Document, K-1 Tax Form"
-                disabled={isUploading}
-              />
-            </div>
-
             {/* Document Name */}
             <div className="space-y-2">
               <Label htmlFor="documentName">Document Name</Label>
@@ -926,19 +908,6 @@ export default function DocumentsPage() {
                 value={uploadTags}
                 onChange={(e) => setUploadTags(e.target.value)}
                 placeholder="Comma-separated tags"
-                disabled={isUploading}
-              />
-            </div>
-
-            {/* Metadata */}
-            <div className="space-y-2">
-              <Label htmlFor="metadata">Metadata</Label>
-              <Textarea
-                id="metadata"
-                value={uploadMetadata}
-                onChange={(e) => setUploadMetadata(e.target.value)}
-                placeholder="Additional metadata (JSON format)"
-                rows={3}
                 disabled={isUploading}
               />
             </div>
