@@ -106,8 +106,11 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           currency: data.data.baseCurrency,
           jurisdiction: data.data.taxJurisdiction,
           fundTerm: data.data.finalDate,
+          // Explicitly preserve smartContract object if it exists
+          smartContract: data.data.smartContract || null,
         }
 
+        console.log('[Structure Detail] Mapped Structure with smartContract:', mappedStructure)
         setStructure(mappedStructure)
       } catch (err) {
         console.error('[Structure Detail] Error fetching structure:', err)
@@ -487,7 +490,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
 
         {/* Token Info Tab */}
         <TabsContent value="tokens" className="space-y-4">
-          {structure.totalTokens && structure.totalTokens > 0 ? (
+          {structure.smartContract ? (
             <Card>
               <CardHeader>
                 <CardTitle>Token Economics</CardTitle>
@@ -497,19 +500,19 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground mb-1">Token Name</p>
-                    <p className="text-2xl font-bold">{structure.tokenName || 'N/A'}</p>
+                    <p className="text-2xl font-bold">{structure.smartContract.tokenName || 'N/A'}</p>
                   </div>
                   <div className="border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground mb-1">Token Symbol</p>
-                    <p className="text-2xl font-bold">{structure.tokenSymbol || 'N/A'}</p>
+                    <p className="text-2xl font-bold">{structure.smartContract.tokenSymbol || 'N/A'}</p>
                   </div>
                   <div className="border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground mb-1">Price Per Token</p>
-                    <p className="text-2xl font-bold">{formatCurrency(structure.tokenValue || 1000)}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(structure.smartContract.tokenValue || 1000)}</p>
                   </div>
                   <div className="border rounded-lg p-4">
                     <p className="text-xs text-muted-foreground mb-1">Total Tokens</p>
-                    <p className="text-2xl font-bold">{structure.totalTokens.toLocaleString()}</p>
+                    <p className="text-2xl font-bold">{structure.smartContract.maxTokens?.toLocaleString() || 'N/A'}</p>
                   </div>
                 </div>
 

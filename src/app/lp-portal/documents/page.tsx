@@ -9,6 +9,16 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
   IconFileDescription,
   IconSearch,
   IconDownload,
@@ -20,10 +30,13 @@ import {
   IconFileTypeDoc,
   IconFileSpreadsheet,
   IconCalendar,
+  IconUpload,
+  IconFile,
 } from '@tabler/icons-react'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken } from '@/lib/auth-storage'
+import { getAuthToken, getCurrentUser, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface Document {
   id: string
@@ -41,6 +54,7 @@ interface Document {
 }
 
 export default function LPDocumentsPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStructure, setSelectedStructure] = useState<string>('all')
   const [userDocuments, setUserDocuments] = useState<Document[]>([])
@@ -48,8 +62,20 @@ export default function LPDocumentsPage() {
   const [loading, setLoading] = useState(true)
   const [documentTypeFilter, setDocumentTypeFilter] = useState<string>('all')
 
+  // Document upload state
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
+  const [documentFile, setDocumentFile] = useState<File | null>(null)
+  const [documentType, setDocumentType] = useState('')
+  const [documentTags, setDocumentTags] = useState('')
+  const [documentNotes, setDocumentNotes] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
+  const [investors, setInvestors] = useState<any[]>([])
+  const [selectedInvestorId, setSelectedInvestorId] = useState('')
+  const [loadingInvestors, setLoadingInvestors] = useState(false)
+
   useEffect(() => {
     loadDocuments()
+    loadInvestors()
   }, [])
 
   const loadDocuments = async () => {
@@ -87,6 +113,123 @@ export default function LPDocumentsPage() {
       setStructureDocuments([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadInvestors = async () => {
+    setLoadingInvestors(true)
+    const token = getAuthToken()
+
+    if (!token) {
+      console.error('No authentication token found')
+      setLoadingInvestors(false)
+      return
+    }
+
+    try {
+      const response = await fetch(getApiUrl('/api/investors/me/with-structures'), {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to load investors')
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data) {
+        setInvestors(result.data)
+        // Auto-select first investor if available
+        if (result.data.length > 0) {
+          setSelectedInvestorId(result.data[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading investors:', error)
+      setInvestors([])
+    } finally {
+      setLoadingInvestors(false)
+    }
+  }
+
+  const handleDocumentUpload = async () => {
+    if (!documentFile || !documentType) {
+      toast.error('Please select a file and document type')
+      return
+    }
+
+    if (!selectedInvestorId) {
+      toast.error('Please select an investor')
+      return
+    }
+
+    const user = getCurrentUser()
+    if (!user?.email) {
+      toast.error('Please log in to upload documents')
+      return
+    }
+
+    setIsUploading(true)
+
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        throw new Error('No authentication token found')
+      }
+
+      // Create FormData
+      const formData = new FormData()
+      formData.append('file', documentFile)
+      formData.append('entityType', 'investor')
+      formData.append('entityId', selectedInvestorId) // Using selected investor ID
+      formData.append('documentType', documentType)
+      formData.append('documentName', documentFile.name)
+      formData.append('tags', documentTags)
+      formData.append('metadata', JSON.stringify({
+        uploadedBy: user.email,
+        uploadedAt: new Date().toISOString(),
+      }))
+      formData.append('notes', documentNotes)
+
+      const response = await fetch(getApiUrl('/api/documents'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to upload document')
+      }
+
+      toast.success('Document uploaded successfully')
+
+      // Reset form
+      setDocumentFile(null)
+      setDocumentType('')
+      setDocumentTags('')
+      setDocumentNotes('')
+      setIsUploadDialogOpen(false)
+
+      // Reload documents to show the newly uploaded one
+      await loadDocuments()
+    } catch (err) {
+      console.error('[Documents] Error uploading document:', err)
+      toast.error(err instanceof Error ? err.message : 'Failed to upload document')
+    } finally {
+      setIsUploading(false)
     }
   }
 

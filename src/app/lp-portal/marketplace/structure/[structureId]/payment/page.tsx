@@ -207,6 +207,11 @@ export default function PaymentPage({ params }: Props) {
   }
 
   const isFormValid = () => {
+    // Check if user has walletAddress for blockchain operations
+    if (!user?.walletAddress) {
+      return false
+    }
+
     if (paymentMethod === "credit-card") {
       return cardNumber.length >= 13 && cardName.length > 0 && cardExpiry.length === 5 && cardCVC.length === 3
     }
@@ -444,10 +449,12 @@ export default function PaymentPage({ params }: Props) {
 
                   if (!identityRegistryAddress) {
                     console.warn('[Payment] No identity registry address found, skipping user registration')
+                  } else if (!user?.walletAddress) {
+                    console.warn('[Payment] No wallet address found in user data, skipping user registration')
                   } else {
                     console.log('[Payment] Registering user on identity registry:', {
                       identityRegistryAddress: identityRegistryAddress,
-                      userAddress: usdcWalletAddress,
+                      userAddress: user.walletAddress,
                       country: "Mexico",
                       investorType: 0
                     })
@@ -460,7 +467,7 @@ export default function PaymentPage({ params }: Props) {
                       },
                       body: JSON.stringify({
                         identityAddress: identityRegistryAddress,
-                        userAddress: usdcWalletAddress,
+                        userAddress: user.walletAddress,
                         country: "Mexico",
                         investorType: 0
                       }),
@@ -489,10 +496,12 @@ export default function PaymentPage({ params }: Props) {
                 try {
                   if (!tokenAddress) {
                     console.warn('[Payment] No token address found, skipping mint')
+                  } else if (!user?.walletAddress) {
+                    console.warn('[Payment] No wallet address found in user data, skipping token mint')
                   } else {
                     console.log('[Payment] Minting tokens:', {
                       contractAddress: tokenAddress,
-                      userAddress: usdcWalletAddress,
+                      userAddress: user.walletAddress,
                       amount: tokens
                     })
 
@@ -504,7 +513,7 @@ export default function PaymentPage({ params }: Props) {
                       },
                       body: JSON.stringify({
                         contractAddress: tokenAddress,
-                        userAddress: usdcWalletAddress,
+                        userAddress: user.walletAddress,
                         amount: tokens
                       }),
                     })
@@ -1319,6 +1328,23 @@ export default function PaymentPage({ params }: Props) {
                     This structure does not have a token deployed yet. Payment cannot be processed at this time. Please contact the fund manager.
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Wallet Address Warning */}
+          {!user?.walletAddress && (
+            <Card className="border-red-200 bg-red-50">
+              <CardHeader>
+                <CardTitle className="text-red-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Wallet Address Required
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-red-800">
+                  Your account does not have a wallet address configured. A wallet address is required to complete blockchain transactions and receive tokens. Please contact support to add a wallet address to your account.
+                </p>
               </CardContent>
             </Card>
           )}
