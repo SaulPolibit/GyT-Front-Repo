@@ -96,6 +96,14 @@ export default function LPDocumentsPage() {
         },
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
+
       if (!response.ok) {
         throw new Error('Failed to load documents')
       }
@@ -133,6 +141,14 @@ export default function LPDocumentsPage() {
           'Content-Type': 'application/json',
         },
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to load investors')
@@ -202,13 +218,15 @@ export default function LPDocumentsPage() {
         body: formData,
       })
 
-      const data = await response.json()
-
-      if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
         logout()
         router.push('/lp-portal/login')
         return
       }
+
+      const data = await response.json()
 
       if (!data.success) {
         throw new Error(data.message || 'Failed to upload document')
