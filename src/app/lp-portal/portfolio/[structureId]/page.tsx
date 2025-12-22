@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { use } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,7 @@ import {
   Users,
   Bell,
   BarChart3,
+  ExternalLink,
 } from "lucide-react"
 import {
   getInvestorByEmail,
@@ -35,8 +37,9 @@ import {
   getInvestorCapitalCalls,
   getInvestorDistributions,
 } from "@/lib/lp-portal-helpers"
-import { getStructureById } from "@/lib/structures-storage"
 import { getInvestments } from "@/lib/investments-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken, logout } from "@/lib/auth-storage"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -44,6 +47,7 @@ interface Props {
 
 export default function StructureDataRoomPage({ params }: Props) {
   const { structureId } = use(params)
+  const router = useRouter()
 
   const [structure, setStructure] = React.useState<any>(null)
   const [investorStructure, setInvestorStructure] = React.useState<any>(null)
@@ -52,55 +56,110 @@ export default function StructureDataRoomPage({ params }: Props) {
   const [distributions, setDistributions] = React.useState<any[]>([])
   const [investments, setInvestments] = React.useState<any[]>([])
   const [refreshKey, setRefreshKey] = React.useState(0)
+  const [loading, setLoading] = React.useState(true)
+  const [documents, setDocuments] = React.useState<any[]>([])
+  const [documentsLoading, setDocumentsLoading] = React.useState(false)
+  const [documentsError, setDocumentsError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    const email = getCurrentInvestorEmail()
-    const inv = getInvestorByEmail(email)
+    const fetchStructureData = async () => {
+      console.log('[StructureDetail] Starting fetchStructureData')
+      const email = getCurrentInvestorEmail()
+      console.log('[StructureDetail] Current investor email:', email)
+      const inv = getInvestorByEmail(email)
+      console.log('[StructureDetail] Investor found:', inv)
 
-    if (inv) {
-      setInvestor(inv)
+      // Get full structure details from API
+      try {
+        const token = getAuthToken()
+        if (!token) {
+          console.error('[StructureDetail] No authentication token found')
+          setLoading(false)
+          return
+        }
 
-      // Get full structure details
-      const fullStructure = getStructureById(structureId)
-      setStructure(fullStructure)
-
-      // Get investor-specific structure data
-      const structures = getInvestorStructures(inv)
-      const invStructure = structures.find(s => s.id === structureId)
-      setInvestorStructure(invStructure)
-
-      // Get capital calls for this structure
-      const allCapitalCalls = getInvestorCapitalCalls(inv.id)
-      const structureCapitalCalls = allCapitalCalls
-        .filter(cc => cc.fundId === structureId)
-        .map(cc => {
-          const allocation = cc.investorAllocations.find(a => a.investorId === inv.id)
-          return {
-            ...cc,
-            myAllocation: allocation
-          }
+        console.log('[StructureDetail] Fetching structure:', structureId)
+        const response = await fetch(getApiUrl(`/api/structures/${structureId}`), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         })
-      setCapitalCalls(structureCapitalCalls)
 
-      // Get distributions for this structure
-      const allDistributions = getInvestorDistributions(inv.id)
-      const structureDistributions = allDistributions
-        .filter(dist => dist.fundId === structureId)
-        .map(dist => {
-          const allocation = dist.investorAllocations.find(a => a.investorId === inv.id)
-          return {
-            ...dist,
-            myAllocation: allocation
-          }
-        })
-      setDistributions(structureDistributions)
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          console.log('[StructureDetail] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
 
-      // Get investments for this structure
-      const allInvestments = getInvestments()
-      const structureInvestments = allInvestments.filter(inv => inv.fundId === structureId)
-      setInvestments(structureInvestments)
+        if (!response.ok) {
+          console.error('[StructureDetail] Failed to fetch structure:', response.status, response.statusText)
+          setLoading(false)
+          return
+        }
+
+        const result = await response.json()
+        console.log('[StructureDetail] API response:', result)
+
+        if (result.success && result.data) {
+          console.log('[StructureDetail] Setting structure data:', result.data)
+          setStructure(result.data)
+        } else {
+          console.error('[StructureDetail] Invalid response format:', result)
+        }
+      } catch (error) {
+        console.error('[StructureDetail] Error fetching structure:', error)
+      }
+
+      // Get investor-specific data if investor exists
+      if (inv) {
+        setInvestor(inv)
+
+        // Get investor-specific structure data
+        const structures = getInvestorStructures(inv)
+        const invStructure = structures.find(s => s.id === structureId)
+        setInvestorStructure(invStructure)
+
+        // Get capital calls for this structure
+        const allCapitalCalls = getInvestorCapitalCalls(inv.id)
+        const structureCapitalCalls = allCapitalCalls
+          .filter(cc => cc.fundId === structureId)
+          .map(cc => {
+            const allocation = cc.investorAllocations.find(a => a.investorId === inv.id)
+            return {
+              ...cc,
+              myAllocation: allocation
+            }
+          })
+        setCapitalCalls(structureCapitalCalls)
+
+        // Get distributions for this structure
+        const allDistributions = getInvestorDistributions(inv.id)
+        const structureDistributions = allDistributions
+          .filter(dist => dist.fundId === structureId)
+          .map(dist => {
+            const allocation = dist.investorAllocations.find(a => a.investorId === inv.id)
+            return {
+              ...dist,
+              myAllocation: allocation
+            }
+          })
+        setDistributions(structureDistributions)
+
+        // Get investments for this structure
+        const allInvestments = getInvestments()
+        const structureInvestments = allInvestments.filter(inv => inv.fundId === structureId)
+        setInvestments(structureInvestments)
+      }
+
+      setLoading(false)
     }
-  }, [structureId, refreshKey])
+
+    fetchStructureData()
+  }, [structureId, refreshKey, router])
 
   React.useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -121,6 +180,57 @@ export default function StructureDataRoomPage({ params }: Props) {
       window.removeEventListener('focus', handleFocus)
     }
   }, [])
+
+  // Fetch documents for this structure
+  React.useEffect(() => {
+    const fetchDocuments = async () => {
+      setDocumentsLoading(true)
+      setDocumentsError(null)
+
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          setDocumentsError('No authentication token found')
+          setDocumentsLoading(false)
+          return
+        }
+
+        console.log('[StructureDetail] Fetching documents for structure:', structureId)
+        const response = await fetch(getApiUrl(`/api/documents/entity/Structure/${structureId}`), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+          console.log('[StructureDetail Documents] 401 Unauthorized - clearing session')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch documents')
+        }
+
+        const data = await response.json()
+        console.log('[StructureDetail] Documents API Response:', data)
+
+        setDocuments(data.data || [])
+      } catch (err) {
+        console.error('[StructureDetail] Error fetching documents:', err)
+        setDocumentsError(err instanceof Error ? err.message : 'Failed to fetch documents')
+      } finally {
+        setDocumentsLoading(false)
+      }
+    }
+
+    fetchDocuments()
+  }, [structureId, router])
 
   const formatCurrency = (value: number) => {
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -170,18 +280,22 @@ export default function StructureDataRoomPage({ params }: Props) {
   // Get custom terms for this investor
   const getCustomTerms = () => {
     if (!investor) return null
-    const fundOwnership = investor.fundOwnerships.find((fo: any) => fo.fundId === structureId)
+    const fundOwnership = investor.fundOwnerships?.find((fo: any) => fo.fundId === structureId)
     return fundOwnership?.customTerms || null
   }
 
   // Calculate performance metrics
   const calculatePerformanceMetrics = () => {
+    if (!investorStructure) {
+      return { tvpi: 0, dpi: 0, rvpi: 0, moic: 0, irr: 0, totalDistributed: 0 }
+    }
+
     const totalDistributed = distributions
       .filter(d => d.status === 'Completed')
       .reduce((sum, d) => sum + (d.myAllocation?.finalAllocation || 0), 0)
 
-    const calledCapital = investorStructure?.calledCapital || 0
-    const currentValue = investorStructure?.currentValue || 0
+    const calledCapital = investorStructure.calledCapital || 0
+    const currentValue = investorStructure.currentValue || 0
 
     const tvpi = calledCapital > 0 ? (totalDistributed + currentValue) / calledCapital : 0
     const dpi = calledCapital > 0 ? totalDistributed / calledCapital : 0
@@ -194,7 +308,7 @@ export default function StructureDataRoomPage({ params }: Props) {
     return { tvpi, dpi, rvpi, moic, irr, totalDistributed }
   }
 
-  if (!structure || !investorStructure || !investor) {
+  if (loading || !structure) {
     return (
       <div className="space-y-6 p-4 md:p-6">
         <div className="flex items-center gap-4">
@@ -204,15 +318,35 @@ export default function StructureDataRoomPage({ params }: Props) {
             </a>
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Loading...</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {loading ? 'Loading...' : 'Structure not found'}
+            </h1>
           </div>
         </div>
       </div>
     )
   }
 
+  // Calculate with original investorStructure for accurate metrics
   const customTerms = getCustomTerms()
   const performanceMetrics = calculatePerformanceMetrics()
+
+  // Fallback for missing investor data - create safe version for display
+  const displayInvestorStructure = investorStructure || {
+    id: structureId,
+    name: structure.name,
+    type: structure.type,
+    commitment: 0,
+    calledCapital: 0,
+    currentValue: 0,
+    ownershipPercent: 0,
+    unrealizedGain: 0,
+    uncalledCapital: 0,
+  }
+
+  if (!investorStructure || !investor) {
+    console.warn('[StructureDetail] Missing investor data, using structure data only')
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -227,13 +361,13 @@ export default function StructureDataRoomPage({ params }: Props) {
           <div className="flex items-center gap-3">
             <Building2 className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">{investorStructure.name}</h1>
-              <p className="text-muted-foreground">{investorStructure.type}</p>
+              <h1 className="text-3xl font-bold tracking-tight">{displayInvestorStructure.name}</h1>
+              <p className="text-muted-foreground">{displayInvestorStructure.type}</p>
             </div>
           </div>
         </div>
-        <Badge variant={investorStructure.calledCapital > 0 ? 'default' : 'secondary'}>
-          {investorStructure.calledCapital > 0 ? 'Active' : 'Pending'}
+        <Badge variant={displayInvestorStructure.calledCapital > 0 ? 'default' : 'secondary'}>
+          {displayInvestorStructure.calledCapital > 0 ? 'Active' : 'Pending'}
         </Badge>
       </div>
 
@@ -245,9 +379,9 @@ export default function StructureDataRoomPage({ params }: Props) {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(investorStructure.commitment)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(displayInvestorStructure.commitment || 0)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {formatPercent(investorStructure.ownershipPercent)} ownership
+              {formatPercent(displayInvestorStructure.ownershipPercent)} ownership
             </p>
           </CardContent>
         </Card>
@@ -258,10 +392,10 @@ export default function StructureDataRoomPage({ params }: Props) {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(investorStructure.calledCapital)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(displayInvestorStructure.calledCapital)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {investorStructure.commitment > 0
-                ? `${((investorStructure.calledCapital / investorStructure.commitment) * 100).toFixed(1)}% of commitment`
+              {displayInvestorStructure.commitment > 0
+                ? `${((displayInvestorStructure.calledCapital / displayInvestorStructure.commitment) * 100).toFixed(1)}% of commitment`
                 : 'No commitment yet'
               }
             </p>
@@ -274,7 +408,7 @@ export default function StructureDataRoomPage({ params }: Props) {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(investorStructure.currentValue)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(displayInvestorStructure.currentValue)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Portfolio valuation
             </p>
@@ -302,7 +436,7 @@ export default function StructureDataRoomPage({ params }: Props) {
           <TabsTrigger value="legal">Legal & Terms</TabsTrigger>
           <TabsTrigger value="capital-calls">Capital Calls ({capitalCalls.length})</TabsTrigger>
           <TabsTrigger value="distributions">Distributions ({distributions.length})</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -574,24 +708,24 @@ export default function StructureDataRoomPage({ params }: Props) {
               <div className="space-y-4">
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-sm text-muted-foreground">Total Commitment</span>
-                  <span className="text-base font-semibold">{formatCurrency(investorStructure.commitment)}</span>
+                  <span className="text-base font-semibold">{formatCurrency(displayInvestorStructure.commitment)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-sm text-muted-foreground">Called Capital</span>
-                  <span className="text-base font-semibold">{formatCurrency(investorStructure.calledCapital)}</span>
+                  <span className="text-base font-semibold">{formatCurrency(displayInvestorStructure.calledCapital)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-sm text-muted-foreground">Uncalled Capital</span>
-                  <span className="text-base font-semibold">{formatCurrency(investorStructure.uncalledCapital)}</span>
+                  <span className="text-base font-semibold">{formatCurrency(displayInvestorStructure.uncalledCapital)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-sm text-muted-foreground">Current Value</span>
-                  <span className="text-base font-semibold">{formatCurrency(investorStructure.currentValue)}</span>
+                  <span className="text-base font-semibold">{formatCurrency(displayInvestorStructure.currentValue)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span className="text-sm text-muted-foreground">Unrealized Gain/Loss</span>
-                  <span className={`text-base font-semibold ${investorStructure.unrealizedGain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCurrency(investorStructure.unrealizedGain)}
+                  <span className={`text-base font-semibold ${displayInvestorStructure.unrealizedGain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(displayInvestorStructure.unrealizedGain)}
                   </span>
                 </div>
               </div>
@@ -650,7 +784,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                     <div>
                       <p className="text-sm text-muted-foreground">My Investment Date</p>
                       <p className="text-base font-medium">
-                        {formatDate(investor.fundOwnerships.find((fo: any) => fo.fundId === structureId)?.investedDate || structure.createdDate)}
+                        {formatDate(investor?.fundOwnerships?.find((fo: any) => fo.fundId === structureId)?.investedDate || structure.createdDate)}
                       </p>
                     </div>
                     {structure.fundTerm && (
@@ -738,7 +872,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                     <p className="text-sm font-medium">Subscription Amount</p>
                     <p className="text-xs text-muted-foreground">Initial commitment to the fund</p>
                   </div>
-                  <p className="text-base font-semibold">{formatCurrency(investorStructure.commitment)}</p>
+                  <p className="text-base font-semibold">{formatCurrency(displayInvestorStructure.commitment)}</p>
                 </div>
 
                 <div className="flex justify-between items-start py-2 border-b">
@@ -746,7 +880,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                     <p className="text-sm font-medium">Ownership Interest</p>
                     <p className="text-xs text-muted-foreground">Percentage of fund ownership</p>
                   </div>
-                  <p className="text-base font-semibold">{formatPercent(investorStructure.ownershipPercent)}</p>
+                  <p className="text-base font-semibold">{formatPercent(displayInvestorStructure.ownershipPercent)}</p>
                 </div>
 
                 <div className="flex justify-between items-start py-2 border-b">
@@ -755,7 +889,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                     <p className="text-xs text-muted-foreground">Date of subscription</p>
                   </div>
                   <p className="text-base font-medium">
-                    {formatDate(investor.fundOwnerships.find((fo: any) => fo.fundId === structureId)?.investedDate || structure.createdDate)}
+                    {formatDate(investor?.fundOwnerships?.find((fo: any) => fo.fundId === structureId)?.investedDate || structure.createdDate)}
                   </p>
                 </div>
 
@@ -764,7 +898,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                     <p className="text-sm font-medium">Investor Type</p>
                     <p className="text-xs text-muted-foreground">Classification for regulatory purposes</p>
                   </div>
-                  <p className="text-base font-medium capitalize">{investor.type.replace(/-/g, ' ')}</p>
+                  <p className="text-base font-medium capitalize">{investor?.type?.replace(/-/g, ' ') || 'N/A'}</p>
                 </div>
 
                 <div className="flex justify-between items-start py-2">
@@ -803,7 +937,7 @@ export default function StructureDataRoomPage({ params }: Props) {
                   <h4 className="text-sm font-semibold mb-2">Capital Contributions</h4>
                   <div className="space-y-2 text-sm">
                     <p className="text-muted-foreground">
-                      Your total capital commitment: <span className="font-semibold text-foreground">{formatCurrency(investorStructure.commitment)}</span>
+                      Your total capital commitment: <span className="font-semibold text-foreground">{formatCurrency(displayInvestorStructure.commitment)}</span>
                     </p>
                     {structure.legalTerms?.capitalContributions ? (
                       <p className="text-muted-foreground whitespace-pre-wrap">
@@ -1041,7 +1175,7 @@ export default function StructureDataRoomPage({ params }: Props) {
               </ul>
               <div className="p-3 bg-muted rounded-md mt-3">
                 <p className="text-xs">
-                  <strong>Your Voting Power:</strong> {formatPercent(investorStructure.ownershipPercent)} of total Partnership Interests
+                  <strong>Your Voting Power:</strong> {formatPercent(displayInvestorStructure.ownershipPercent)} of total Partnership Interests
                 </p>
               </div>
             </CardContent>
@@ -1254,10 +1388,10 @@ export default function StructureDataRoomPage({ params }: Props) {
               <div className="p-3 bg-muted rounded-md mt-3">
                 <p className="text-xs">
                   {structure.legalTerms?.liabilityLimitations?.maximumExposureNote ? (
-                    <span dangerouslySetInnerHTML={{ __html: structure.legalTerms.liabilityLimitations.maximumExposureNote.replace('{{commitment}}', formatCurrency(investorStructure.commitment)) }} />
+                    <span dangerouslySetInnerHTML={{ __html: structure.legalTerms.liabilityLimitations.maximumExposureNote.replace('{{commitment}}', formatCurrency(displayInvestorStructure.commitment)) }} />
                   ) : (
                     <>
-                      <strong>Your Maximum Exposure:</strong> {formatCurrency(investorStructure.commitment)} (committed capital) plus
+                      <strong>Your Maximum Exposure:</strong> {formatCurrency(displayInvestorStructure.commitment)} (committed capital) plus
                       potential clawback of distributions received within past 12 months in extraordinary circumstances
                     </>
                   )}
@@ -1438,12 +1572,62 @@ export default function StructureDataRoomPage({ params }: Props) {
         {/* Documents Tab */}
         <TabsContent value="documents" className="space-y-4">
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-semibold mb-2">Documents Coming Soon</p>
-              <p className="text-sm text-muted-foreground text-center max-w-md">
-                Access to fund documents, reports, and agreements will be available here
-              </p>
+            <CardHeader>
+              <CardTitle>Documents</CardTitle>
+              <CardDescription>Structure-related documents and materials</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {documentsLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                  <p className="text-muted-foreground">Loading documents...</p>
+                </div>
+              ) : documentsError ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+                  <p className="text-lg font-semibold mb-2">Error loading documents</p>
+                  <p className="text-sm text-muted-foreground">{documentsError}</p>
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">No documents available</p>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Documents will appear here once they are uploaded.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold truncate">{doc.documentName}</p>
+                          <p className="text-sm text-muted-foreground">{doc.documentType}</p>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                            <span>{(doc.fileSize / 1024).toFixed(0)} KB</span>
+                            <span>•</span>
+                            <span>{new Date(doc.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(doc.filePath, '_blank')}
+                        className="flex items-center gap-2 flex-shrink-0"
+                      >
+                        See
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

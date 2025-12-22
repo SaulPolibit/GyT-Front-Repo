@@ -229,8 +229,8 @@ export default function PortfolioPage() {
 
   // Calculate summary metrics
   const totalCommitment = structures.reduce((sum, s) => sum + s.commitment, 0)
-  const totalCalledCapital = structures.reduce((sum, s) => sum + s.calledCapital, 0)
-  const totalCurrentValue = structures.reduce((sum, s) => sum + s.currentValue, 0)
+  const totalCalledCapital = totalCommitment
+  const totalCurrentValue = totalCommitment
 
   // Filter structures
   const filteredStructures = structures.filter(structure => {
@@ -419,6 +419,7 @@ export default function PortfolioPage() {
               <SelectItem value="Real Estate Fund">Real Estate Fund</SelectItem>
               <SelectItem value="Private Equity Fund">Private Equity Fund</SelectItem>
               <SelectItem value="Private Debt Fund">Private Debt Fund</SelectItem>
+              <SelectItem value="sa">SA</SelectItem>
             </SelectContent>
           </Select>
 
@@ -546,7 +547,7 @@ export default function PortfolioPage() {
                         </p>
                       </div>
                       <Button size="sm" asChild>
-                        <a href={`/lp-portal/portfolio/${structure.paymentId}`}>
+                        <a href={`/lp-portal/portfolio/${structure.id}`}>
                           View Details <ArrowRight className="ml-2 h-4 w-4" />
                         </a>
                       </Button>
