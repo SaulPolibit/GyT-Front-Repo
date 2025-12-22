@@ -1183,7 +1183,7 @@ export default function OnboardingPage() {
       formDataPayload.append('type', formData.structureType)
       formDataPayload.append('subtype', formData.structureSubtype)
       formDataPayload.append('status', formData.currentStage === 'fundraising' ? 'fundraising' : 'active')
-      formDataPayload.append('description', 'null')
+      formDataPayload.append('description', '')
 
       // Hierarchy
       if (formData.parentStructureId) {
@@ -1207,7 +1207,7 @@ export default function OnboardingPage() {
       if (formData.performanceMethodology) {
         formDataPayload.append('performanceMethodology', formData.performanceMethodology)
       } else {
-        formDataPayload.append('performanceMethodology', 'null')
+        formDataPayload.append('performanceMethodology', '')
       }
 
       // Dates & Term
@@ -1217,25 +1217,25 @@ export default function OnboardingPage() {
         const formattedDate = date.toISOString().split('T')[0] // YYYY-MM-DD format
         formDataPayload.append('inceptionDate', formattedDate)
       } else {
-        formDataPayload.append('inceptionDate', 'null')
+        formDataPayload.append('inceptionDate', '')
       }
       formDataPayload.append('termYears', formData.fundTerm.toString())
-      formDataPayload.append('extensionYears', 'null')
+      formDataPayload.append('extensionYears', '')
 
       // Fund Type
       if (formData.fundType) {
         formDataPayload.append('fundType', formData.fundType)
       } else {
-        formDataPayload.append('fundType', 'null')
+        formDataPayload.append('fundType', '')
       }
 
       // Service Providers (not captured in current form)
-      formDataPayload.append('gp', 'null')
-      formDataPayload.append('fundAdmin', 'null')
-      formDataPayload.append('legalCounsel', 'null')
-      formDataPayload.append('auditor', 'null')
-      formDataPayload.append('taxAdvisor', 'null')
-      formDataPayload.append('bankAccounts', 'null')
+      formDataPayload.append('gp', '')
+      formDataPayload.append('fundAdmin', '')
+      formDataPayload.append('legalCounsel', '')
+      formDataPayload.append('auditor', '')
+      formDataPayload.append('taxAdvisor', '')
+      formDataPayload.append('bankAccounts', '')
 
       // Currency & Jurisdiction
       formDataPayload.append('baseCurrency', formData.currency)
@@ -1249,12 +1249,12 @@ export default function OnboardingPage() {
         }
       }
       formDataPayload.append('taxJurisdiction', jurisdictionValue)
-      formDataPayload.append('regulatoryStatus', 'null')
+      formDataPayload.append('regulatoryStatus', '')
 
       // Investment Details
       formDataPayload.append('investmentStrategy', formData.financingStrategy)
-      formDataPayload.append('targetReturns', 'null')
-      formDataPayload.append('riskProfile', 'null')
+      formDataPayload.append('targetReturns', '')
+      formDataPayload.append('riskProfile', '')
       formDataPayload.append('stage', formData.currentStage)
       formDataPayload.append('plannedInvestments', formData.plannedInvestments.toString())
       formDataPayload.append('investors', formData.totalInvestors)
@@ -1263,14 +1263,14 @@ export default function OnboardingPage() {
       if (formData.incomeFlowTarget) {
         formDataPayload.append('incomeFlowTarget', formData.incomeFlowTarget)
       } else {
-        formDataPayload.append('incomeFlowTarget', 'null')
+        formDataPayload.append('incomeFlowTarget', '')
       }
 
       // Tier and Issuances
       if (formData.determinedTier) {
         formDataPayload.append('determinedTier', formData.determinedTier)
       } else {
-        formDataPayload.append('determinedTier', 'null')
+        formDataPayload.append('determinedTier', '')
       }
       formDataPayload.append('calculatedIssuances', formData.calculatedIssuances.toString())
 
@@ -1278,29 +1278,29 @@ export default function OnboardingPage() {
       if (formData.debtInterestRate) {
         formDataPayload.append('debtInterestRate', formData.debtInterestRate)
       } else {
-        formDataPayload.append('debtInterestRate', 'null')
+        formDataPayload.append('debtInterestRate', '')
       }
       if (formData.debtGrossInterestRate) {
         formDataPayload.append('debtGrossInterestRate', formData.debtGrossInterestRate)
       } else {
-        formDataPayload.append('debtGrossInterestRate', 'null')
+        formDataPayload.append('debtGrossInterestRate', '')
       }
 
       // Capital Call Configuration
       if (formData.capitalCallNoticePeriod) {
         formDataPayload.append('capitalCallNoticePeriod', formData.capitalCallNoticePeriod)
       } else {
-        formDataPayload.append('capitalCallNoticePeriod', 'null')
+        formDataPayload.append('capitalCallNoticePeriod', '')
       }
       if (formData.capitalCallPaymentDeadline) {
         formDataPayload.append('capitalCallPaymentDeadline', formData.capitalCallPaymentDeadline)
       } else {
-        formDataPayload.append('capitalCallPaymentDeadline', 'null')
+        formDataPayload.append('capitalCallPaymentDeadline', '')
       }
       if (formData.capitalCallDefaultPercentage) {
         formDataPayload.append('capitalCallDefaultPercentage', formData.capitalCallDefaultPercentage)
       } else {
-        formDataPayload.append('capitalCallDefaultPercentage', 'null')
+        formDataPayload.append('capitalCallDefaultPercentage', '')
       }
 
       // Distribution Configuration
@@ -1311,7 +1311,7 @@ export default function OnboardingPage() {
       if (formData.defaultTaxRate) {
         formDataPayload.append('defaultTaxRate', formData.defaultTaxRate)
       } else {
-        formDataPayload.append('defaultTaxRate', 'null')
+        formDataPayload.append('defaultTaxRate', '')
       }
 
       // VAT Rates
@@ -1320,19 +1320,19 @@ export default function OnboardingPage() {
         if (formData.vatRate) {
           formDataPayload.append('vatRate', formData.vatRate)
         } else {
-          formDataPayload.append('vatRate', 'null')
+          formDataPayload.append('vatRate', '')
         }
       } else {
         // Different treatment - use separate VAT rates
         if (formData.vatRateNaturalPersons) {
           formDataPayload.append('vatRateNaturalPersons', formData.vatRateNaturalPersons)
         } else {
-          formDataPayload.append('vatRateNaturalPersons', 'null')
+          formDataPayload.append('vatRateNaturalPersons', '')
         }
         if (formData.vatRateLegalEntities) {
           formDataPayload.append('vatRateLegalEntities', formData.vatRateLegalEntities)
         } else {
-          formDataPayload.append('vatRateLegalEntities', 'null')
+          formDataPayload.append('vatRateLegalEntities', '')
         }
       }
 
@@ -1342,19 +1342,19 @@ export default function OnboardingPage() {
         if (formData.witholdingDividendTaxRate) {
           formDataPayload.append('witholdingDividendTaxRate', formData.witholdingDividendTaxRate)
         } else {
-          formDataPayload.append('witholdingDividendTaxRate', 'null')
+          formDataPayload.append('witholdingDividendTaxRate', '')
         }
       } else {
         // Different treatment for natural persons vs legal entities
         if (formData.witholdingDividendTaxRateNaturalPersons) {
           formDataPayload.append('witholdingDividendTaxRateNaturalPersons', formData.witholdingDividendTaxRateNaturalPersons)
         } else {
-          formDataPayload.append('witholdingDividendTaxRateNaturalPersons', 'null')
+          formDataPayload.append('witholdingDividendTaxRateNaturalPersons', '')
         }
         if (formData.witholdingDividendTaxRateLegalEntities) {
           formDataPayload.append('witholdingDividendTaxRateLegalEntities', formData.witholdingDividendTaxRateLegalEntities)
         } else {
-          formDataPayload.append('witholdingDividendTaxRateLegalEntities', 'null')
+          formDataPayload.append('witholdingDividendTaxRateLegalEntities', '')
         }
       }
 
@@ -1364,34 +1364,34 @@ export default function OnboardingPage() {
         if (formData.incomeDebtTaxRate) {
           formDataPayload.append('incomeDebtTaxRate', formData.incomeDebtTaxRate)
         } else {
-          formDataPayload.append('incomeDebtTaxRate', 'null')
+          formDataPayload.append('incomeDebtTaxRate', '')
         }
         if (formData.incomeEquityTaxRate) {
           formDataPayload.append('incomeEquityTaxRate', formData.incomeEquityTaxRate)
         } else {
-          formDataPayload.append('incomeEquityTaxRate', 'null')
+          formDataPayload.append('incomeEquityTaxRate', '')
         }
       } else {
         // Different treatment
         if (formData.incomeDebtTaxRateNaturalPersons) {
           formDataPayload.append('incomeDebtTaxRateNaturalPersons', formData.incomeDebtTaxRateNaturalPersons)
         } else {
-          formDataPayload.append('incomeDebtTaxRateNaturalPersons', 'null')
+          formDataPayload.append('incomeDebtTaxRateNaturalPersons', '')
         }
         if (formData.incomeEquityTaxRateNaturalPersons) {
           formDataPayload.append('incomeEquityTaxRateNaturalPersons', formData.incomeEquityTaxRateNaturalPersons)
         } else {
-          formDataPayload.append('incomeEquityTaxRateNaturalPersons', 'null')
+          formDataPayload.append('incomeEquityTaxRateNaturalPersons', '')
         }
         if (formData.incomeDebtTaxRateLegalEntities) {
           formDataPayload.append('incomeDebtTaxRateLegalEntities', formData.incomeDebtTaxRateLegalEntities)
         } else {
-          formDataPayload.append('incomeDebtTaxRateLegalEntities', 'null')
+          formDataPayload.append('incomeDebtTaxRateLegalEntities', '')
         }
         if (formData.incomeEquityTaxRateLegalEntities) {
           formDataPayload.append('incomeEquityTaxRateLegalEntities', formData.incomeEquityTaxRateLegalEntities)
         } else {
-          formDataPayload.append('incomeEquityTaxRateLegalEntities', 'null')
+          formDataPayload.append('incomeEquityTaxRateLegalEntities', '')
         }
       }
 
@@ -1401,39 +1401,39 @@ export default function OnboardingPage() {
       formDataPayload.append('strategyInstrumentType', formData.equitySubtype || formData.debtSubtype || '')
 
       // Legal Terms (placeholder - not captured in form)
-      formDataPayload.append('managementControl', 'null')
-      formDataPayload.append('capitalContributions', 'null')
-      formDataPayload.append('allocationsDistributions', 'null')
-      formDataPayload.append('limitedPartnerObligations', 'null')
-      formDataPayload.append('limitedPartnerRights', 'null')
-      formDataPayload.append('lockUpPeriod', 'null')
-      formDataPayload.append('withdrawalConditions', 'null')
-      formDataPayload.append('withdrawalProcess', 'null')
-      formDataPayload.append('generalProhibition', 'null')
-      formDataPayload.append('permittedTransfers', 'null')
-      formDataPayload.append('transferRequirements', 'null')
+      formDataPayload.append('managementControl', '')
+      formDataPayload.append('capitalContributions', '')
+      formDataPayload.append('allocationsDistributions', '')
+      formDataPayload.append('limitedPartnerObligations', '')
+      formDataPayload.append('limitedPartnerRights', '')
+      formDataPayload.append('lockUpPeriod', '')
+      formDataPayload.append('withdrawalConditions', '')
+      formDataPayload.append('withdrawalProcess', '')
+      formDataPayload.append('generalProhibition', '')
+      formDataPayload.append('permittedTransfers', '')
+      formDataPayload.append('transferRequirements', '')
 
       // Reporting
-      formDataPayload.append('quarterlyReports', 'null')
-      formDataPayload.append('annualReports', 'null')
-      formDataPayload.append('taxForms', 'null')
-      formDataPayload.append('capitalCallDistributionsNotices', 'null')
-      formDataPayload.append('additionalCommunications', 'null')
+      formDataPayload.append('quarterlyReports', '')
+      formDataPayload.append('annualReports', '')
+      formDataPayload.append('taxForms', '')
+      formDataPayload.append('capitalCallDistributionsNotices', '')
+      formDataPayload.append('additionalCommunications', '')
 
       // Liability & Indemnification
-      formDataPayload.append('limitedLiability', 'null')
-      formDataPayload.append('exceptionsLiability', 'null')
-      formDataPayload.append('maximumExposure', 'null')
-      formDataPayload.append('indemnifiesPartnership', 'null')
-      formDataPayload.append('lpIndemnifiesPartnership', 'null')
-      formDataPayload.append('indemnifiesProcedures', 'null')
+      formDataPayload.append('limitedLiability', '')
+      formDataPayload.append('exceptionsLiability', '')
+      formDataPayload.append('maximumExposure', '')
+      formDataPayload.append('indemnifiesPartnership', '')
+      formDataPayload.append('lpIndemnifiesPartnership', '')
+      formDataPayload.append('indemnifiesProcedures', '')
 
       // Additional Legal
-      formDataPayload.append('amendments', 'null')
-      formDataPayload.append('dissolution', 'null')
-      formDataPayload.append('disputesResolution', 'null')
-      formDataPayload.append('governingLaw', 'null')
-      formDataPayload.append('additionalProvisions', 'null')
+      formDataPayload.append('amendments', '')
+      formDataPayload.append('dissolution', '')
+      formDataPayload.append('disputesResolution', '')
+      formDataPayload.append('governingLaw', '')
+      formDataPayload.append('additionalProvisions', '')
 
       // Payment Configurations - Flat structure
       if (formData.paymentLocalBankEnabled) {
@@ -1443,11 +1443,11 @@ export default function OnboardingPage() {
         formDataPayload.append('localAccountHolder', formData.paymentLocalAccountHolder || '')
         formDataPayload.append('localBankAddress', formData.paymentLocalBankAddress || '')
       } else {
-        formDataPayload.append('localBankName', 'null')
-        formDataPayload.append('localAccountBank', 'null')
-        formDataPayload.append('localRoutingBank', 'null')
-        formDataPayload.append('localAccountHolder', 'null')
-        formDataPayload.append('localBankAddress', 'null')
+        formDataPayload.append('localBankName', '')
+        formDataPayload.append('localAccountBank', '')
+        formDataPayload.append('localRoutingBank', '')
+        formDataPayload.append('localAccountHolder', '')
+        formDataPayload.append('localBankAddress', '')
       }
 
       if (formData.paymentIntlBankEnabled) {
@@ -1457,19 +1457,19 @@ export default function OnboardingPage() {
         formDataPayload.append('internationalHolderName', formData.paymentIntlAccountHolder || '')
         formDataPayload.append('internationalBankAddress', formData.paymentIntlBankAddress || '')
       } else {
-        formDataPayload.append('internationalBankName', 'null')
-        formDataPayload.append('internationalAccountBank', 'null')
-        formDataPayload.append('internationalSwift', 'null')
-        formDataPayload.append('internationalHolderName', 'null')
-        formDataPayload.append('internationalBankAddress', 'null')
+        formDataPayload.append('internationalBankName', '')
+        formDataPayload.append('internationalAccountBank', '')
+        formDataPayload.append('internationalSwift', '')
+        formDataPayload.append('internationalHolderName', '')
+        formDataPayload.append('internationalBankAddress', '')
       }
 
       if (formData.paymentCryptoEnabled) {
         formDataPayload.append('blockchainNetwork', formData.paymentCryptoBlockchain || '')
         formDataPayload.append('walletAddress', formData.paymentCryptoWalletAddress || '')
       } else {
-        formDataPayload.append('blockchainNetwork', 'null')
-        formDataPayload.append('walletAddress', 'null')
+        formDataPayload.append('blockchainNetwork', '')
+        formDataPayload.append('walletAddress', '')
       }
 
       // Banner Image - Append as file if exists
@@ -1481,12 +1481,12 @@ export default function OnboardingPage() {
       if (formData.walletOwnerAddress) {
         formDataPayload.append('walletOwnerAddress', formData.walletOwnerAddress)
       } else {
-        formDataPayload.append('walletOwnerAddress', 'null')
+        formDataPayload.append('walletOwnerAddress', '')
       }
       if (formData.operatingAgreementHash) {
         formDataPayload.append('operatingAgreementHash', formData.operatingAgreementHash)
       } else {
-        formDataPayload.append('operatingAgreementHash', 'null')
+        formDataPayload.append('operatingAgreementHash', '')
       }
 
       const structureResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures`, {

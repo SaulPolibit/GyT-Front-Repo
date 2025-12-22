@@ -89,6 +89,10 @@ export default function PaymentPage({ params }: Props) {
   const identityRegistryAddress = structure?.smartContract?.identityRegistryAddress
   const isTokenDeployed = tokenAddress && tokenAddress.trim() !== ''
 
+  // Check if bank transfer is enabled based on structure bank configuration
+  const isBankTransferEnabled = (structure?.localBankName && structure.localBankName.trim() !== '') ||
+                                 (structure?.internationalBankName && structure.internationalBankName.trim() !== '')
+
   React.useEffect(() => {
     const fetchStructure = async () => {
       setLoading(true)
@@ -592,6 +596,18 @@ export default function PaymentPage({ params }: Props) {
         }
 
         console.log('[Payment] Payment created successfully:', data)
+
+        // Show bank transfer specific success toast
+        toast({
+          title: "Bank Transfer Receipt Uploaded!",
+          description: "Your payment will be reviewed by an admin and confirmed if everything looks good. You'll be notified once approved.",
+          variant: "default",
+        })
+
+        // Redirect to portfolio after a short delay
+        setTimeout(() => {
+          window.location.href = `/lp-portal/portfolio`
+        }, 2500)
       } else {
         // Simulate payment processing for other methods
         await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -599,12 +615,14 @@ export default function PaymentPage({ params }: Props) {
 
       setPaymentComplete(true)
 
-      // Show success toast
-      toast({
-        title: "Payment Successful!",
-        description: `You've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${structure.name}. The fund has been added to your portfolio.`,
-        variant: "default",
-      })
+      // Show success toast for non-bank transfer payments
+      if (paymentMethod !== "bank-transfer") {
+        toast({
+          title: "Payment Successful!",
+          description: `You've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${structure.name}. The fund has been added to your portfolio.`,
+          variant: "default",
+        })
+      }
 
       console.log('✅ Payment successful')
 
@@ -1009,19 +1027,37 @@ export default function PaymentPage({ params }: Props) {
                   </div>
                 </label>
 
-                <label className="flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors" style={{ borderColor: paymentMethod === "bank-transfer" ? "oklch(0.2521 0.1319 280.76)" : undefined, backgroundColor: paymentMethod === "bank-transfer" ? "oklch(0.2521 0.1319 280.76 / 0.05)" : undefined }}>
+                <label
+                  className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${
+                    isBankTransferEnabled
+                      ? 'cursor-pointer hover:bg-muted/50'
+                      : 'cursor-not-allowed opacity-50 bg-muted/20'
+                  }`}
+                  style={{
+                    borderColor: paymentMethod === "bank-transfer" && isBankTransferEnabled ? "oklch(0.2521 0.1319 280.76)" : undefined,
+                    backgroundColor: paymentMethod === "bank-transfer" && isBankTransferEnabled ? "oklch(0.2521 0.1319 280.76 / 0.05)" : undefined
+                  }}
+                >
                   <input
                     type="radio"
                     value="bank-transfer"
                     checked={paymentMethod === "bank-transfer"}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="h-4 w-4"
+                    disabled={!isBankTransferEnabled}
                   />
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-5 w-5" />
-                    <div>
-                      <p className="font-semibold text-sm">Bank Transfer</p>
-                      <p className="text-xs text-muted-foreground">Upload receipt after transfer</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-5 w-5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">Bank Transfer</p>
+                        <p className="text-xs text-muted-foreground">
+                          {isBankTransferEnabled
+                            ? 'Upload receipt after transfer'
+                            : 'Not configured - bank details missing'
+                          }
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </label>
@@ -1194,15 +1230,48 @@ export default function PaymentPage({ params }: Props) {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-4">
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-amber-900 mb-2">Bank Details</p>
-                    <div className="space-y-1 text-sm text-amber-800">
-                      <p><strong>Account Name:</strong> Polibit Investment Fund</p>
-                      <p><strong>Account Number:</strong> ••••••••5432</p>
-                      <p><strong>Routing Number:</strong> 021000021</p>
-                      <p><strong>Amount:</strong> ${amount}</p>
+                  {/* Local Bank Details */}
+                  {structure.localBankName && structure.localBankName.trim() !== '' && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-amber-900 mb-2">Local Bank Transfer Details</p>
+                      <div className="space-y-1 text-sm text-amber-800">
+                        <p><strong>Bank Name:</strong> {structure.localBankName}</p>
+                        {structure.localAccountHolder && <p><strong>Account Holder:</strong> {structure.localAccountHolder}</p>}
+                        {structure.localAccountBank && <p><strong>Account Number:</strong> {structure.localAccountBank}</p>}
+                        {structure.localRoutingBank && <p><strong>Routing Number:</strong> {structure.localRoutingBank}</p>}
+                        {structure.localBankAddress && <p><strong>Bank Address:</strong> {structure.localBankAddress}</p>}
+                        <p><strong>Amount:</strong> ${amount}</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* International Bank Details */}
+                  {structure.internationalBankName && structure.internationalBankName.trim() !== '' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-blue-900 mb-2">International Bank Transfer Details</p>
+                      <div className="space-y-1 text-sm text-blue-800">
+                        <p><strong>Bank Name:</strong> {structure.internationalBankName}</p>
+                        {structure.internationalHolderName && <p><strong>Account Holder:</strong> {structure.internationalHolderName}</p>}
+                        {structure.internationalAccountBank && <p><strong>Account Number:</strong> {structure.internationalAccountBank}</p>}
+                        {structure.internationalSwift && <p><strong>SWIFT Code:</strong> {structure.internationalSwift}</p>}
+                        {structure.internationalBankAddress && <p><strong>Bank Address:</strong> {structure.internationalBankAddress}</p>}
+                        <p><strong>Amount:</strong> ${amount}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fallback - Show generic message if no bank details configured */}
+                  {(!structure.localBankName || structure.localBankName.trim() === '') &&
+                   (!structure.internationalBankName || structure.internationalBankName.trim() === '') && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-amber-900 mb-2">Bank Transfer Details</p>
+                      <div className="space-y-1 text-sm text-amber-800">
+                        <p>Bank transfer details have not been configured for this structure.</p>
+                        <p>Please contact the fund manager for bank transfer instructions.</p>
+                        <p><strong>Amount:</strong> ${amount}</p>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors">
                     <input
