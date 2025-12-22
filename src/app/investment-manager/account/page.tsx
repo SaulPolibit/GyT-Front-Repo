@@ -138,6 +138,11 @@ function AccountPageContent() {
       // Construct the redirect URI (must match what was used in the auth request)
       const redirectUri = `${window.location.origin}/investment-manager/account`
 
+      console.log('[Wallet Link] Sending callback request with:')
+      console.log('[Wallet Link] - redirectUri:', redirectUri)
+      console.log('[Wallet Link] - origin:', window.location.origin)
+      console.log('[Wallet Link] - href:', window.location.href)
+
       const response = await fetch(getApiUrl('/api/custom/prospera/link-wallet'), {
         method: 'POST',
         headers: {
@@ -149,6 +154,11 @@ function AccountPageContent() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        console.error('[Wallet Link] Error response:', errorData)
+        if (errorData.debug) {
+          console.error('[Wallet Link] Debug info:', errorData.debug)
+          throw new Error(`${errorData.message}\n\nDebug:\n- Sent: ${redirectUri}\n- Expected: ${errorData.debug.expectedRedirectUri}\n- Backend URL: ${errorData.debug.frontendUrl}`)
+        }
         throw new Error(errorData.message || 'Failed to link wallet')
       }
 
