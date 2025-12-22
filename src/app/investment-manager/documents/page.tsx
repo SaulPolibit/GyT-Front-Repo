@@ -808,7 +808,7 @@ export default function DocumentsPage() {
           <DialogHeader>
             <DialogTitle>Upload Document</DialogTitle>
             <DialogDescription>
-              Upload a new document for a structure, investor, or investment
+              Upload a new document for a structure, investor, or asset
             </DialogDescription>
           </DialogHeader>
 
@@ -846,7 +846,7 @@ export default function DocumentsPage() {
                 <SelectContent>
                   <SelectItem value="Structure">Structure</SelectItem>
                   <SelectItem value="Investor">Investor</SelectItem>
-                  <SelectItem value="Investment">Investment</SelectItem>
+                  <SelectItem value="Investment">Asset</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -854,7 +854,7 @@ export default function DocumentsPage() {
             {/* Entity Selection */}
             <div className="space-y-2">
               <Label htmlFor="entityId">
-                {uploadEntityType === 'Structure' ? 'Structure' : uploadEntityType === 'Investor' ? 'Investor' : 'Investment'} *
+                {uploadEntityType === 'Structure' ? 'Structure' : uploadEntityType === 'Investor' ? 'Investor' : 'Asset'} *
               </Label>
               <Select
                 value={uploadEntityId}
