@@ -266,10 +266,13 @@ function LPLoginPageContent() {
     try {
       console.log('[Prospera Callback] Processing OAuth callback...')
 
+      // Construct the redirect URI (must match what was used in the auth request)
+      const redirectUri = `${window.location.origin}/lp-portal/login`
+
       const response = await fetch(getApiUrl('/api/custom/prospera/callback'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, codeVerifier, nonce }),
+        body: JSON.stringify({ code, codeVerifier, nonce, redirectUri }),
       })
 
       if (!response.ok) {

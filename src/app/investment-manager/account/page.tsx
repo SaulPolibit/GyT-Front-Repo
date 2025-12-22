@@ -135,13 +135,16 @@ function AccountPageContent() {
         throw new Error('Not authenticated')
       }
 
+      // Construct the redirect URI (must match what was used in the auth request)
+      const redirectUri = `${window.location.origin}/investment-manager/account`
+
       const response = await fetch(getApiUrl('/api/custom/prospera/link-wallet'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ code, codeVerifier, nonce }),
+        body: JSON.stringify({ code, codeVerifier, nonce, redirectUri }),
       })
 
       if (!response.ok) {
