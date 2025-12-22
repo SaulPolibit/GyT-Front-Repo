@@ -37,14 +37,9 @@ interface InvestorStructure {
   currentValue: number
   ownershipPercent: number
   unrealizedGain: number
-}
-
-interface StructureInvestor {
-  structure: {
-    id: string
-    name: string
-    type: string
-  }
+  paymentStatus?: string
+  paymentMethod?: string
+  paymentId?: string
 }
 
 interface CapitalCall {
@@ -109,10 +104,10 @@ export default function PortfolioPage() {
         throw new Error('No authentication token found')
       }
 
-      // Step 1: Search for investor by email
-      console.log('[Portfolio] Searching for investor:', user.email)
-      const searchResponse = await fetch(
-        getApiUrl(API_CONFIG.endpoints.searchInvestors(user.email)),
+      // Get payments with structure data
+      console.log('[Portfolio] Fetching payments with structures')
+      const paymentsResponse = await fetch(
+        getApiUrl('/api/payments/me'),
         {
           method: 'GET',
           headers: {
@@ -123,63 +118,54 @@ export default function PortfolioPage() {
       )
 
       // Handle 401 Unauthorized - session expired or invalid
-      if (searchResponse.status === 401) {
+      if (paymentsResponse.status === 401) {
         console.log('[Portfolio] 401 Unauthorized - clearing session and redirecting to login')
         logout()
         router.push('/lp-portal/login')
         return
       }
 
-      if (!searchResponse.ok) {
-        throw new Error(`Failed to search investor: ${searchResponse.statusText}`)
+      if (!paymentsResponse.ok) {
+        throw new Error(`Failed to fetch payments: ${paymentsResponse.statusText}`)
       }
 
-      const searchData = await searchResponse.json()
-      console.log('[Portfolio] Search response:', searchData)
+      const paymentsData = await paymentsResponse.json()
+      console.log('[Portfolio] Payments with structures:', paymentsData)
 
-      if (!searchData.success || !searchData.data || searchData.data.length === 0) {
-        // No investor found - show empty portfolio
-        console.log('[Portfolio] No investor found for this user')
-        setStructures([])
-        setIsLoading(false)
-        return
-      }
-
-      const investor = searchData.data[0] // First matching investor
-      console.log('[Portfolio] Found investor:', investor.id)
-
-      // Step 2: Get investor with structures
-      const investorResponse = await fetch(
-        getApiUrl(API_CONFIG.endpoints.getMyInvestorWithStructures),
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      )
-
-      // Handle 401 Unauthorized - session expired or invalid
-      if (investorResponse.status === 401) {
-        console.log('[Portfolio] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
-      }
-
-      if (!investorResponse.ok) {
-        throw new Error(`Failed to fetch investor structures: ${investorResponse.statusText}`)
-      }
-
-      const investorData = await investorResponse.json()
-      console.log('[Portfolio] Investor with structures:', investorData)
-
-      if (!investorData.success || !investorData.data) {
+      if (!paymentsData.success || !paymentsData.data) {
         throw new Error('Invalid response from server')
       }
 
-      // Step 3: Fetch capital calls data first to get structures
+      // Map payments to structures
+      const paymentsStructures: InvestorStructure[] = paymentsData.data.map((payment: any) => {
+        return {
+          id: payment.structure?.id || payment.structureId,
+          name: payment.structure?.name || 'Unknown Structure',
+          type: payment.structure?.type || 'Unknown',
+          commitment: payment.amount || 0,
+          calledCapital: 0, // Placeholder
+          currentValue: 0, // Placeholder
+          ownershipPercent: 0, // Placeholder
+          unrealizedGain: 0, // Placeholder
+          paymentStatus: payment.status,
+          paymentMethod: payment.paymentMethod,
+          paymentId: payment.id,
+        }
+      })
+
+      setStructures(paymentsStructures)
+      console.log('[Portfolio] Mapped structures from payments:', paymentsStructures)
+
+      // Get investor ID from first payment if available
+      const investor = paymentsData.data[0]?.investor
+      if (!investor?.id) {
+        console.warn('[Portfolio] No investor ID found in payments')
+        setIsLoading(false)
+        return
+      }
+      console.log('[Portfolio] Found investor from payments:', investor.id)
+
+      // Fetch capital calls data
       try {
         console.log('[Portfolio] Fetching capital calls for investor:', investor.id)
         const capitalCallsResponse = await fetch(
@@ -199,35 +185,14 @@ export default function PortfolioPage() {
 
           if (capitalCallsResponseData.success && capitalCallsResponseData.data) {
             setCapitalCallsData(capitalCallsResponseData.data)
-
-            // Map structures from capital calls data
-            // TODO: These values need to come from a commitments endpoint
-            // For now, using structures from capital calls with placeholder financial data
-            const mappedStructures: InvestorStructure[] = capitalCallsResponseData.data.investors?.map((investor: any) => {
-              return {
-                id: investor.id,
-                name: investor.name,
-                type: investor.type,
-                // TODO: Get actual investor-specific values from backend
-                commitment: 0, // Placeholder - should come from commitments endpoint
-                calledCapital: 0, // Placeholder
-                currentValue: 0, // Placeholder
-                ownershipPercent: 0, // Placeholder
-                unrealizedGain: 0, // Placeholder
-              }
-            }) || []
-
-            setStructures(mappedStructures)
           }
         } else {
           console.warn('[Portfolio] Failed to fetch capital calls:', capitalCallsResponse.statusText)
           // Don't throw error - capital calls are optional data
-          setStructures([])
         }
       } catch (capitalCallsError) {
         console.warn('[Portfolio] Error fetching capital calls:', capitalCallsError)
         // Don't throw error - capital calls are optional data
-        setStructures([])
       }
     } catch (err) {
       console.error('[Portfolio] Error fetching portfolio:', err)
@@ -500,10 +465,39 @@ export default function PortfolioPage() {
                       <CardDescription>{structure.type}</CardDescription>
                     </div>
                   </div>
-                  {getStatusBadge(structure)}
+                  <div className="flex flex-col gap-1 items-end">
+                    {getStatusBadge(structure)}
+                    {structure.paymentStatus && (
+                      <Badge variant={structure.paymentStatus === 'completed' ? 'default' : 'secondary'} className="text-xs">
+                        {structure.paymentStatus}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Payment Info */}
+                {(structure.paymentStatus || structure.paymentMethod) && (
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    {structure.paymentMethod && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">Payment Method</p>
+                        <Badge variant="outline" className="text-xs">
+                          {structure.paymentMethod === 'usdc' ? 'USDC' :
+                           structure.paymentMethod === 'bank-transfer' ? 'Bank Transfer' :
+                           structure.paymentMethod}
+                        </Badge>
+                      </div>
+                    )}
+                    {structure.paymentStatus && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">Payment Status</p>
+                        <p className="text-xs font-semibold capitalize">{structure.paymentStatus}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-muted-foreground">Commitment</p>
@@ -619,7 +613,7 @@ export default function PortfolioPage() {
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{capitalCallsData.structures?.length || 0}</div>
+                <div className="text-2xl font-bold">{capitalCallsData.investors?.length || 0}</div>
                 <p className="text-xs text-muted-foreground">With capital calls</p>
               </CardContent>
             </Card>
