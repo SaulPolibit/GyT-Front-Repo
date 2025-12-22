@@ -60,8 +60,10 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
   const [documentsLoading, setDocumentsLoading] = React.useState(false)
   const [documentsError, setDocumentsError] = React.useState<string | null>(null)
 
-  // Check if user can buy (KYC approved)
-  const canBuy = user?.kycStatus === 'Approved'
+  // Check if user can buy (KYC approved AND token deployed)
+  const canBuy = user?.kycStatus === 'Approved' &&
+                 structure?.smartContract?.deploymentResponse?.deployment?.tokenAddress &&
+                 structure.smartContract.deploymentResponse.deployment.tokenAddress.trim() !== ''
 
   // Hide the structure ID in the breadcrumb
   React.useEffect(() => {
@@ -266,7 +268,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
               <div>
                 <p className="text-sm font-semibold text-amber-900 mb-1">KYC Approval Required</p>
                 <p className="text-sm text-amber-800">
-                  You need to complete and have your KYC approved before you can purchase tokens.
+                  Tokens not available or you need to complete and have your KYC approved before you can purchase tokens.
                   {user?.kycStatus === null && ' Please complete your KYC verification.'}
                   {user?.kycStatus && user.kycStatus !== 'Approved' && ` Current status: ${user.kycStatus}`}
                 </p>

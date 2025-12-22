@@ -27,8 +27,12 @@ import {
 import type { Structure } from "@/lib/structures-storage"
 import { getAuthToken } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { useAuth } from "@/hooks/useAuth"
+import { useRouter } from "next/navigation"
 
 export default function MarketplacePage() {
+  const router = useRouter()
+  const { logout } = useAuth()
   const [structures, setStructures] = React.useState<Structure[]>([])
   const [searchQuery, setSearchQuery] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState('all')
@@ -59,6 +63,14 @@ export default function MarketplacePage() {
             'Content-Type': 'application/json',
           },
         })
+
+        // Check for 401 Unauthorized
+        if (response.status === 401) {
+          console.log("401 Unauthorized - logging out...")
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
 
         if (!response.ok) {
           throw new Error(`Failed to fetch structures: ${response.statusText}`)

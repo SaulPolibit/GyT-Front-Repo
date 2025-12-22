@@ -42,6 +42,13 @@ export interface Structure {
   bannerImage?: string
   contractTemplateUrlNational?: string  // DocuSeal contract template URL for national (Mexico) investors
   contractTemplateUrlInternational?: string  // DocuSeal contract template URL for international investors
+  blockchainNetwork?: string  // Blockchain network for USDC payments (e.g., "Ethereum", "Polygon")
+  walletAddress?: string  // Wallet address for receiving USDC payments
+  smartContract?: {
+    contractAddress?: string  // Deployed token contract address
+    identityRegistryAddress?: string  // Identity registry contract address
+    deploymentResponse?: any  // Full deployment response from blockchain API
+  }
   // Additional fields from onboarding
   inceptionDate?: Date
   currentStage?: string
@@ -176,8 +183,6 @@ export interface Structure {
     governingLaw?: string
     additionalProvisions?: string
   }
-  // Optional banner image for structure display
-  bannerImage?: string
   // Payment Configurations - Flat structure
   localBankName?: string
   localAccountBank?: string
@@ -189,8 +194,6 @@ export interface Structure {
   internationalSwift?: string
   internationalHolderName?: string
   internationalBankAddress?: string
-  blockchainNetwork?: string
-  walletAddress?: string
 }
 
 const STORAGE_KEY = 'polibit_structures'

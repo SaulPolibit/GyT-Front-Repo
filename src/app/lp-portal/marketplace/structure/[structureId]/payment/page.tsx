@@ -59,7 +59,7 @@ export default function PaymentPage({ params }: Props) {
   const [cardName, setCardName] = React.useState("")
   const [cardExpiry, setCardExpiry] = React.useState("")
   const [cardCVC, setCardCVC] = React.useState("")
-  const [paymentMethod, setPaymentMethod] = React.useState("credit-card")
+  const [paymentMethod, setPaymentMethod] = React.useState("")
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [paymentComplete, setPaymentComplete] = React.useState(false)
   const [bankTransferReceipt, setBankTransferReceipt] = React.useState<File | null>(null)
@@ -68,10 +68,26 @@ export default function PaymentPage({ params }: Props) {
   const [isConnectingMetaMask, setIsConnectingMetaMask] = React.useState(false)
   const [isMetaMaskConnected, setIsMetaMaskConnected] = React.useState(false)
   const [submissionId, setSubmissionId] = React.useState<string | null>(null)
+  const [transactionHash, setTransactionHash] = React.useState<string | null>(null)
 
   const tokens = searchParams.get("tokens") || "0"
   const email = searchParams.get("email") || "investor@demo.polibit.io"
-  const amount = searchParams.get("amount") || "0"
+  const amount = 1//searchParams.get("amount") || "1"
+
+  // Testing mode: Use POL (native token) instead of USDC for testing
+  // Set to false for production (USDC mode)
+  const USE_NATIVE_TOKEN_FOR_TESTING = true
+
+  // Check if USDC payment is enabled based on structure blockchain configuration
+  const isMetamaskPaymentEnabled = structure?.blockchainNetwork &&
+                                   structure.blockchainNetwork.trim() !== '' &&
+                                   structure?.walletAddress &&
+                                   structure.walletAddress.trim() !== ''
+
+  // Check if token is deployed
+  const tokenAddress = structure?.smartContract?.contractAddress
+  const identityRegistryAddress = structure?.smartContract?.identityRegistryAddress
+  const isTokenDeployed = tokenAddress && tokenAddress.trim() !== ''
 
   React.useEffect(() => {
     const fetchStructure = async () => {
@@ -118,6 +134,8 @@ export default function PaymentPage({ params }: Props) {
           currency: data.data.baseCurrency,
           jurisdiction: data.data.taxJurisdiction,
           fundTerm: data.data.finalDate,
+          blockchainNetwork: data.data.blockchainNetwork,
+          walletAddress: data.data.walletAddress,
         }
 
         setStructure(mappedStructure)
@@ -202,8 +220,333 @@ export default function PaymentPage({ params }: Props) {
 
     setIsProcessing(true)
     try {
+      // Handle USDC/POL payment via MetaMask
+      if (paymentMethod === "usdc" && isMetaMaskConnected) {
+        console.log(`[Payment] Processing ${USE_NATIVE_TOKEN_FOR_TESTING ? 'POL (native)' : 'USDC'} payment via MetaMask`)
+
+        if (typeof window.ethereum === 'undefined') {
+          throw new Error('MetaMask is not installed')
+        }
+
+        const network = structure.blockchainNetwork || 'Polygon Amoy'
+        console.log('[Payment] Structure blockchain network:', structure.blockchainNetwork)
+        console.log('[Payment] Using network:', network)
+
+        if (!structure.walletAddress) {
+          throw new Error('Destination wallet address not configured')
+        }
+
+        // Switch to the correct network before sending transaction
+        try {
+          console.log('[Payment] Attempting to switch to network:', network)
+          await switchNetwork(network)
+          console.log(`[Payment] Successfully switched to ${network} network`)
+        } catch (networkError) {
+          console.error('[Payment] Network switch error:', networkError)
+          throw new Error(`Failed to switch to ${network} network. Please switch manually in MetaMask.`)
+        }
+
+        let txHash: string
+
+        if (USE_NATIVE_TOKEN_FOR_TESTING) {
+          // Native token (POL/MATIC) transfer for testing
+          console.log('[Payment] Using native token (POL) for testing')
+
+          // Convert amount to wei (18 decimals for native tokens) using BigInt
+          const amountStr = String(amount)
+          const amountFloat = parseFloat(amountStr)
+          const amountInWei = BigInt(Math.floor(amountFloat * 1e18))
+          const hexValue = '0x' + amountInWei.toString(16)
+
+          console.log('[Payment] Native token transaction details:', {
+            network,
+            to: structure.walletAddress,
+            from: usdcWalletAddress,
+            amount: amount,
+            amountInWei: hexValue,
+          })
+
+          try {
+            // Send native token transaction
+            txHash = await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [{
+                from: usdcWalletAddress,
+                to: structure.walletAddress,
+                value: hexValue,
+              }],
+            })
+          } catch (txError: any) {
+            console.error('[Payment] Native token transaction error:', txError)
+            console.error('[Payment] Error details:', {
+              code: txError?.code,
+              message: txError?.message,
+              data: txError?.data,
+              stack: txError?.stack
+            })
+
+            // Handle specific error cases
+            if (txError?.code === 4001) {
+              throw new Error('Transaction rejected by user')
+            }
+
+            // Insufficient funds or gas estimation error
+            if (txError?.code === -32603 || txError?.code === -32000 || txError?.message?.includes('insufficient funds')) {
+              const networkName = structure.blockchainNetwork || 'Amoy'
+              const faucetUrl = networkName.toLowerCase().includes('amoy')
+                ? 'https://faucet.polygon.technology/'
+                : 'https://faucet.polygon.technology/'
+
+              throw new Error(
+                `Insufficient POL balance. You need POL for both the transaction amount (${amount} POL) and gas fees (~0.01 POL). ` +
+                `Get free test tokens at: ${faucetUrl}`
+              )
+            }
+
+            throw new Error(txError?.message || 'MetaMask transaction failed. Please check your wallet and try again.')
+          }
+        } else {
+          // USDC (ERC20) transfer for production
+          console.log('[Payment] Using USDC (ERC20) for production')
+
+          // USDC Token Contract Addresses by Network
+          const USDC_ADDRESSES: Record<string, string> = {
+            'Ethereum': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+            'Polygon': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+            'Polygon PoS': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
+            'Polygon Amoy': '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
+            'Amoy': '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
+            'Arbitrum': '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+            'Optimism': '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
+            'Base': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          }
+
+          const usdcContractAddress = USDC_ADDRESSES[network]
+
+          if (!usdcContractAddress) {
+            throw new Error(`USDC contract address not found for network: ${network}`)
+          }
+
+          // Convert amount to USDC units (6 decimals for USDC) using BigInt
+          const amountStr = String(amount)
+          const amountFloat = parseFloat(amountStr)
+          const amountInUSDC = BigInt(Math.floor(amountFloat * 1e6))
+          const usdcHex = amountInUSDC.toString(16)
+
+          // ERC20 Transfer function signature
+          const transferMethodId = '0xa9059cbb' // transfer(address,uint256)
+
+          // Encode destination address (remove 0x and pad to 32 bytes)
+          const toAddress = structure.walletAddress.replace('0x', '').padStart(64, '0')
+
+          // Encode amount (pad to 32 bytes)
+          const transferAmount = usdcHex.padStart(64, '0')
+
+          // Construct transaction data
+          const data = transferMethodId + toAddress + transferAmount
+
+          console.log('[Payment] USDC transaction details:', {
+            network,
+            usdcContract: usdcContractAddress,
+            to: structure.walletAddress,
+            amount: amount,
+            from: usdcWalletAddress
+          })
+
+          try {
+            // Send USDC transaction
+            txHash = await window.ethereum.request({
+              method: 'eth_sendTransaction',
+              params: [{
+                from: usdcWalletAddress,
+                to: usdcContractAddress,
+                data: data,
+                value: '0x0', // No ETH/MATIC sent, only USDC token
+              }],
+            })
+          } catch (txError: any) {
+            console.error('[Payment] USDC transaction error:', txError)
+            throw txError
+          }
+        }
+
+        try {
+
+          console.log('[Payment] Transaction sent! Hash:', txHash)
+          setTransactionHash(txHash)
+
+          toast({
+            title: "Transaction Submitted",
+            description: `Waiting for confirmation... Hash: ${txHash.slice(0, 10)}...${txHash.slice(-8)}`,
+            variant: "default",
+          })
+
+          // Check transaction status on blockchain
+          const txStatus = await checkTransactionStatus(txHash, network)
+
+          if (!txStatus.success) {
+            throw new Error(txStatus.error || 'Transaction failed on blockchain')
+          }
+
+          console.log('[Payment] Transaction confirmed on blockchain:', txStatus.explorerUrl)
+
+          toast({
+            title: "Transaction Confirmed",
+            description: "Payment successful on blockchain!",
+            variant: "default",
+          })
+
+          // Save payment record to API
+          const token = getAuthToken()
+
+          if (!token) {
+            console.warn('[Payment] No auth token found, skipping payment record creation')
+          } else {
+            console.warn('[Payment] No submission ID found, skipping payment record creation')
+            try {
+              const formData = new FormData()
+              formData.append('amount', String(amount))
+              formData.append('structureId', structureId)
+              formData.append('email', user?.email || email)
+              formData.append('contractId', 'dummy-contract-id')
+              formData.append('submissionId', submissionId ?? '')
+              formData.append('transactionHash', txHash)
+              formData.append('status', 'completed')
+              formData.append('walletAddress', usdcWalletAddress)
+              
+              console.log('[Payment] Creating payment record via API')
+
+              const response = await fetch(getApiUrl(API_CONFIG.endpoints.createPayment), {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: formData,
+              })
+
+              const data = await response.json()
+
+              if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
+                console.log("Token invalid or expired during payment record creation");
+                logout();
+                router.push('/lp-portal/login');
+              } else if (!data.success) {
+                console.warn('[Payment] Failed to create payment record:', data.message)
+              } else {
+                console.log('[Payment] Payment record created successfully:', data)
+
+                // Call register-user endpoint before minting tokens
+                try {
+
+                  if (!identityRegistryAddress) {
+                    console.warn('[Payment] No identity registry address found, skipping user registration')
+                  } else {
+                    console.log('[Payment] Registering user on identity registry:', {
+                      identityRegistryAddress: identityRegistryAddress,
+                      userAddress: usdcWalletAddress,
+                      country: "Mexico",
+                      investorType: 0
+                    })
+
+                    const registerResponse = await fetch(getApiUrl('/api/blockchain/contract/register-user'), {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        identityAddress: identityRegistryAddress,
+                        userAddress: usdcWalletAddress,
+                        country: "Mexico",
+                        investorType: 0
+                      }),
+                    })
+
+                    const registerData = await registerResponse.json()
+
+                    if (registerData.error === "Invalid or expired token" || registerData.message === "Please provide a valid authentication token") {
+                      console.log("Token invalid or expired during user registration")
+                      logout()
+                      router.push('/lp-portal/login')
+                      return
+                    } else if (!registerData.success) {
+                      console.warn('[Payment] Failed to register user:', registerData.message)
+                      // Don't fail the payment if registration fails, but log the error
+                    } else {
+                      console.log('[Payment] User registered successfully:', registerData)
+                    }
+                  }
+                } catch (registerError) {
+                  console.error('[Payment] Error registering user:', registerError)
+                  // Don't fail the payment if registration fails
+                }
+
+                // Call mint-tokens endpoint
+                try {
+                  if (!tokenAddress) {
+                    console.warn('[Payment] No token address found, skipping mint')
+                  } else {
+                    console.log('[Payment] Minting tokens:', {
+                      contractAddress: tokenAddress,
+                      userAddress: usdcWalletAddress,
+                      amount: tokens
+                    })
+
+                    const mintResponse = await fetch(getApiUrl('/api/blockchain/contract/mint-tokens'), {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        contractAddress: tokenAddress,
+                        userAddress: usdcWalletAddress,
+                        amount: tokens
+                      }),
+                    })
+
+                    const mintData = await mintResponse.json()
+
+                    if (mintData.error === "Invalid or expired token" || mintData.message === "Please provide a valid authentication token") {
+                      console.log("Token invalid or expired during token mint")
+                      logout()
+                      router.push('/lp-portal/login')
+                    } else if (!mintData.success) {
+                      console.warn('[Payment] Failed to mint tokens:', mintData.message)
+                    } else {
+                      console.log('[Payment] Tokens minted successfully:', mintData)
+                    }
+                  }
+                } catch (mintError) {
+                  console.error('[Payment] Error minting tokens:', mintError)
+                  // Don't fail the payment if minting fails
+                }
+              }
+
+            } catch (apiError) {
+              console.error('[Payment] Error creating payment record:', apiError)
+              // Don't fail the payment if API record creation fails
+            }
+          }
+
+        } catch (txError: any) {
+          console.error('[Payment] MetaMask transaction error:', txError)
+
+          // User rejected the transaction
+          if (txError.code === 4001) {
+            throw new Error('Transaction rejected by user')
+          }
+
+          // Insufficient funds
+          if (txError.code === -32000) {
+            throw new Error('Insufficient USDC balance or gas fees')
+          }
+
+          throw new Error(txError.message || 'MetaMask transaction failed')
+        }
+      }
       // Handle bank transfer payment via API
-      if (paymentMethod === "bank-transfer" && bankTransferReceipt) {
+      else if (paymentMethod === "bank-transfer" && bankTransferReceipt) {
         const token = getAuthToken()
 
         if (!token) {
@@ -217,11 +560,12 @@ export default function PaymentPage({ params }: Props) {
         // Create FormData for file upload
         const formData = new FormData()
         formData.append('file', bankTransferReceipt)
-        formData.append('amount', amount)
+        formData.append('amount', String(amount))
         formData.append('structureId', structureId)
         formData.append('email', user?.email || email)
         formData.append('contractId', 'dummy-contract-id') // Dummy data as contract model doesn't exist yet
         formData.append('submissionId', submissionId)
+        formData.append('status', 'pending')
 
         console.log('[Payment] Creating payment with bank transfer receipt')
 
@@ -257,12 +601,12 @@ export default function PaymentPage({ params }: Props) {
 
       // Show success toast
       toast({
-        title: "✅ Payment Successful!",
+        title: "Payment Successful!",
         description: `You've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${structure.name}. The fund has been added to your portfolio.`,
         variant: "default",
       })
 
-      console.log('✅ Payment successful, redirecting to portfolio...')
+      console.log('✅ Payment successful')
 
       // Redirect to portfolio after a short delay
       setTimeout(() => {
@@ -291,6 +635,160 @@ export default function PaymentPage({ params }: Props) {
       return `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`
     }
     return cleaned
+  }
+
+  // Network configurations for MetaMask
+  const NETWORK_CONFIGS: Record<string, { chainId: string; chainName: string; rpcUrls: string[]; nativeCurrency: { name: string; symbol: string; decimals: number }; blockExplorerUrls: string[] }> = {
+    'Ethereum': {
+      chainId: '0x1',
+      chainName: 'Ethereum Mainnet',
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://mainnet.infura.io/v3/'],
+      blockExplorerUrls: ['https://etherscan.io/']
+    },
+    'Polygon': {
+      chainId: '0x89',
+      chainName: 'Polygon Mainnet',
+      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+      rpcUrls: ['https://polygon-rpc.com/'],
+      blockExplorerUrls: ['https://polygonscan.com/']
+    },
+    'Polygon PoS': {
+      chainId: '0x89',
+      chainName: 'Polygon Mainnet',
+      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+      rpcUrls: ['https://polygon-rpc.com/'],
+      blockExplorerUrls: ['https://polygonscan.com/']
+    },
+    'Polygon Amoy': {
+      chainId: '0x13882',
+      chainName: 'Polygon Amoy Testnet',
+      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+      rpcUrls: ['https://rpc-amoy.polygon.technology/'],
+      blockExplorerUrls: ['https://amoy.polygonscan.com/']
+    },
+    'Amoy': {
+      chainId: '0x13882',
+      chainName: 'Polygon Amoy Testnet',
+      nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+      rpcUrls: ['https://rpc-amoy.polygon.technology/'],
+      blockExplorerUrls: ['https://amoy.polygonscan.com/']
+    },
+    'Arbitrum': {
+      chainId: '0xa4b1',
+      chainName: 'Arbitrum One',
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+      blockExplorerUrls: ['https://arbiscan.io/']
+    },
+    'Optimism': {
+      chainId: '0xa',
+      chainName: 'Optimism',
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://mainnet.optimism.io'],
+      blockExplorerUrls: ['https://optimistic.etherscan.io/']
+    },
+    'Base': {
+      chainId: '0x2105',
+      chainName: 'Base',
+      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+      rpcUrls: ['https://mainnet.base.org'],
+      blockExplorerUrls: ['https://basescan.org/']
+    }
+  }
+
+  const switchNetwork = async (networkName: string) => {
+    const networkConfig = NETWORK_CONFIGS[networkName]
+    console.log(`[Payment] networkName: ${networkName}`)
+    console.log(`[Payment] networkConfig: ${networkConfig}`)
+
+    if (!networkConfig) {
+      console.error(`[Payment] Network config not found for: ${networkName}`)
+      console.error('[Payment] Available networks:', Object.keys(NETWORK_CONFIGS))
+      throw new Error(`Network configuration not found for: ${networkName}`)
+    }
+
+    console.log(`[Payment] Network config found:`, {
+      name: networkName,
+      chainId: networkConfig.chainId,
+      chainName: networkConfig.chainName
+    })
+
+    try {
+      // Check current network
+      const currentChainId = await window.ethereum.request({ method: 'eth_chainId' })
+      console.log('[Payment] Current MetaMask chainId:', currentChainId)
+      console.log('[Payment] Target chainId:', networkConfig.chainId)
+
+      if (currentChainId === networkConfig.chainId) {
+        console.log('[Payment] Already on correct network')
+        return
+      }
+
+      console.log('[Payment] Switching to chainId:', networkConfig.chainId)
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: networkConfig.chainId }],
+      })
+      console.log('[Payment] Network switch successful')
+    } catch (switchError: any) {
+      console.error('[Payment] Network switch error:', switchError)
+      // If network doesn't exist, add it
+      if (switchError.code === 4902) {
+        console.log('[Payment] Network not found in MetaMask, adding it...')
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [networkConfig]
+        })
+        console.log('[Payment] Network added successfully')
+      } else {
+        throw switchError
+      }
+    }
+  }
+
+  const checkTransactionStatus = async (txHash: string, network: string, maxAttempts = 30) => {
+    console.log(`[Payment] Checking transaction status for ${txHash}`)
+
+    const networkConfig = NETWORK_CONFIGS[network]
+    const explorerUrl = networkConfig?.blockExplorerUrls?.[0] || 'https://polygonscan.com/'
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const receipt = await window.ethereum.request({
+          method: 'eth_getTransactionReceipt',
+          params: [txHash],
+        })
+
+        if (receipt) {
+          console.log('[Payment] Transaction receipt:', receipt)
+
+          // Check if transaction succeeded (status: 1) or failed (status: 0)
+          if (receipt.status === '0x1') {
+            console.log('[Payment] Transaction succeeded!')
+            return {
+              success: true,
+              explorerUrl: `${explorerUrl}tx/${txHash}`
+            }
+          } else if (receipt.status === '0x0') {
+            console.log('[Payment] Transaction failed on-chain')
+            return {
+              success: false,
+              explorerUrl: `${explorerUrl}tx/${txHash}`,
+              error: 'Transaction failed on blockchain. Please check the transaction on the block explorer.'
+            }
+          }
+        }
+
+        // Wait 2 seconds before next attempt
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      } catch (error) {
+        console.error('[Payment] Error checking transaction status:', error)
+      }
+    }
+
+    // If we exceeded max attempts without getting a receipt
+    throw new Error('Transaction confirmation timeout. Please check the block explorer manually.')
   }
 
   const connectMetaMask = async () => {
@@ -322,33 +820,22 @@ export default function PaymentPage({ params }: Props) {
           variant: "default",
         })
 
-        // Try to switch to Polygon network
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x89' }], // Polygon Mainnet
-          })
-        } catch (switchError: any) {
-          // If network doesn't exist, add it
-          if (switchError.code === 4902) {
-            try {
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: '0x89',
-                  chainName: 'Polygon Mainnet',
-                  nativeCurrency: {
-                    name: 'MATIC',
-                    symbol: 'MATIC',
-                    decimals: 18
-                  },
-                  rpcUrls: ['https://polygon-rpc.com/'],
-                  blockExplorerUrls: ['https://polygonscan.com/']
-                }]
-              })
-            } catch (addError) {
-              console.error('Error adding Polygon network:', addError)
-            }
+        // Try to switch to the structure's blockchain network
+        if (structure?.blockchainNetwork) {
+          try {
+            await switchNetwork(structure.blockchainNetwork)
+            toast({
+              title: "Network Switched",
+              description: `Switched to ${structure.blockchainNetwork}`,
+              variant: "default",
+            })
+          } catch (switchError) {
+            console.error('Error switching network:', switchError)
+            toast({
+              title: "Network Switch Failed",
+              description: "Please manually switch to the correct network in MetaMask",
+              variant: "destructive",
+            })
           }
         }
       }
@@ -433,7 +920,7 @@ export default function PaymentPage({ params }: Props) {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Tokens ({tokens})</span>
-                  <span className="font-semibold">${(parseInt(amount) - 0).toLocaleString()}</span>
+                  <span className="font-semibold">${(Number(amount)).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Processing Fee</span>
@@ -465,36 +952,59 @@ export default function PaymentPage({ params }: Props) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3">
-                <label className="flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors" style={{ borderColor: paymentMethod === "credit-card" ? "oklch(0.2521 0.1319 280.76)" : undefined, backgroundColor: paymentMethod === "credit-card" ? "oklch(0.2521 0.1319 280.76 / 0.05)" : undefined }}>
+                <label className="flex items-center gap-3 p-4 border rounded-lg cursor-not-allowed opacity-50 bg-muted/20 transition-colors">
                   <input
                     type="radio"
                     value="credit-card"
                     checked={paymentMethod === "credit-card"}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="h-4 w-4"
+                    disabled
                   />
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    <div>
-                      <p className="font-semibold text-sm">Credit or Debit Card</p>
-                      <p className="text-xs text-muted-foreground">Visa, Mastercard, Amex</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">Credit or Debit Card</p>
+                        <p className="text-xs text-muted-foreground">Currently unavailable</p>
+                      </div>
                     </div>
                   </div>
                 </label>
 
-                <label className="flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors" style={{ borderColor: paymentMethod === "usdc" ? "oklch(0.2521 0.1319 280.76)" : undefined, backgroundColor: paymentMethod === "usdc" ? "oklch(0.2521 0.1319 280.76 / 0.05)" : undefined }}>
+                <label
+                  className={`flex items-center gap-3 p-4 border rounded-lg transition-colors ${
+                    isMetamaskPaymentEnabled
+                      ? 'cursor-pointer hover:bg-muted/50'
+                      : 'cursor-not-allowed opacity-50 bg-muted/20'
+                  }`}
+                  style={{
+                    borderColor: paymentMethod === "usdc" && isMetamaskPaymentEnabled ? "oklch(0.2521 0.1319 280.76)" : undefined,
+                    backgroundColor: paymentMethod === "usdc" && isMetamaskPaymentEnabled ? "oklch(0.2521 0.1319 280.76 / 0.05)" : undefined
+                  }}
+                >
                   <input
                     type="radio"
                     value="usdc"
                     checked={paymentMethod === "usdc"}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="h-4 w-4"
+                    disabled={!isMetamaskPaymentEnabled}
                   />
-                  <div className="flex items-center gap-2">
-                    <Coins className="h-5 w-5" />
-                    <div>
-                      <p className="font-semibold text-sm">USDC - Stablecoin</p>
-                      <p className="text-xs text-muted-foreground">Pay with USDC on blockchain</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Coins className="h-5 w-5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">
+                          {USE_NATIVE_TOKEN_FOR_TESTING ? 'POL - Native Token (Testing)' : 'USDC - Stablecoin'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {isMetamaskPaymentEnabled
+                            ? (USE_NATIVE_TOKEN_FOR_TESTING ? 'Pay with POL on blockchain' : 'Pay with USDC on blockchain')
+                            : 'Not configured - blockchain network or wallet address missing'
+                          }
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </label>
@@ -585,10 +1095,26 @@ export default function PaymentPage({ params }: Props) {
           {paymentMethod === "usdc" && (
             <Card>
               <CardHeader>
-                <CardTitle>USDC Payment Details</CardTitle>
-                <CardDescription>Connect your wallet or enter your Polygon address</CardDescription>
+                <CardTitle>{USE_NATIVE_TOKEN_FOR_TESTING ? 'POL Payment Details' : 'USDC Payment Details'}</CardTitle>
+                <CardDescription>Connect your wallet or enter your address</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Structure Blockchain Information */}
+                {isMetamaskPaymentEnabled && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-blue-900 mb-2">Payment Destination</p>
+                    <div className="space-y-2 text-sm text-blue-800">
+                      <div>
+                        <span className="font-semibold">Network:</span> {structure?.blockchainNetwork}
+                      </div>
+                      <div>
+                        <span className="font-semibold">Wallet Address:</span>
+                        <p className="font-mono text-xs mt-1 break-all">{structure?.walletAddress}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* MetaMask Connect Button */}
                 <div className="flex justify-center">
                   <Button
@@ -713,54 +1239,71 @@ export default function PaymentPage({ params }: Props) {
             </Card>
           )}
 
-          {/* Terms & Conditions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Confirm Payment</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex gap-3 p-4 border rounded-lg bg-muted/30">
-                  <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-muted-foreground">
-                    By clicking "Complete Payment", you agree to the payment terms and understand that your investment will be processed immediately.
+          {/* Token Not Deployed Warning */}
+          {!isTokenDeployed && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="flex gap-3 py-6">
+                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-900 mb-1">Token Not Deployed</p>
+                  <p className="text-sm text-red-800">
+                    This structure does not have a token deployed yet. Payment cannot be processed at this time. Please contact the fund manager.
                   </p>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          )}
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button variant="outline" className="flex-1" asChild disabled={isProcessing}>
-                  <a href={`/lp-portal/marketplace/${structureId}/contracts`}>
-                    Cancel
-                  </a>
-                </Button>
-                <Button
-                  className="flex-1"
-                  size="lg"
-                  disabled={!isFormValid() || isProcessing || paymentComplete}
-                  onClick={handlePayment}
-                >
-                  {isProcessing ? (
-                    <>
-                      <span className="animate-spin mr-2">⏳</span>
-                      Processing Payment...
-                    </>
-                  ) : paymentComplete ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Payment Complete
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="h-4 w-4 mr-2" />
-                      Complete Payment - {formatCurrency(amount)}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Terms & Conditions - Only show if token is deployed */}
+          {isTokenDeployed && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Confirm Payment</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex gap-3 p-4 border rounded-lg bg-muted/30">
+                    <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-muted-foreground">
+                      By clicking "Complete Payment", you agree to the payment terms and understand that your investment will be processed immediately.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <Button variant="outline" className="flex-1" asChild disabled={isProcessing}>
+                    <a href={`/lp-portal/marketplace/${structureId}/contracts`}>
+                      Cancel
+                    </a>
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    size="lg"
+                    disabled={!isFormValid() || isProcessing || paymentComplete}
+                    onClick={handlePayment}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <span className="animate-spin mr-2">⏳</span>
+                        Processing Payment...
+                      </>
+                    ) : paymentComplete ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Payment Complete
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-4 w-4 mr-2" />
+                        Complete Payment - {formatCurrency(amount)}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
