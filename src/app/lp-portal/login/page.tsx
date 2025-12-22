@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { getUserRoleType, updateUserKycData, saveLoginResponse, getRedirectPathForRole } from "@/lib/auth-storage"
@@ -22,9 +24,12 @@ function LPLoginPageContent() {
   const [isProsperapLoading, setIsProsperapLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState('')
   const [prosperapRedirectUrl, setProsperapRedirectUrl] = React.useState<string | null>(null)
+  const [showTermsDialog, setShowTermsDialog] = React.useState(false)
+  const [termsAccepted, setTermsAccepted] = React.useState(false)
+  const [registrationData, setRegistrationData] = React.useState<any>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login, isLoggedIn, user, refreshAuthState } = useAuth()
+  const { login, isLoggedIn, user, refreshAuthState} = useAuth()
 
   // Handle OAuth callback from Prospera
   React.useEffect(() => {
@@ -194,6 +199,61 @@ function LPLoginPageContent() {
     }
   }
 
+  const handleCompleteRegistration = async () => {
+    if (!termsAccepted || !registrationData) {
+      setErrorMessage('Please accept the terms and conditions to continue')
+      return
+    }
+
+    setIsProsperapLoading(true)
+    setErrorMessage('')
+
+    try {
+      console.log('[Prospera Registration] Completing registration...')
+
+      const response = await fetch(getApiUrl('/api/custom/prospera/complete-registration'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userData: registrationData.userData,
+          sessionData: registrationData.sessionData,
+          termsAccepted: true
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Registration failed')
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.message || 'Registration failed')
+      }
+
+      console.log('[Prospera Registration] Registration complete')
+
+      // Save to localStorage (same format as regular login)
+      saveLoginResponse(data)
+
+      // Close terms dialog
+      setShowTermsDialog(false)
+      setRegistrationData(null)
+      setTermsAccepted(false)
+
+      toast.success('Welcome! Account created successfully')
+
+      // Redirect to portfolio (will be handled by useEffect)
+      refreshAuthState()
+    } catch (error) {
+      console.error('[Prospera Registration] Error:', error)
+      setErrorMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.')
+    } finally {
+      setIsProsperapLoading(false)
+    }
+  }
+
   const handleProsperapCallback = async (code: string, codeVerifier: string, nonce: string) => {
     setIsProsperapLoading(true)
     setErrorMessage('')
@@ -228,6 +288,22 @@ function LPLoginPageContent() {
         }
 
         throw new Error(data.message || 'Prospera authentication failed')
+      }
+
+      // Check if terms acceptance is required (new user)
+      if (data.requiresTermsAcceptance) {
+        console.log('[Prospera Callback] Terms acceptance required for new user')
+
+        // Store registration data for later use
+        setRegistrationData(data)
+
+        // Clear URL parameters
+        window.history.replaceState({}, '', '/lp-portal/login')
+
+        // Show terms dialog
+        setShowTermsDialog(true)
+        setIsProsperapLoading(false)
+        return
       }
 
       console.log('[Prospera Callback] Authentication successful')
@@ -392,6 +468,76 @@ function LPLoginPageContent() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Terms and Conditions Dialog */}
+      <Dialog open={showTermsDialog} onOpenChange={setShowTermsDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Terms and Conditions</DialogTitle>
+            <DialogDescription>
+              Please review and accept the terms to continue
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="terms"
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
+                disabled={isProsperapLoading}
+              />
+              <label
+                htmlFor="terms"
+                className="text-sm leading-relaxed cursor-pointer select-none"
+              >
+                I accept the terms and conditions of{' '}
+                <a
+                  href="https://eprospera.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-medium"
+                >
+                  Próspera
+                </a>
+                {' '}and{' '}
+                <a
+                  href="https://polibit.io/terms-of-service"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-medium"
+                >
+                  the platform
+                </a>
+              </label>
+            </div>
+
+            {errorMessage && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={handleCompleteRegistration}
+              disabled={!termsAccepted || isProsperapLoading}
+              className="w-full"
+            >
+              {isProsperapLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Creating account...
+                </>
+              ) : (
+                'Accept and Continue'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
