@@ -546,7 +546,7 @@ export default function PortfolioPage() {
                         </p>
                       </div>
                       <Button size="sm" asChild>
-                        <a href={`/lp-portal/portfolio/${structure.id}`}>
+                        <a href={`/lp-portal/portfolio/${structure.paymentId}`}>
                           View Details <ArrowRight className="ml-2 h-4 w-4" />
                         </a>
                       </Button>
