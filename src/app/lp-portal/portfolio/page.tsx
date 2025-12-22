@@ -40,6 +40,7 @@ interface InvestorStructure {
   paymentStatus?: string
   paymentMethod?: string
   paymentId?: string
+  createdAt?: string
 }
 
 interface CapitalCall {
@@ -150,6 +151,7 @@ export default function PortfolioPage() {
           paymentStatus: payment.status,
           paymentMethod: payment.paymentMethod,
           paymentId: payment.id,
+          createdAt: payment.createdAt,
         }
       })
 
@@ -212,6 +214,17 @@ export default function PortfolioPage() {
 
   const formatPercent = (value: number) => {
     return `${value.toFixed(2)}%`
+  }
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
   }
 
   // Calculate summary metrics
@@ -493,6 +506,12 @@ export default function PortfolioPage() {
                       <div className="flex items-center justify-between">
                         <p className="text-xs text-muted-foreground">Payment Status</p>
                         <p className="text-xs font-semibold capitalize">{structure.paymentStatus}</p>
+                      </div>
+                    )}
+                    {structure.createdAt && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">Created At</p>
+                        <p className="text-xs font-medium">{formatDateTime(structure.createdAt)}</p>
                       </div>
                     )}
                   </div>
