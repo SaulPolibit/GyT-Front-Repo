@@ -89,9 +89,13 @@ function AccountPageContent() {
 
       console.log('[Wallet Link] Requesting auth URL...')
 
+      // Construct the full redirect URI for this page
+      const redirectUri = `${window.location.origin}/investment-manager/account`
+
       const response = await fetch(getApiUrl('/api/custom/prospera/auth-url'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redirectUri }),
       })
 
       if (!response.ok) {

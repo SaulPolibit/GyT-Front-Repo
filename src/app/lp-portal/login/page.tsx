@@ -166,10 +166,14 @@ function LPLoginPageContent() {
     try {
       console.log('[Prospera Login] Requesting authorization URL...')
 
+      // Construct the full redirect URI for this page
+      const redirectUri = `${window.location.origin}/lp-portal/login`
+
       // Get authorization URL from backend
       const response = await fetch(getApiUrl('/api/custom/prospera/auth-url'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redirectUri }),
       })
 
       if (!response.ok) {
