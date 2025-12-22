@@ -21,6 +21,7 @@ function LPLoginPageContent() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [isProsperapLoading, setIsProsperapLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState('')
+  const [prosperapRedirectUrl, setProsperapRedirectUrl] = React.useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const { login, isLoggedIn, user, refreshAuthState } = useAuth()
@@ -155,6 +156,7 @@ function LPLoginPageContent() {
   const handleProsperapLogin = async () => {
     setIsProsperapLoading(true)
     setErrorMessage('')
+    setProsperapRedirectUrl(null)
 
     try {
       console.log('[Prospera Login] Requesting authorization URL...')
@@ -195,6 +197,7 @@ function LPLoginPageContent() {
   const handleProsperapCallback = async (code: string, codeVerifier: string, nonce: string) => {
     setIsProsperapLoading(true)
     setErrorMessage('')
+    setProsperapRedirectUrl(null)
 
     try {
       console.log('[Prospera Callback] Processing OAuth callback...')
@@ -207,12 +210,23 @@ function LPLoginPageContent() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+
+        // Store redirect URL if provided (for Próspera residency errors)
+        if (errorData.redirectUrl) {
+          setProsperapRedirectUrl(errorData.redirectUrl)
+        }
+
         throw new Error(errorData.message || 'Prospera authentication failed')
       }
 
       const data = await response.json()
 
       if (!data.success) {
+        // Store redirect URL if provided (for Próspera residency errors)
+        if (data.redirectUrl) {
+          setProsperapRedirectUrl(data.redirectUrl)
+        }
+
         throw new Error(data.message || 'Prospera authentication failed')
       }
 
@@ -277,7 +291,21 @@ function LPLoginPageContent() {
           {errorMessage && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{errorMessage}</AlertDescription>
+              <AlertDescription>
+                {errorMessage}
+                {prosperapRedirectUrl && (
+                  <div className="mt-2">
+                    <a
+                      href={prosperapRedirectUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium underline hover:no-underline"
+                    >
+                      Manage your Próspera account →
+                    </a>
+                  </div>
+                )}
+              </AlertDescription>
             </Alert>
           )}
 
