@@ -479,11 +479,11 @@ export default function InvestmentManagerChatPage() {
 
         try {
           const responseText = await response.text()
-          console.log('Raw error response:', responseText)
+          console.log('[DeleteConversation] Raw error response:', responseText)
 
           if (responseText) {
             const errorData = JSON.parse(responseText)
-            console.error('Parsed error response:', errorData)
+            console.log('[DeleteConversation] Parsed error response:', errorData)
 
             // Try multiple fields to get the error message
             if (errorData.message) {
@@ -493,15 +493,18 @@ export default function InvestmentManagerChatPage() {
             } else if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
               // Extract message from errors array
               errorMessage = errorData.errors[0].message || errorMessage
+            } else if (Object.keys(errorData).length === 0) {
+              // Empty error response - use status code
+              errorMessage = `Failed to delete conversation (${response.status}: ${response.statusText})`
             }
           }
         } catch (parseError) {
           // If response is not JSON, use status text
-          console.error('Failed to parse error response:', parseError)
+          console.error('[DeleteConversation] Failed to parse error response:', parseError)
           errorMessage = `${errorMessage} (${response.status}: ${response.statusText})`
         }
 
-        console.log('Showing error toast:', errorMessage)
+        console.log('[DeleteConversation] Showing error toast:', errorMessage)
         toast.error(errorMessage)
         return
       }
