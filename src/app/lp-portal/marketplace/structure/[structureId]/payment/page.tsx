@@ -78,11 +78,13 @@ export default function PaymentPage({ params }: Props) {
   // Set to false for production (USDC mode)
   const USE_NATIVE_TOKEN_FOR_TESTING = true
 
-  // Check if USDC payment is enabled based on structure blockchain configuration
+  // Check if USDC payment is enabled based on structure blockchain configuration and user wallet
   const isMetamaskPaymentEnabled = structure?.blockchainNetwork &&
                                    structure.blockchainNetwork.trim() !== '' &&
                                    structure?.walletAddress &&
-                                   structure.walletAddress.trim() !== ''
+                                   structure.walletAddress.trim() !== '' &&
+                                   user?.walletAddress &&
+                                   user.walletAddress.trim() !== ''
 
   // Check if token is deployed
   const tokenAddress = structure?.smartContract?.contractAddress
@@ -1028,7 +1030,9 @@ export default function PaymentPage({ params }: Props) {
                         <p className="text-xs text-muted-foreground">
                           {isMetamaskPaymentEnabled
                             ? (USE_NATIVE_TOKEN_FOR_TESTING ? 'Pay with POL on blockchain' : 'Pay with USDC on blockchain')
-                            : 'Not configured - blockchain network or wallet address missing'
+                            : (!user?.walletAddress || user.walletAddress.trim() === ''
+                                ? 'User wallet address required'
+                                : 'Not configured - blockchain network or wallet address missing')
                           }
                         </p>
                       </div>
@@ -1343,7 +1347,7 @@ export default function PaymentPage({ params }: Props) {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-red-800">
-                  Your account does not have a wallet address configured. A wallet address is required to complete blockchain transactions and receive tokens. Please contact support to add a wallet address to your account.
+                  Wallet address payment disabled. Your account does not have a wallet address configured. A wallet address is required to complete blockchain transactions and receive tokens. Please contact support to add a wallet address to your account.
                 </p>
               </CardContent>
             </Card>
