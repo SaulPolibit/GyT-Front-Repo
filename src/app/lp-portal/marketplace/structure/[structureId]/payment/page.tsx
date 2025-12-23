@@ -522,7 +522,7 @@ export default function PaymentPage({ params }: Props) {
               if (mintTransactionHash) {
                 formData.append('mintTransactionHash', mintTransactionHash)
               }
-              formData.append('status', 'completed')
+              formData.append('status', 'approved')
               formData.append('walletAddress', usdcWalletAddress)
 
               console.log('[Payment] Creating payment record via API')
