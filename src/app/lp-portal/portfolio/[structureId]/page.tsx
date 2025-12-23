@@ -337,6 +337,7 @@ export default function StructureDataRoomPage({ params }: Props) {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="legal">Legal & Terms</TabsTrigger>
+          <TabsTrigger value="payment">Payment Details</TabsTrigger>
           <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
         </TabsList>
 
@@ -1344,6 +1345,123 @@ export default function StructureDataRoomPage({ params }: Props) {
                     "Indemnified party must provide prompt written notice of any claim. Indemnifying party has right to assume defense with counsel of its choice. Indemnified party may participate in defense at own expense.\n\nNo settlement may be made without consent of indemnified party (not to be unreasonably withheld)."}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Payment Details Tab */}
+        <TabsContent value="payment" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Details</CardTitle>
+              <CardDescription>Information about your payment for this investment</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!payment ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">No payment information available</p>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Payment details will appear here once your payment has been processed.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Payment Date */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Payment Date</p>
+                      <p className="text-base font-medium">
+                        {payment.createdAt ? formatDate(payment.createdAt) : 'N/A'}
+                      </p>
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Email</p>
+                      <p className="text-base font-medium break-all">
+                        {payment.email || investor?.email || 'N/A'}
+                      </p>
+                    </div>
+
+                    {/* Payment Method */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Payment Method</p>
+                      <p className="text-base font-medium capitalize">
+                        {payment.paymentMethod || 'N/A'}
+                      </p>
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Status</p>
+                      <Badge
+                        variant={
+                          payment.status === 'completed' ? 'default' :
+                          payment.status === 'pending' ? 'secondary' :
+                          'outline'
+                        }
+                        className="capitalize"
+                      >
+                        {payment.status || 'N/A'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Transaction Hashes */}
+                  {(payment.paymentTransactionHash || payment.mintTransactionHash) && (
+                    <div className="space-y-4 pt-4 border-t">
+                      <h4 className="text-sm font-semibold">Blockchain Transactions</h4>
+
+                      {payment.paymentTransactionHash && payment.paymentTransactionHash.trim() !== '' && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Payment Transaction Hash</p>
+                          <a
+                            href={`${process.env.NEXT_PUBLIC_BLOCKCHAIN_EXPLORER_URL || 'https://amoy.polygonscan.com/tx/'}${payment.paymentTransactionHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-mono bg-muted p-2 rounded break-all block hover:bg-muted/80 transition-colors text-primary hover:underline"
+                          >
+                            {payment.paymentTransactionHash}
+                          </a>
+                        </div>
+                      )}
+
+                      {payment.mintTransactionHash && payment.mintTransactionHash.trim() !== '' && (
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Token Mint Transaction Hash</p>
+                          <a
+                            href={`${process.env.NEXT_PUBLIC_BLOCKCHAIN_EXPLORER_URL || 'https://amoy.polygonscan.com/tx/'}${payment.mintTransactionHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-mono bg-muted p-2 rounded break-all block hover:bg-muted/80 transition-colors text-primary hover:underline"
+                          >
+                            {payment.mintTransactionHash}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Payment Image/Receipt */}
+                  {payment.paymentImage && payment.paymentImage.trim() !== '' && (
+                    <div className="pt-4 border-t">
+                      <h4 className="text-sm font-semibold mb-3">Payment Receipt</h4>
+                      <div className="border rounded-lg p-4">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(payment.paymentImage, '_blank')}
+                          className="flex items-center gap-2"
+                        >
+                          View Receipt
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
