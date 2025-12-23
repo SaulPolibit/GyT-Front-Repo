@@ -407,13 +407,110 @@ export default function PaymentPage({ params }: Props) {
             variant: "default",
           })
 
-          // Save payment record to API
+          // Register user and mint tokens before creating payment record
           const token = getAuthToken()
 
           if (!token) {
-            console.warn('[Payment] No auth token found, skipping payment record creation')
+            console.warn('[Payment] No auth token found, skipping payment operations')
           } else {
-            console.warn('[Payment] No submission ID found, skipping payment record creation')
+            let mintTransactionHash: string | null = null
+
+            // Step 1: Register user on identity registry
+            try {
+              if (!identityRegistryAddress) {
+                console.warn('[Payment] No identity registry address found, skipping user registration')
+              } else if (!user?.walletAddress) {
+                console.warn('[Payment] No wallet address found in user data, skipping user registration')
+              } else {
+                console.log('[Payment] Registering user on identity registry:', {
+                  identityRegistryAddress: identityRegistryAddress,
+                  userAddress: user.walletAddress,
+                  country: "Mexico",
+                  investorType: 0
+                })
+
+                const registerResponse = await fetch(getApiUrl('/api/blockchain/contract/register-user'), {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    identityAddress: identityRegistryAddress,
+                    userAddress: user.walletAddress,
+                    country: "Mexico",
+                    investorType: 0
+                  }),
+                })
+
+                const registerData = await registerResponse.json()
+
+                if (registerData.error === "Invalid or expired token" || registerData.message === "Please provide a valid authentication token") {
+                  console.log("Token invalid or expired during user registration")
+                  logout()
+                  router.push('/lp-portal/login')
+                  return
+                } else if (!registerData.success) {
+                  console.warn('[Payment] Failed to register user:', registerData.message)
+                } else {
+                  console.log('[Payment] User registered successfully:', registerData)
+                }
+              }
+            } catch (registerError) {
+              console.error('[Payment] Error registering user:', registerError)
+              // Don't fail the payment if registration fails
+            }
+
+            // Step 2: Mint tokens and capture transaction hash
+            try {
+              if (!tokenAddress) {
+                console.warn('[Payment] No token address found, skipping mint')
+              } else if (!user?.walletAddress) {
+                console.warn('[Payment] No wallet address found in user data, skipping token mint')
+              } else {
+                console.log('[Payment] Minting tokens:', {
+                  contractAddress: tokenAddress,
+                  userAddress: user.walletAddress,
+                  amount: tokens
+                })
+
+                const mintResponse = await fetch(getApiUrl('/api/blockchain/contract/mint-tokens'), {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    contractAddress: tokenAddress,
+                    userAddress: user.walletAddress,
+                    amount: tokens
+                  }),
+                })
+
+                const mintData = await mintResponse.json()
+
+                if (mintData.error === "Invalid or expired token" || mintData.message === "Please provide a valid authentication token") {
+                  console.log("Token invalid or expired during token mint")
+                  logout()
+                  router.push('/lp-portal/login')
+                  return
+                } else if (!mintData.success) {
+                  console.warn('[Payment] Failed to mint tokens:', mintData.message)
+                } else {
+                  console.log('[Payment] Tokens minted successfully:', mintData)
+                  // Capture mint transaction hash from response
+                  if (mintData.mintTransactionHash) {
+                    mintTransactionHash = mintData.mintTransactionHash
+                    console.log('[Payment] Mint transaction hash:', mintTransactionHash)
+                  }
+                }
+              }
+            } catch (mintError) {
+              console.error('[Payment] Error minting tokens:', mintError)
+              // Don't fail the payment if minting fails - continue to create payment record
+            }
+
+            // Step 3: Create payment record with both transaction hashes
             try {
               const formData = new FormData()
               formData.append('amount', String(amount))
@@ -421,10 +518,13 @@ export default function PaymentPage({ params }: Props) {
               formData.append('email', user?.email || email)
               formData.append('contractId', 'dummy-contract-id')
               formData.append('submissionId', submissionId ?? '')
-              formData.append('transactionHash', txHash)
+              formData.append('paymentTransactionHash', txHash)
+              if (mintTransactionHash) {
+                formData.append('mintTransactionHash', mintTransactionHash)
+              }
               formData.append('status', 'completed')
               formData.append('walletAddress', usdcWalletAddress)
-              
+
               console.log('[Payment] Creating payment record via API')
 
               const response = await fetch(getApiUrl(API_CONFIG.endpoints.createPayment), {
@@ -438,104 +538,14 @@ export default function PaymentPage({ params }: Props) {
               const data = await response.json()
 
               if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
-                console.log("Token invalid or expired during payment record creation");
-                logout();
-                router.push('/lp-portal/login');
+                console.log("Token invalid or expired during payment record creation")
+                logout()
+                router.push('/lp-portal/login')
+                return
               } else if (!data.success) {
                 console.warn('[Payment] Failed to create payment record:', data.message)
               } else {
                 console.log('[Payment] Payment record created successfully:', data)
-
-                // Call register-user endpoint before minting tokens
-                try {
-
-                  if (!identityRegistryAddress) {
-                    console.warn('[Payment] No identity registry address found, skipping user registration')
-                  } else if (!user?.walletAddress) {
-                    console.warn('[Payment] No wallet address found in user data, skipping user registration')
-                  } else {
-                    console.log('[Payment] Registering user on identity registry:', {
-                      identityRegistryAddress: identityRegistryAddress,
-                      userAddress: user.walletAddress,
-                      country: "Mexico",
-                      investorType: 0
-                    })
-
-                    const registerResponse = await fetch(getApiUrl('/api/blockchain/contract/register-user'), {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        identityAddress: identityRegistryAddress,
-                        userAddress: user.walletAddress,
-                        country: "Mexico",
-                        investorType: 0
-                      }),
-                    })
-
-                    const registerData = await registerResponse.json()
-
-                    if (registerData.error === "Invalid or expired token" || registerData.message === "Please provide a valid authentication token") {
-                      console.log("Token invalid or expired during user registration")
-                      logout()
-                      router.push('/lp-portal/login')
-                      return
-                    } else if (!registerData.success) {
-                      console.warn('[Payment] Failed to register user:', registerData.message)
-                      // Don't fail the payment if registration fails, but log the error
-                    } else {
-                      console.log('[Payment] User registered successfully:', registerData)
-                    }
-                  }
-                } catch (registerError) {
-                  console.error('[Payment] Error registering user:', registerError)
-                  // Don't fail the payment if registration fails
-                }
-
-                // Call mint-tokens endpoint
-                try {
-                  if (!tokenAddress) {
-                    console.warn('[Payment] No token address found, skipping mint')
-                  } else if (!user?.walletAddress) {
-                    console.warn('[Payment] No wallet address found in user data, skipping token mint')
-                  } else {
-                    console.log('[Payment] Minting tokens:', {
-                      contractAddress: tokenAddress,
-                      userAddress: user.walletAddress,
-                      amount: tokens
-                    })
-
-                    const mintResponse = await fetch(getApiUrl('/api/blockchain/contract/mint-tokens'), {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        contractAddress: tokenAddress,
-                        userAddress: user.walletAddress,
-                        amount: tokens
-                      }),
-                    })
-
-                    const mintData = await mintResponse.json()
-
-                    if (mintData.error === "Invalid or expired token" || mintData.message === "Please provide a valid authentication token") {
-                      console.log("Token invalid or expired during token mint")
-                      logout()
-                      router.push('/lp-portal/login')
-                    } else if (!mintData.success) {
-                      console.warn('[Payment] Failed to mint tokens:', mintData.message)
-                    } else {
-                      console.log('[Payment] Tokens minted successfully:', mintData)
-                    }
-                  }
-                } catch (mintError) {
-                  console.error('[Payment] Error minting tokens:', mintError)
-                  // Don't fail the payment if minting fails
-                }
               }
 
             } catch (apiError) {
@@ -1353,6 +1363,23 @@ export default function PaymentPage({ params }: Props) {
             </Card>
           )}
 
+          {/* Submission ID Warning */}
+          {(!submissionId || submissionId.trim() === '') && (
+            <Card className="border-amber-200 bg-amber-50">
+              <CardHeader>
+                <CardTitle className="text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Contract Sign Required
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-amber-800">
+                  Your Contract is not complete. Please sign struture contract. Refresh the page if you have recently completed KYC.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Terms & Conditions - Only show if token is deployed */}
           {isTokenDeployed && (
             <Card>
@@ -1379,7 +1406,7 @@ export default function PaymentPage({ params }: Props) {
                   <Button
                     className="flex-1"
                     size="lg"
-                    disabled={!isFormValid() || isProcessing || paymentComplete}
+                    disabled={!isFormValid() || isProcessing || paymentComplete || !submissionId || submissionId.trim() === ''}
                     onClick={handlePayment}
                   >
                     {isProcessing ? (
