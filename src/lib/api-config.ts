@@ -62,6 +62,7 @@ export const API_CONFIG = {
     uploadProfileImage: '/api/users/profile-image',
     getUsersByRole: (roles: string) => `/api/users/filter?role=${roles}`,
     getAllUsers: '/api/users',
+    getUserById: (userId: string) => `/api/users/${userId}`,
     deleteUser: (userId: string) => `/api/users/${userId}`,
     createInvestor: '/api/investors',
 
@@ -100,6 +101,10 @@ export const API_CONFIG = {
     getAllDistributions: '/api/distributions',
     getDistributionById: (id: string) => `/api/distributions/${id}`,
     getDistributionsByStructure: (structureId: string) => `/api/distributions/structure/${structureId}/summary`,
+
+    // Blockchain API
+    registerUserOnBlockchain: '/api/blockchain/contract/register-user',
+    mintTokensOnBlockchain: '/api/blockchain/contract/mint-tokens',
 
     // Add other endpoints as needed
   }

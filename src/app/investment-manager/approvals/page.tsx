@@ -102,6 +102,7 @@ export default function ApprovalsPage() {
   const [userData, setUserData] = React.useState<{
     walletAddress: string | null
   } | null>(null)
+  const [isLoadingPaymentDetails, setIsLoadingPaymentDetails] = React.useState(false)
 
   React.useEffect(() => {
     loadPayments()
@@ -220,9 +221,10 @@ export default function ApprovalsPage() {
       // Fetch structure details to get blockchain addresses
       let identityRegistryAddress: string | null = null
       let tokenAddress: string | null = null
+      let userWalletAddress: string | null = null
 
       try {
-        const structureResponse = await fetch(getApiUrl(`/api/structures/${selectedPayment.structureId}`), {
+        const structureResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getSingleStructure(selectedPayment.structureId)), {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -246,116 +248,164 @@ export default function ApprovalsPage() {
       let mintTransactionHash: string | null = null
 
       // Get user wallet address from fetched user data
-      const userWalletAddress = userData?.walletAddress
+      userWalletAddress = userData?.walletAddress ?? null
+
+      // Validate required blockchain addresses before proceeding
+      const missingAddresses: string[] = []
+
+      if (!userWalletAddress || userWalletAddress.trim() === '') {
+        missingAddresses.push('User wallet address')
+      }
+      if (!identityRegistryAddress || identityRegistryAddress.trim() === '') {
+        missingAddresses.push('Identity registry address')
+      }
+      if (!tokenAddress || tokenAddress.trim() === '') {
+        missingAddresses.push('Token contract address')
+      }
+      if (!selectedPayment.tokens) {
+        missingAddresses.push('Tokens amount missing')
+      }
+
+      if (missingAddresses.length > 0) {
+        toast({
+          title: "Cannot Approve Payment",
+          description: `Missing required blockchain configuration: ${missingAddresses.join(', ')}. Please ensure the structure has been deployed on the blockchain and the user has a wallet address configured.`,
+          variant: "destructive",
+        })
+        setIsProcessing(false)
+        return
+      }
 
       // Step 1: Register user on identity registry
-      if (identityRegistryAddress && userWalletAddress) {
-        try {
-          console.log('[Approvals] Registering user on identity registry:', {
-            identityRegistryAddress,
+      try {
+        console.log('[Approvals] Registering user on identity registry:', {
+          identityRegistryAddress,
+          userAddress: userWalletAddress,
+          country: "Mexico",
+          investorType: 0
+        })
+
+        const registerResponse = await fetch(getApiUrl(API_CONFIG.endpoints.registerUserOnBlockchain), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            identityAddress: identityRegistryAddress,
             userAddress: userWalletAddress,
             country: "Mexico",
             investorType: 0
-          })
+          }),
+        })
 
-          const registerResponse = await fetch(getApiUrl('/api/blockchain/contract/register-user'), {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              identityAddress: identityRegistryAddress,
-              userAddress: userWalletAddress,
-              country: "Mexico",
-              investorType: 0
-            }),
-          })
+        const registerData = await registerResponse.json()
 
-          const registerData = await registerResponse.json()
-
-          if (!registerData.success) {
-            console.warn('[Approvals] Failed to register user:', registerData.message)
-          } else {
-            console.log('[Approvals] User registered successfully:', registerData)
-          }
-        } catch (registerError) {
-          console.error('[Approvals] Error registering user:', registerError)
-          // Don't fail the approval if registration fails
+        if (!registerData.success) {
+          console.warn('[Approvals] Failed to register user:', registerData.message)
+        } else {
+          console.log('[Approvals] User registered successfully:', registerData)
         }
-      } else {
-        console.warn('[Approvals] Skipping user registration - missing identity registry address or wallet address')
+      } catch (registerError) {
+        console.error('[Approvals] Error registering user:', registerError)
+        // Don't fail the approval if registration fails
+
+        toast({
+          title: "Cannot Approve Payment",
+          description: `[Approvals] Error registering user: ${registerError}.`,
+          variant: "destructive",
+        })
+        setIsProcessing(false)
+        return
       }
 
       // Step 2: Mint tokens and capture transaction hash
-      if (tokenAddress && userWalletAddress && selectedPayment.tokens) {
-        try {
-          console.log('[Approvals] Minting tokens:', {
+      try {
+        console.log('[Approvals] Minting tokens:', {
+          contractAddress: tokenAddress,
+          userAddress: userWalletAddress,
+          amount: selectedPayment.tokens
+        })
+
+        const mintResponse = await fetch(getApiUrl(API_CONFIG.endpoints.mintTokensOnBlockchain), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
             contractAddress: tokenAddress,
             userAddress: userWalletAddress,
             amount: selectedPayment.tokens
-          })
+          }),
+        })
 
-          const mintResponse = await fetch(getApiUrl('/api/blockchain/contract/mint-tokens'), {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contractAddress: tokenAddress,
-              userAddress: userWalletAddress,
-              amount: selectedPayment.tokens
-            }),
-          })
+        const mintData = await mintResponse.json()
 
-          const mintData = await mintResponse.json()
-
-          if (!mintData.success) {
-            console.warn('[Approvals] Failed to mint tokens:', mintData.message)
-          } else {
-            console.log('[Approvals] Tokens minted successfully:', mintData)
-            // Capture mint transaction hash from response
-            if (mintData.mintTransactionHash) {
-              mintTransactionHash = mintData.mintTransactionHash
-              console.log('[Approvals] Mint transaction hash:', mintTransactionHash)
-            }
+        if (!mintData.success) {
+          console.warn('[Approvals] Failed to mint tokens:', mintData.message)
+        } else {
+          console.log('[Approvals] Tokens minted successfully:', mintData)
+          // Capture mint transaction hash from response
+          if (mintData.mintTransactionHash) {
+            mintTransactionHash = mintData.mintTransactionHash
+            console.log('[Approvals] Mint transaction hash:', mintTransactionHash)
           }
-        } catch (mintError) {
-          console.error('[Approvals] Error minting tokens:', mintError)
-          // Don't fail the approval if minting fails
+
+          // Step 3: Update payment after successful minting
+          try {
+            const updatePaymentResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getPaymentById(selectedPayment.id)), {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                tokens: selectedPayment.tokens,
+                mintTransactionHash: mintTransactionHash,
+                status: 'approved',
+                adminNotes: adminNotes || undefined,
+              }),
+            })
+            if (!updatePaymentResponse.ok) {
+              throw new Error(`Failed to update payment: ${updatePaymentResponse.statusText}`)
+            }
+            console.log('[Approvals] Payment updated successfully after minting')
+
+            // Close modal
+            setShowDetailDialog(false)
+            setSelectedPayment(null)
+            setAdminNotes("")
+
+            // Show success toast
+            toast({
+              title: "Payment Approved Successfully",
+              description: `Payment from ${selectedPayment.email} has been approved and tokens have been minted.`,
+            })
+
+            // Reload payments and stats
+            await loadPayments()
+            await loadStats()
+          } catch (updateError) {
+            console.error('[Approvals] Error updating payment after minting:', updateError)
+            throw updateError
+          }
+
+          setIsProcessing(false)
         }
-      } else {
-        console.warn('[Approvals] Skipping token minting - missing token address, wallet address, or token amount')
+      } catch (mintError) {
+        console.error('[Approvals] Error minting tokens:', mintError)
+        // Don't fail the approval if minting fails
+        toast({
+          title: "Cannot Approve Payment",
+          description: `Error minting tokens: ${mintError}.`,
+          variant: "destructive",
+        })
+        setIsProcessing(false)
+        return
       }
 
-      // Step 3: Approve payment
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.approvePayment(selectedPayment.id)), {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          adminNotes: adminNotes || undefined,
-          mintTransactionHash: mintTransactionHash || undefined,
-        }),
-      })
 
-      if (!response.ok) {
-        throw new Error(`Failed to approve payment: ${response.statusText}`)
-      }
-
-      toast({
-        title: "Payment Approved",
-        description: `Payment from ${selectedPayment.email} has been approved.`,
-      })
-
-      await loadPayments()
-      await loadStats()
-      setShowDetailDialog(false)
-      setSelectedPayment(null)
-      setAdminNotes("")
     } catch (error) {
       console.error('[Approvals] Error approving payment:', error)
       toast({
@@ -385,13 +435,14 @@ export default function ApprovalsPage() {
         throw new Error('No authentication token found')
       }
 
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.rejectPayment(selectedPayment.id)), {
-        method: 'PATCH',
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getPaymentById(selectedPayment.id)), {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          status: 'rejected',
           adminNotes: adminNotes,
         }),
       })
@@ -429,13 +480,17 @@ export default function ApprovalsPage() {
     setShowDetailDialog(true)
     setBlockchainAddresses(null)
     setUserData(null)
+    setIsLoadingPaymentDetails(true)
 
     const token = getAuthToken()
-    if (!token) return
+    if (!token) {
+      setIsLoadingPaymentDetails(false)
+      return
+    }
 
     // Fetch structure details to get blockchain addresses
     try {
-      const structureResponse = await fetch(getApiUrl(`/api/structures/${payment.structureId}`), {
+      const structureResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getSingleStructure(payment.structureId)), {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -450,16 +505,33 @@ export default function ApprovalsPage() {
             identityRegistryAddress: structureResult.data.smartContract?.identityRegistryAddress || null,
             tokenAddress: structureResult.data.smartContract?.contractAddress || null,
           })
+        } else {
+          // Set empty object if no smart contract data exists
+          setBlockchainAddresses({
+            identityRegistryAddress: null,
+            tokenAddress: null,
+          })
         }
+      } else {
+        // Set empty object if request failed
+        setBlockchainAddresses({
+          identityRegistryAddress: null,
+          tokenAddress: null,
+        })
       }
     } catch (err) {
       console.warn('[Approvals] Failed to fetch structure details:', err)
+      // Set empty object if request failed
+      setBlockchainAddresses({
+        identityRegistryAddress: null,
+        tokenAddress: null,
+      })
     }
 
     // Fetch user data to get wallet address
     if (payment.userId) {
       try {
-        const userResponse = await fetch(getApiUrl(`/api/users/${payment.userId}`), {
+        const userResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getUserById(payment.userId)), {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -473,12 +545,33 @@ export default function ApprovalsPage() {
             setUserData({
               walletAddress: userResult.data.walletAddress || null,
             })
+          } else {
+            // Set empty object if no user data exists
+            setUserData({
+              walletAddress: null,
+            })
           }
+        } else {
+          // Set empty object if request failed
+          setUserData({
+            walletAddress: null,
+          })
         }
       } catch (err) {
         console.warn('[Approvals] Failed to fetch user details:', err)
+        // Set empty object if request failed
+        setUserData({
+          walletAddress: null,
+        })
       }
+    } else {
+      // Set empty object if no userId exists
+      setUserData({
+        walletAddress: null,
+      })
     }
+
+    setIsLoadingPaymentDetails(false)
   }
 
   const filteredPayments = React.useMemo(() => {
@@ -607,6 +700,7 @@ export default function ApprovalsPage() {
                             <TableCell>
                               <div>
                                 <p className="text-xs text-muted-foreground">{payment.email}</p>
+                                <small>{payment.userId}</small>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -699,6 +793,16 @@ export default function ApprovalsPage() {
                     <p className="font-semibold text-sm">{formatDate(selectedPayment.processedAt)}</p>
                   </div>
                 )}
+                <div>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">User</Label>
+                  <p className="text-sm text-muted-foreground">{selectedPayment.userId}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Payment</Label>
+                  <p className="text-sm text-muted-foreground">{selectedPayment.id}</p>
+                </div>
               </div>
 
               {/* Blockchain Transactions */}
@@ -773,7 +877,7 @@ export default function ApprovalsPage() {
               )}
 
               {/* Blockchain Configuration Warning */}
-              {selectedPayment.status === 'pending' && (() => {
+              {selectedPayment.status === 'pending' && !isLoadingPaymentDetails && (() => {
                 const userWalletAddress = userData?.walletAddress
                 const missingFields: string[] = []
 
@@ -815,6 +919,18 @@ export default function ApprovalsPage() {
                 return null
               })()}
 
+              {/* Loading indicator for payment details */}
+              {isLoadingPaymentDetails && (
+                <Card className="border-blue-200 bg-blue-50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                      <p className="text-sm text-blue-800">Loading payment details and blockchain configuration...</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Admin Notes */}
               <div>
                 <Label htmlFor="notes" className="text-sm font-semibold">
@@ -834,7 +950,8 @@ export default function ApprovalsPage() {
               {/* Actions */}
               {selectedPayment.status === 'pending' && (() => {
                 const userWalletAddress = userData?.walletAddress
-                const canApprove = userWalletAddress &&
+                const canApprove = !isLoadingPaymentDetails &&
+                                  userWalletAddress &&
                                   userWalletAddress.trim() !== '' &&
                                   blockchainAddresses?.identityRegistryAddress &&
                                   blockchainAddresses.identityRegistryAddress.trim() !== '' &&
@@ -855,7 +972,7 @@ export default function ApprovalsPage() {
                       variant="destructive"
                       className="flex-1"
                       onClick={handleReject}
-                      disabled={isProcessing}
+                      disabled={isProcessing || isLoadingPaymentDetails}
                     >
                       <XCircle className="h-4 w-4 mr-2" />
                       Reject
@@ -867,7 +984,7 @@ export default function ApprovalsPage() {
                       disabled={isProcessing || !canApprove}
                     >
                       <CheckCircle className="h-4 w-4 mr-2" />
-                      Approve
+                      {isLoadingPaymentDetails ? 'Loading...' : 'Approve'}
                     </Button>
                   </div>
                 )
