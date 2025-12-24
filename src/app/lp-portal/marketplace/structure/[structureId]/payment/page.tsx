@@ -309,8 +309,7 @@ export default function PaymentPage({ params }: Props) {
                 : 'https://faucet.polygon.technology/'
 
               throw new Error(
-                `Insufficient POL balance. You need POL for both the transaction amount (${amount} POL) and gas fees (~0.01 POL). ` +
-                `Get free test tokens at: ${faucetUrl}`
+                `MetaMask transaction failed. Please check your wallet and try again.`
               )
             }
 
@@ -514,10 +513,12 @@ export default function PaymentPage({ params }: Props) {
             try {
               const formData = new FormData()
               formData.append('amount', String(amount))
+              formData.append('tokens', String(tokens))
               formData.append('structureId', structureId)
               formData.append('email', user?.email || email)
               formData.append('contractId', 'dummy-contract-id')
               formData.append('submissionId', submissionId ?? '')
+              formData.append('paymentMethod', paymentMethod)
               formData.append('paymentTransactionHash', txHash)
               if (mintTransactionHash) {
                 formData.append('mintTransactionHash', mintTransactionHash)
@@ -590,6 +591,8 @@ export default function PaymentPage({ params }: Props) {
         formData.append('email', user?.email || email)
         formData.append('contractId', 'dummy-contract-id') // Dummy data as contract model doesn't exist yet
         formData.append('submissionId', submissionId)
+        formData.append('tokens', String(tokens))
+        formData.append('paymentMethod', paymentMethod)
         formData.append('status', 'pending')
 
         console.log('[Payment] Creating payment with bank transfer receipt')

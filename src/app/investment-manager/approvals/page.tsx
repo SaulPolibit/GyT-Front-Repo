@@ -41,7 +41,10 @@ interface Payment {
   submissionId: string
   paymentImage?: string | null
   transactionHash?: string | null
+  paymentTransactionHash?: string | null
+  mintTransactionHash?: string | null
   amount: number
+  tokens?: number
   structureId: string
   contractId: string
   status: 'pending' | 'approved' | 'rejected'
@@ -49,6 +52,11 @@ interface Payment {
   userId?: string | null
   paymentMethod?: 'local-bank-transfer' | 'international-bank-transfer' | 'usdc' | 'credit-card'
   investorName?: string
+  structure?: {
+    id: string
+    name: string
+    type?: string
+  }
   structureName?: string
   ticketsPurchased?: number
   walletAddress?: string | null
@@ -214,7 +222,7 @@ export default function ApprovalsPage() {
 
       toast({
         title: "Payment Approved",
-        description: `Payment from ${selectedPayment.investorName || selectedPayment.email} has been approved.`,
+        description: `Payment from ${selectedPayment.email} has been approved.`,
       })
 
       await loadPayments()
@@ -268,7 +276,7 @@ export default function ApprovalsPage() {
 
       toast({
         title: "Payment Rejected",
-        description: `Payment from ${selectedPayment.investorName || selectedPayment.email} has been rejected.`,
+        description: `Payment from ${selectedPayment.email} has been rejected.`,
         variant: "destructive",
       })
 
@@ -420,14 +428,14 @@ export default function ApprovalsPage() {
                           <TableRow key={payment.id}>
                             <TableCell>
                               <div>
-                                <p className="font-medium">{payment.investorName || 'N/A'}</p>
                                 <p className="text-xs text-muted-foreground">{payment.email}</p>
                               </div>
                             </TableCell>
                             <TableCell>
-                              <p className="font-medium">{payment.structureName || 'N/A'}</p>
+                              <p className="font-medium">{payment.structure?.name || payment.structureName || 'N/A'}</p>
+                              <p className="font-medium">{payment.structureId || 'N/A'}</p>
                             </TableCell>
-                            <TableCell className="text-right">{payment.ticketsPurchased || 'N/A'}</TableCell>
+                            <TableCell className="text-right">{payment.tokens || payment.ticketsPurchased || 'N/A'}</TableCell>
                             <TableCell className="text-right font-semibold">
                               {formatCurrency(payment.amount)}
                             </TableCell>
@@ -474,16 +482,16 @@ export default function ApprovalsPage() {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-xs text-muted-foreground">Investor</Label>
-                  <p className="font-semibold">{selectedPayment.investorName || 'N/A'}</p>
                   <p className="text-sm text-muted-foreground">{selectedPayment.email}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Structure</Label>
-                  <p className="font-semibold">{selectedPayment.structureName || 'N/A'}</p>
+                  <p className="font-semibold">{selectedPayment.structure?.name || selectedPayment.structureName || 'N/A'}</p>
+                  <p className="text-xs text-muted-foreground">{selectedPayment.structureId || 'N/A'}</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-muted-foreground">Tickets Purchased</Label>
-                  <p className="font-semibold text-lg">{selectedPayment.ticketsPurchased || 'N/A'}</p>
+                  <Label className="text-xs text-muted-foreground">Tokens</Label>
+                  <p className="font-semibold text-lg">{selectedPayment.tokens || selectedPayment.ticketsPurchased || 'N/A'}</p>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Total Amount</Label>
@@ -514,6 +522,42 @@ export default function ApprovalsPage() {
                   </div>
                 )}
               </div>
+
+              {/* Blockchain Transactions */}
+              {(selectedPayment.paymentTransactionHash || selectedPayment.mintTransactionHash) && (
+                <div>
+                  <Label className="text-sm font-semibold mb-3 block">Blockchain Transactions</Label>
+                  <div className="space-y-3">
+                    {selectedPayment.paymentTransactionHash && selectedPayment.paymentTransactionHash.trim() !== '' && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Payment Transaction Hash</Label>
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_BLOCKCHAIN_EXPLORER_URL || 'https://amoy.polygonscan.com/tx/'}${selectedPayment.paymentTransactionHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-mono bg-muted p-2 rounded break-all block hover:bg-muted/80 transition-colors text-primary hover:underline mt-1"
+                        >
+                          {selectedPayment.paymentTransactionHash}
+                        </a>
+                      </div>
+                    )}
+
+                    {selectedPayment.mintTransactionHash && selectedPayment.mintTransactionHash.trim() !== '' && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Token Mint Transaction Hash</Label>
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_BLOCKCHAIN_EXPLORER_URL || 'https://amoy.polygonscan.com/tx/'}${selectedPayment.mintTransactionHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-mono bg-muted p-2 rounded break-all block hover:bg-muted/80 transition-colors text-primary hover:underline mt-1"
+                        >
+                          {selectedPayment.mintTransactionHash}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Receipt */}
               {selectedPayment.paymentImage && (
