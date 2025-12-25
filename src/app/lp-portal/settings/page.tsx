@@ -70,6 +70,7 @@ export default function LPSettingsPage() {
   const [mfaFactorId, setMfaFactorId] = React.useState<string | null>(null)
   const [isEnrollingMfa, setIsEnrollingMfa] = React.useState(false)
   const [showMfaVerifyDialog, setShowMfaVerifyDialog] = React.useState(false)
+  const [showMfaConfirmDialog, setShowMfaConfirmDialog] = React.useState(false)
   const [mfaVerifyCode, setMfaVerifyCode] = React.useState('')
   const [isVerifyingMfa, setIsVerifyingMfa] = React.useState(false)
   const [pendingAction, setPendingAction] = React.useState<'unenroll' | 'retry-enroll' | null>(null)
@@ -508,7 +509,20 @@ export default function LPSettingsPage() {
     }
   }
 
-  const handleEnable2FA = async () => {
+  const handleEnable2FA = async (confirmed?: boolean) => {
+    // If currently enabled, disable it - show verification dialog
+    if (twoFactorEnabled) {
+      setPendingAction('unenroll')
+      setShowMfaVerifyDialog(true)
+      return
+    }
+
+    // Show confirmation dialog before enabling 2FA
+    if (!confirmed) {
+      setShowMfaConfirmDialog(true)
+      return
+    }
+
     const token = getAuthToken()
 
     if (!token) {
@@ -528,13 +542,6 @@ export default function LPSettingsPage() {
 
     const supabaseAccessToken = supabaseAuth.accessToken
     const supabaseRefreshToken = supabaseAuth.refreshToken
-
-    // If currently enabled, disable it - show verification dialog
-    if (twoFactorEnabled) {
-      setPendingAction('unenroll')
-      setShowMfaVerifyDialog(true)
-      return
-    }
 
     // Enable 2FA - call enrollment endpoint
     try {
@@ -593,6 +600,15 @@ export default function LPSettingsPage() {
     } finally {
       setIsEnrollingMfa(false)
     }
+  }
+
+  const handleConfirmEnable2FA = () => {
+    setShowMfaConfirmDialog(false)
+    handleEnable2FA(true)
+  }
+
+  const handleCancelEnable2FA = () => {
+    setShowMfaConfirmDialog(false)
   }
 
   const handleUpdateLegalInfo = async () => {
@@ -1060,7 +1076,7 @@ export default function LPSettingsPage() {
                   </div>
                   <Switch
                     checked={twoFactorEnabled}
-                    onCheckedChange={handleEnable2FA}
+                    onCheckedChange={() => handleEnable2FA()}
                     disabled={isEnrollingMfa}
                   />
                 </div>
@@ -1456,6 +1472,57 @@ export default function LPSettingsPage() {
         </TabsContent>
 
       </Tabs>
+
+      {/* MFA Confirmation Dialog */}
+      <Dialog open={showMfaConfirmDialog} onOpenChange={setShowMfaConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enable Multi-Factor Authentication?</DialogTitle>
+            <DialogDescription>
+              You&apos;re about to enable MFA for your account. This will add an extra layer of security by requiring a code from your authenticator app when you sign in.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <Shield className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">What you&apos;ll need:</p>
+                  <ul className="list-disc list-inside text-blue-700 dark:text-blue-300 space-y-1">
+                    <li>An authenticator app (Google Authenticator, Authy, etc.)</li>
+                    <li>Your phone or device to scan the QR code</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-900 dark:text-amber-100 mb-1">Important:</p>
+                  <p className="text-amber-700 dark:text-amber-300">
+                    Once enabled, you&apos;ll need your authenticator app code each time you sign in. Make sure to complete the setup process.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCancelEnable2FA}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmEnable2FA}
+            >
+              Enable MFA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* MFA Verification Dialog */}
       <Dialog open={showMfaVerifyDialog} onOpenChange={setShowMfaVerifyDialog}>
