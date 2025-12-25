@@ -180,7 +180,14 @@ export default function InvestmentManagerSettingsPage() {
           if (usersResponse.ok) {
             const usersData = await usersResponse.json()
             if (usersData.success && usersData.data) {
-              setUsers(usersData.data)
+              // Map API data to match User interface
+              const mappedUsers = usersData.data.map((user: any) => ({
+                ...user,
+                status: user.isActive !== undefined
+                  ? (user.isActive ? 'active' : 'inactive')
+                  : (user.status || 'active')
+              }))
+              setUsers(mappedUsers)
             }
           } else {
             // Fallback to localStorage if API fails
@@ -763,6 +770,49 @@ export default function InvestmentManagerSettingsPage() {
     setUsers(loadedUsers)
   }
 
+  const handleToggleUserStatus = async (userId: string, currentStatus: 'active' | 'inactive' | 'pending') => {
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const isActive = currentStatus === 'active'
+      const newStatus = isActive ? 'inactive' : 'active'
+
+      const response = await fetch(
+        getApiUrl(`/api/users/${userId}/status`),
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            isActive: !isActive,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to update user status')
+      }
+
+      // Update users list with the new status
+      setUsers(prevUsers =>
+        prevUsers.map(user =>
+          user.id === userId ? { ...user, status: newStatus } : user
+        )
+      )
+
+      toast.success(`User ${newStatus === 'active' ? 'enabled' : 'disabled'} successfully`)
+    } catch (error) {
+      console.error('Error updating user status:', error)
+      toast.error('Failed to update user status')
+    }
+  }
+
   const handleDeleteUser = (userId: string) => {
     setUserToDelete(userId)
     setDeleteUserDialogOpen(true)
@@ -1157,15 +1207,9 @@ export default function InvestmentManagerSettingsPage() {
                         </TableCell>
                         <TableCell>
                           <Badge
-                            variant={
-                              user.status === 'active'
-                                ? 'default'
-                                : user.status === 'pending'
-                                ? 'secondary'
-                                : 'outline'
-                            }
+                            variant={user.status === 'active' ? 'default' : 'outline'}
                           >
-                            {user.status}
+                            {user.status === 'active' ? 'Active' : user.status === 'pending' ? 'Pending' : 'Inactive'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
@@ -1185,6 +1229,11 @@ export default function InvestmentManagerSettingsPage() {
                                 View Permissions
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleToggleUserStatus(user.id, user.status)}
+                              >
+                                {user.status === 'active' ? 'Disable User' : 'Enable User'}
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDeleteUser(user.id)}
                                 className="text-red-600"
