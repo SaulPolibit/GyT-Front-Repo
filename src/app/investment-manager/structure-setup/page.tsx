@@ -875,6 +875,65 @@ export default function OnboardingPage() {
         }
         break
 
+      case 4:
+        // Validate that at least one payment method is enabled
+        if (!formData.paymentLocalBankEnabled &&
+            !formData.paymentIntlBankEnabled &&
+            !formData.paymentCryptoEnabled) {
+          errors.push('Please select at least one payment method to continue')
+        }
+
+        // Validate Local Bank Transfer fields if enabled
+        if (formData.paymentLocalBankEnabled) {
+          if (!formData.paymentLocalBankName.trim()) {
+            errors.push('Local Bank Transfer: Bank Name is required')
+          }
+          if (!formData.paymentLocalAccountNumber.trim()) {
+            errors.push('Local Bank Transfer: Account Number is required')
+          }
+          if (!formData.paymentLocalRoutingNumber.trim()) {
+            errors.push('Local Bank Transfer: Routing/ABA Number is required')
+          }
+          if (!formData.paymentLocalAccountHolder.trim()) {
+            errors.push('Local Bank Transfer: Account Holder Name is required')
+          }
+          if (!formData.paymentLocalBankAddress.trim()) {
+            errors.push('Local Bank Transfer: Bank Address is required')
+          }
+        }
+
+        // Validate International Bank Transfer fields if enabled
+        if (formData.paymentIntlBankEnabled) {
+          if (!formData.paymentIntlBankName.trim()) {
+            errors.push('International Bank Transfer: Bank Name is required')
+          }
+          if (!formData.paymentIntlAccountNumber.trim()) {
+            errors.push('International Bank Transfer: Account Number/IBAN is required')
+          }
+          if (!formData.paymentIntlSwiftCode.trim()) {
+            errors.push('International Bank Transfer: SWIFT/BIC Code is required')
+          }
+          if (!formData.paymentIntlAccountHolder.trim()) {
+            errors.push('International Bank Transfer: Account Holder Name is required')
+          }
+          if (!formData.paymentIntlBankAddress.trim()) {
+            errors.push('International Bank Transfer: Bank Address is required')
+          }
+        }
+
+        // Validate Crypto Payment fields if enabled
+        if (formData.paymentCryptoEnabled) {
+          if (!formData.paymentCryptoBlockchain) {
+            errors.push('Crypto Payment: Blockchain selection is required')
+          }
+          if (!formData.paymentCryptoWalletAddress.trim()) {
+            errors.push('Crypto Payment: Destination Wallet Address is required')
+          } else if (!/^0x[a-fA-F0-9]{40}$/.test(formData.paymentCryptoWalletAddress)) {
+            errors.push('Crypto Payment: Please enter a valid EVM wallet address (0x followed by 40 hexadecimal characters)')
+          }
+        }
+        break
+
       case 5:
         // Validate capital calls if enabled
         if (formData.enableCapitalCalls) {
@@ -889,8 +948,7 @@ export default function OnboardingPage() {
         }
         break
 
-      // Steps 4 and 7 have no required fields (all have defaults or are optional)
-      // Step 4 = Payment Configurations, Step 7 = Document Upload
+      // Step 7 has no required fields (Document Upload is optional)
       default:
         break
     }
