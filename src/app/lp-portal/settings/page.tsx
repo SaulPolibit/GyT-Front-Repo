@@ -88,6 +88,10 @@ export default function LPSettingsPage() {
   const [postalCode, setPostalCode] = React.useState('')
   const [country, setCountry] = React.useState('')
 
+  // W-9 upload state
+  const [isUploadingW9, setIsUploadingW9] = React.useState(false)
+  const w9InputRef = React.useRef<HTMLInputElement>(null)
+
   React.useEffect(() => {
     loadInvestorData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -630,6 +634,75 @@ export default function LPSettingsPage() {
     }
   }
 
+  const handleW9Upload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a PDF file')
+      return
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.error('File size must be less than 10MB')
+      return
+    }
+
+    setIsUploadingW9(true)
+
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(
+        getApiUrl('/api/users/w9-form'),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to upload W-9 form')
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('W-9 form uploaded successfully')
+        // Reload investor data to get updated W-9 info
+        await loadInvestorData()
+      } else {
+        throw new Error(data.message || 'Failed to upload W-9 form')
+      }
+    } catch (error) {
+      console.error('[Settings] Error uploading W-9 form:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to upload W-9 form')
+    } finally {
+      setIsUploadingW9(false)
+      // Reset the file input
+      if (w9InputRef.current) {
+        w9InputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleW9UploadClick = () => {
+    w9InputRef.current?.click()
+  }
+
   if (loading || !investor) {
     return (
       <div className="space-y-6 p-4 md:p-6">
@@ -1168,44 +1241,72 @@ export default function LPSettingsPage() {
 
                 <div className="space-y-2">
                   <Label>Tax Classification</Label>
-                  <Select defaultValue={investor.type === 'individual' || !investor.type ? 'individual' : 'entity'}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="individual">Individual/Sole Proprietor</SelectItem>
-                      <SelectItem value="c-corp">C Corporation</SelectItem>
-                      <SelectItem value="s-corp">S Corporation</SelectItem>
-                      <SelectItem value="partnership">Partnership</SelectItem>
-                      <SelectItem value="llc">Limited Liability Company</SelectItem>
-                      <SelectItem value="trust">Trust/Estate</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    value={investor.taxClassification || 'Not provided'}
+                    disabled
+                  />
                 </div>
 
                 <Separator />
 
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold">W-9 Form</h4>
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">W-9 Form (2024).pdf</p>
-                        <p className="text-xs text-muted-foreground">Uploaded on Jan 15, 2024</p>
+
+                  {investor.w9Form && investor.w9Form.trim() !== '' ? (
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">W-9 Form.pdf</p>
+                          <p className="text-xs text-muted-foreground">On file</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="text-xs">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Verified
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(investor.w9Form, '_blank')}
+                        >
+                          See
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="default" className="text-xs">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Verified
-                      </Badge>
-                      <Button variant="outline" size="sm">Download</Button>
+                  ) : (
+                    <div className="p-4 border border-dashed rounded-lg text-center">
+                      <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">No W-9 form uploaded</p>
                     </div>
-                  </div>
-                  <Button variant="outline" className="w-full">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Upload Updated W-9
+                  )}
+
+                  <input
+                    ref={w9InputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleW9Upload}
+                    className="hidden"
+                  />
+
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleW9UploadClick}
+                    disabled={isUploadingW9}
+                  >
+                    {isUploadingW9 ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {investor.w9Form && investor.w9Form.trim() !== '' ? 'Upload Updated W-9' : 'Upload W-9'}
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
