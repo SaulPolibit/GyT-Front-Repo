@@ -61,9 +61,6 @@ export default function InvestmentManagerSettingsPage() {
   const [emailNotifications, setEmailNotifications] = React.useState(true)
   const [smsNotifications, setSmsNotifications] = React.useState(false)
   const [portalNotifications, setPortalNotifications] = React.useState(true)
-  const [preferredContactMethod, setPreferredContactMethod] = React.useState('email')
-  const [reportDeliveryFormat, setReportDeliveryFormat] = React.useState('both')
-  const [notificationFrequency, setNotificationFrequency] = React.useState('immediate')
 
   // Email notification sub-settings
   const [capitalCallNotices, setCapitalCallNotices] = React.useState(true)
@@ -77,6 +74,11 @@ export default function InvestmentManagerSettingsPage() {
   const [urgentCapitalCalls, setUrgentCapitalCalls] = React.useState(true)
   const [paymentConfirmations, setPaymentConfirmations] = React.useState(true)
   const [securityAlerts, setSecurityAlerts] = React.useState(true)
+
+  // Communication preferences
+  const [preferredContactMethod, setPreferredContactMethod] = React.useState('email')
+  const [reportDeliveryFormat, setReportDeliveryFormat] = React.useState('both')
+  const [notificationFrequency, setNotificationFrequency] = React.useState('immediate')
 
   // Security settings
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
@@ -391,18 +393,25 @@ export default function InvestmentManagerSettingsPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            // Main notification toggles
             emailNotifications,
+            smsNotifications,
+            pushNotifications: portalNotifications,
+
+            // Email notification sub-settings
             capitalCallNotices,
             distributionNotices,
             quarterlyReports,
             investorActivityNotifications: investorActivity,
             documentUploads,
             generalAnnouncements,
-            pushNotifications: portalNotifications,
-            smsNotifications,
+
+            // SMS notification sub-settings
             urgentCapitalCalls,
             paymentConfirmations,
             securityAlerts,
+
+            // Communication preferences
             preferredContactMethod,
             reportDeliveryFormat,
             notificationFrequency,
@@ -1232,106 +1241,101 @@ export default function InvestmentManagerSettingsPage() {
                 )}
               </div>
 
-              {/* Hidden sections: SMS Notifications, Portal Notifications, Communication Preferences */}
-              {false && (
-                <>
-                  <Separator />
+              <Separator />
 
-                  {/* SMS Notifications */}
-                  <div className="space-y-4">
+              {/* SMS Notifications */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">SMS Notifications</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive text alerts for urgent notifications
+                    </p>
+                  </div>
+                  <Switch checked={smsNotifications} onCheckedChange={setSmsNotifications} />
+                </div>
+
+                {smsNotifications && (
+                  <div className="ml-6 space-y-3 border-l-2 pl-4">
                     <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="text-base">SMS Notifications</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Receive text alerts for urgent notifications
-                        </p>
-                      </div>
-                      <Switch checked={smsNotifications} onCheckedChange={setSmsNotifications} />
+                      <Label className="text-sm font-normal">Urgent capital calls</Label>
+                      <Switch checked={urgentCapitalCalls} onCheckedChange={setUrgentCapitalCalls} />
                     </div>
-
-                    {smsNotifications && (
-                      <div className="ml-6 space-y-3 border-l-2 pl-4">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-normal">Urgent capital calls</Label>
-                          <Switch checked={urgentCapitalCalls} onCheckedChange={setUrgentCapitalCalls} />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-normal">Payment confirmations</Label>
-                          <Switch checked={paymentConfirmations} onCheckedChange={setPaymentConfirmations} />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm font-normal">Security alerts</Label>
-                          <Switch checked={securityAlerts} onCheckedChange={setSecurityAlerts} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  {/* Portal Notifications */}
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label className="text-base">Portal Notifications</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Show notifications in the platform
-                      </p>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Payment confirmations</Label>
+                      <Switch checked={paymentConfirmations} onCheckedChange={setPaymentConfirmations} />
                     </div>
-                    <Switch checked={portalNotifications} onCheckedChange={setPortalNotifications} />
-                  </div>
-
-                  <Separator />
-
-                  {/* Communication Preferences */}
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-semibold">Communication Preferences</h3>
-
-                    <div className="grid gap-4">
-                      <div className="space-y-2">
-                        <Label>Preferred Contact Method</Label>
-                        <Select value={preferredContactMethod} onValueChange={setPreferredContactMethod}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="email">Email</SelectItem>
-                            <SelectItem value="phone">Phone</SelectItem>
-                            <SelectItem value="portal">Portal Only</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Report Delivery Format</Label>
-                        <Select value={reportDeliveryFormat} onValueChange={setReportDeliveryFormat}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pdf">PDF Only</SelectItem>
-                            <SelectItem value="excel">Excel Only</SelectItem>
-                            <SelectItem value="both">Both PDF & Excel</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Notification Frequency</Label>
-                        <Select value={notificationFrequency} onValueChange={setNotificationFrequency}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="immediate">Immediate</SelectItem>
-                            <SelectItem value="daily">Daily Digest</SelectItem>
-                            <SelectItem value="weekly">Weekly Summary</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-normal">Security alerts</Label>
+                      <Switch checked={securityAlerts} onCheckedChange={setSecurityAlerts} />
                     </div>
                   </div>
-                </>
-              )}
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Portal Notifications */}
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Portal Notifications</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Show notifications in the platform
+                  </p>
+                </div>
+                <Switch checked={portalNotifications} onCheckedChange={setPortalNotifications} />
+              </div>
+
+              <Separator />
+
+              {/* Communication Preferences */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold">Communication Preferences</h3>
+
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label>Preferred Contact Method</Label>
+                    <Select value={preferredContactMethod} onValueChange={setPreferredContactMethod}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="phone">Phone</SelectItem>
+                        <SelectItem value="portal">Portal Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Report Delivery Format</Label>
+                    <Select value={reportDeliveryFormat} onValueChange={setReportDeliveryFormat}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pdf">PDF Only</SelectItem>
+                        <SelectItem value="excel">Excel Only</SelectItem>
+                        <SelectItem value="both">Both PDF & Excel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Notification Frequency</Label>
+                    <Select value={notificationFrequency} onValueChange={setNotificationFrequency}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="immediate">Immediate</SelectItem>
+                        <SelectItem value="daily">Daily Digest</SelectItem>
+                        <SelectItem value="weekly">Weekly Summary</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
 
               <Button onClick={handleUpdateNotifications}>Save Notification Preferences</Button>
             </CardContent>

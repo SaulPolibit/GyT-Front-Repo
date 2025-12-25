@@ -50,6 +50,19 @@ export default function LPSettingsPage() {
   const [smsNotifications, setSmsNotifications] = React.useState(false)
   const [portalNotifications, setPortalNotifications] = React.useState(true)
 
+  // Email notification sub-settings
+  const [capitalCallNotices, setCapitalCallNotices] = React.useState(true)
+  const [distributionNotices, setDistributionNotices] = React.useState(true)
+  const [quarterlyReports, setQuarterlyReports] = React.useState(true)
+  const [k1TaxForms, setK1TaxForms] = React.useState(true)
+  const [documentUploads, setDocumentUploads] = React.useState(false)
+  const [generalAnnouncements, setGeneralAnnouncements] = React.useState(false)
+
+  // SMS notification sub-settings
+  const [urgentCapitalCalls, setUrgentCapitalCalls] = React.useState(true)
+  const [paymentConfirmations, setPaymentConfirmations] = React.useState(true)
+  const [securityAlerts, setSecurityAlerts] = React.useState(true)
+
   // MFA settings
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
   const [mfaQrCode, setMfaQrCode] = React.useState<string | null>(null)
@@ -87,41 +100,15 @@ export default function LPSettingsPage() {
       const user = getCurrentUser()
       const token = getAuthToken()
 
-      if (!user?.email || !token) {
+      if (!user?.id || !token) {
         console.error('[Settings] No user or token found')
         router.push('/lp-portal/login')
         return
       }
 
-      // Search for investor by email
-      const searchResponse = await fetch(
-        getApiUrl(API_CONFIG.endpoints.searchInvestors(user.email)),
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      )
-
-      if (!searchResponse.ok) {
-        throw new Error('Failed to fetch investor data')
-      }
-
-      const searchData = await searchResponse.json()
-
-      if (!searchData.success || !searchData.data || searchData.data.length === 0) {
-        console.error('[Settings] No investor found')
-        router.push('/lp-portal/portfolio')
-        return
-      }
-
-      const investorData = searchData.data[0]
-
-      // Load full investor profile
+      // Load user profile using user ID
       const profileResponse = await fetch(
-        getApiUrl(API_CONFIG.endpoints.getInvestorById(investorData.id)),
+        getApiUrl(API_CONFIG.endpoints.getUserById(user.id)),
         {
           method: 'GET',
           headers: {
@@ -131,22 +118,27 @@ export default function LPSettingsPage() {
         }
       )
 
-      if (profileResponse.ok) {
-        const profileData = await profileResponse.json()
-        if (profileData.success && profileData.data) {
-          setInvestor(profileData.data)
+      if (!profileResponse.ok) {
+        throw new Error('Failed to fetch user data')
+      }
 
-          // Set legal info fields
-          setPhoneNumber(profileData.data.phoneNumber || '')
-          setAddressLine1(profileData.data.addressLine1 || '')
-          setAddressLine2(profileData.data.addressLine2 || '')
-          setCity(profileData.data.city || '')
-          setState(profileData.data.state || '')
-          setPostalCode(profileData.data.postalCode || '')
-          setCountry(profileData.data.country || '')
-        }
+      const profileData = await profileResponse.json()
+
+      if (profileData.success && profileData.data) {
+        setInvestor(profileData.data)
+
+        // Set legal info fields
+        setPhoneNumber(profileData.data.phoneNumber || '')
+        setAddressLine1(profileData.data.addressLine1 || '')
+        setAddressLine2(profileData.data.addressLine2 || '')
+        setCity(profileData.data.city || '')
+        setState(profileData.data.state || '')
+        setPostalCode(profileData.data.postalCode || '')
+        setCountry(profileData.data.country || '')
       } else {
-        setInvestor(investorData)
+        console.error('[Settings] Failed to load user data')
+        // Don't redirect, just show error
+        toast.error('Failed to load user data')
       }
 
       // Load notification settings
@@ -164,11 +156,25 @@ export default function LPSettingsPage() {
       if (notifResponse.ok) {
         const notifData = await notifResponse.json()
         if (notifData.success && notifData.data) {
+          // Main notification toggles
           setEmailNotifications(notifData.data.emailNotifications ?? true)
           setSmsNotifications(notifData.data.smsNotifications ?? false)
           setPortalNotifications(notifData.data.pushNotifications ?? true)
 
-          // Load communication preferences if available
+          // Email notification sub-settings
+          setCapitalCallNotices(notifData.data.capitalCallNotices ?? true)
+          setDistributionNotices(notifData.data.distributionNotices ?? true)
+          setQuarterlyReports(notifData.data.quarterlyReports ?? true)
+          setK1TaxForms(notifData.data.k1TaxForms ?? true)
+          setDocumentUploads(notifData.data.documentUploads ?? false)
+          setGeneralAnnouncements(notifData.data.generalAnnouncements ?? false)
+
+          // SMS notification sub-settings
+          setUrgentCapitalCalls(notifData.data.urgentCapitalCalls ?? true)
+          setPaymentConfirmations(notifData.data.paymentConfirmations ?? true)
+          setSecurityAlerts(notifData.data.securityAlerts ?? true)
+
+          // Communication preferences
           if (notifData.data.preferredContactMethod) {
             setPreferredContactMethod(notifData.data.preferredContactMethod)
           }
@@ -236,14 +242,24 @@ export default function LPSettingsPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            // Main notification toggles
             emailNotifications,
-            portfolioNotifications: emailNotifications, // Portfolio updates via email
-            reportNotifications: emailNotifications, // Quarterly reports and K-1s
-            investorActivityNotifications: emailNotifications, // Capital calls and distributions
-            systemUpdateNotifications: emailNotifications, // General announcements
-            marketingEmailNotifications: emailNotifications, // Marketing emails
-            pushNotifications: portalNotifications,
             smsNotifications,
+            pushNotifications: portalNotifications,
+
+            // Email notification sub-settings
+            capitalCallNotices,
+            distributionNotices,
+            quarterlyReports,
+            k1TaxForms,
+            documentUploads,
+            generalAnnouncements,
+
+            // SMS notification sub-settings
+            urgentCapitalCalls,
+            paymentConfirmations,
+            securityAlerts,
+
             // Communication preferences
             preferredContactMethod,
             reportDeliveryFormat,
@@ -578,13 +594,13 @@ export default function LPSettingsPage() {
   const handleUpdateLegalInfo = async () => {
     try {
       const token = getAuthToken()
-      if (!token || !investor?.id) {
+      if (!token) {
         toast.error('Authentication required')
         return
       }
 
       const response = await fetch(
-        getApiUrl(API_CONFIG.endpoints.updateInvestorById(investor.id)),
+        getApiUrl(API_CONFIG.endpoints.updateUserProfile),
         {
           method: 'PUT',
           headers: {
@@ -604,13 +620,13 @@ export default function LPSettingsPage() {
       )
 
       if (!response.ok) {
-        throw new Error('Failed to update legal information')
+        throw new Error('Failed to update user profile')
       }
 
-      toast.success("Legal information updated successfully")
+      toast.success("Profile updated successfully")
     } catch (error) {
-      console.error('[Settings] Error updating legal info:', error)
-      toast.error('Failed to update legal information')
+      console.error('[Settings] Error updating user profile:', error)
+      toast.error('Failed to update profile')
     }
   }
 
@@ -820,27 +836,27 @@ export default function LPSettingsPage() {
                   <div className="ml-6 space-y-3 border-l-2 pl-4">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Capital call notices</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={capitalCallNotices} onCheckedChange={setCapitalCallNotices} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Distribution notices</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={distributionNotices} onCheckedChange={setDistributionNotices} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Quarterly reports</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={quarterlyReports} onCheckedChange={setQuarterlyReports} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">K-1 tax forms available</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={k1TaxForms} onCheckedChange={setK1TaxForms} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Document uploads</Label>
-                      <Switch />
+                      <Switch checked={documentUploads} onCheckedChange={setDocumentUploads} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">General announcements</Label>
-                      <Switch />
+                      <Switch checked={generalAnnouncements} onCheckedChange={setGeneralAnnouncements} />
                     </div>
                   </div>
                 )}
@@ -864,15 +880,15 @@ export default function LPSettingsPage() {
                   <div className="ml-6 space-y-3 border-l-2 pl-4">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Urgent capital calls</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={urgentCapitalCalls} onCheckedChange={setUrgentCapitalCalls} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Payment confirmations</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={paymentConfirmations} onCheckedChange={setPaymentConfirmations} />
                     </div>
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-normal">Security alerts</Label>
-                      <Switch defaultChecked />
+                      <Switch checked={securityAlerts} onCheckedChange={setSecurityAlerts} />
                     </div>
                   </div>
                 )}
