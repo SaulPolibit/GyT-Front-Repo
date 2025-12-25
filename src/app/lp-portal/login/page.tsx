@@ -83,7 +83,14 @@ function LPLoginPageContent() {
 
       const data = await apiResponse.json()
 
-      // If login failed, show error message in view
+      // Check if MFA is required BEFORE checking success
+      if (data.mfaRequired) {
+        console.log('[LP Login] MFA verification required, redirecting...')
+        router.push(`/sign-in/mfa-validation?userId=${data.userId}`)
+        return
+      }
+
+      // If not MFA required and login failed, show error message
       if (!data.success) {
         console.log('[LP Login] Login failed:', data.message)
         setErrorMessage(data.message || 'Login failed. Please try again.')

@@ -34,9 +34,10 @@ import {
   Phone,
   Globe,
 } from "lucide-react"
-import { getCurrentUser, getAuthToken } from "@/lib/auth-storage"
+import { getCurrentUser, getAuthToken, getSupabaseAuth } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export default function LPSettingsPage() {
   const router = useRouter()
@@ -48,7 +49,17 @@ export default function LPSettingsPage() {
   const [emailNotifications, setEmailNotifications] = React.useState(true)
   const [smsNotifications, setSmsNotifications] = React.useState(false)
   const [portalNotifications, setPortalNotifications] = React.useState(true)
+
+  // MFA settings
   const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
+  const [mfaQrCode, setMfaQrCode] = React.useState<string | null>(null)
+  const [mfaSecret, setMfaSecret] = React.useState<string | null>(null)
+  const [mfaFactorId, setMfaFactorId] = React.useState<string | null>(null)
+  const [isEnrollingMfa, setIsEnrollingMfa] = React.useState(false)
+  const [showMfaVerifyDialog, setShowMfaVerifyDialog] = React.useState(false)
+  const [mfaVerifyCode, setMfaVerifyCode] = React.useState('')
+  const [isVerifyingMfa, setIsVerifyingMfa] = React.useState(false)
+  const [pendingAction, setPendingAction] = React.useState<'unenroll' | 'retry-enroll' | null>(null)
 
   // Communication preferences
   const [preferredContactMethod, setPreferredContactMethod] = React.useState('email')
@@ -169,6 +180,29 @@ export default function LPSettingsPage() {
           }
         }
       }
+
+      // Load MFA status
+      const mfaStatusResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaStatus),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (mfaStatusResponse.ok) {
+        const mfaData = await mfaStatusResponse.json()
+        if (mfaData.success && mfaData.data) {
+          setTwoFactorEnabled(mfaData.data.mfaEnabled || false)
+          if (mfaData.data.mfaFactorId) {
+            setMfaFactorId(mfaData.data.mfaFactorId)
+          }
+          console.log('[LP Settings] MFA Status:', mfaData.data)
+        }
+      }
     } catch (error) {
       console.error('[Settings] Error loading investor data:', error)
       toast.error('Failed to load investor data')
@@ -229,9 +263,316 @@ export default function LPSettingsPage() {
     }
   }
 
-  const handleEnable2FA = () => {
-    setTwoFactorEnabled(!twoFactorEnabled)
-    toast.success(twoFactorEnabled ? "2FA disabled" : "2FA enabled")
+  const handleVerifyMfa = async () => {
+    if (!mfaVerifyCode || mfaVerifyCode.length !== 6) {
+      toast.error('Please enter a valid 6-digit code')
+      return
+    }
+
+    setIsVerifyingMfa(true)
+
+    try {
+      const token = getAuthToken()
+      const supabaseAuth = getSupabaseAuth()
+
+      if (!token || !supabaseAuth?.accessToken || !supabaseAuth?.refreshToken) {
+        toast.error('Session expired. Please login again.')
+        return
+      }
+
+      // Step 1: Create MFA challenge
+      const challengeResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaChallenge),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseAccessToken: supabaseAuth.accessToken,
+            supabaseRefreshToken: supabaseAuth.refreshToken,
+            factorId: mfaFactorId || undefined,
+          }),
+        }
+      )
+
+      if (!challengeResponse.ok) {
+        throw new Error('Failed to create MFA challenge')
+      }
+
+      const challengeData = await challengeResponse.json()
+
+      if (!challengeData.success || !challengeData.data?.challengeId) {
+        throw new Error('Failed to create MFA challenge')
+      }
+
+      // Step 2: Verify the MFA code
+      const verifyResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaVerify),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseAccessToken: supabaseAuth.accessToken,
+            supabaseRefreshToken: supabaseAuth.refreshToken,
+            factorId: mfaFactorId || challengeData.data.factorId,
+            challengeId: challengeData.data.challengeId,
+            code: mfaVerifyCode,
+          }),
+        }
+      )
+
+      if (!verifyResponse.ok) {
+        throw new Error('Invalid MFA code')
+      }
+
+      const verifyData = await verifyResponse.json()
+
+      if (!verifyData.success) {
+        throw new Error('Invalid MFA code')
+      }
+
+      // Step 3: Proceed with pending action
+      toast.success('MFA verified successfully')
+      setShowMfaVerifyDialog(false)
+      setMfaVerifyCode('')
+
+      if (pendingAction === 'unenroll') {
+        await performUnenroll()
+      } else if (pendingAction === 'retry-enroll') {
+        await performRetryEnroll()
+      }
+    } catch (error) {
+      console.error('[LP Settings] Error verifying MFA:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to verify MFA code')
+    } finally {
+      setIsVerifyingMfa(false)
+    }
+  }
+
+  const performUnenroll = async () => {
+    try {
+      setIsEnrollingMfa(true)
+      const token = getAuthToken()
+      const supabaseAuth = getSupabaseAuth()
+
+      if (!token || !supabaseAuth?.accessToken || !supabaseAuth?.refreshToken) {
+        toast.error('Session expired.')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaUnenroll),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseAccessToken: supabaseAuth.accessToken,
+            supabaseRefreshToken: supabaseAuth.refreshToken,
+            factorId: mfaFactorId || undefined,
+            factorType: 'totp'
+          }),
+        }
+      )
+
+      if (response.status === 401) {
+        localStorage.clear()
+        toast.error('Session expired. Please login again.')
+        router.push('/lp-portal/login')
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to unenroll from MFA')
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        setTwoFactorEnabled(false)
+        setMfaQrCode(null)
+        setMfaSecret(null)
+        setMfaFactorId(null)
+        toast.success("2FA disabled successfully")
+      } else {
+        throw new Error(data.message || 'Failed to disable MFA')
+      }
+    } catch (error) {
+      console.error('[LP Settings] Error unenrolling from MFA:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to disable 2FA')
+    } finally {
+      setIsEnrollingMfa(false)
+      setPendingAction(null)
+    }
+  }
+
+  const performRetryEnroll = async () => {
+    try {
+      setIsEnrollingMfa(true)
+      const token = getAuthToken()
+      const supabaseAuth = getSupabaseAuth()
+
+      if (!token || !supabaseAuth?.accessToken || !supabaseAuth?.refreshToken) {
+        toast.error('Session expired.')
+        return
+      }
+
+      // First unenroll
+      const unenrollResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaUnenroll),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseAccessToken: supabaseAuth.accessToken,
+            supabaseRefreshToken: supabaseAuth.refreshToken,
+            factorType: 'totp'
+          }),
+        }
+      )
+
+      if (!unenrollResponse.ok) {
+        throw new Error('Failed to reset existing MFA configuration')
+      }
+
+      // Then retry enrollment
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaEnroll),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseAccessToken: supabaseAuth.accessToken,
+            supabaseRefreshToken: supabaseAuth.refreshToken,
+            factorType: 'totp',
+            friendlyName: 'Authenticator App'
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to enroll in MFA after reset')
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.data) {
+        setTwoFactorEnabled(true)
+        setMfaQrCode(data.data.qrCode)
+        setMfaSecret(data.data.secret)
+        setMfaFactorId(data.data.factorId)
+        toast.success("2FA enrollment successful. Scan the QR code with your authenticator app.")
+      } else {
+        throw new Error(data.message || 'Failed to enroll in MFA')
+      }
+    } catch (error) {
+      console.error('[LP Settings] Error retrying enrollment:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to enable 2FA')
+      setTwoFactorEnabled(false)
+    } finally {
+      setIsEnrollingMfa(false)
+      setPendingAction(null)
+    }
+  }
+
+  const handleEnable2FA = async () => {
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required')
+      router.push('/lp-portal/login')
+      return
+    }
+
+    // Get Supabase tokens from auth state
+    const supabaseAuth = getSupabaseAuth()
+
+    if (!supabaseAuth?.accessToken || !supabaseAuth?.refreshToken) {
+      toast.error('Session expired. Please login again.')
+      router.push('/lp-portal/login')
+      return
+    }
+
+    const supabaseAccessToken = supabaseAuth.accessToken
+    const supabaseRefreshToken = supabaseAuth.refreshToken
+
+    // If currently enabled, disable it - show verification dialog
+    if (twoFactorEnabled) {
+      setPendingAction('unenroll')
+      setShowMfaVerifyDialog(true)
+      return
+    }
+
+    // Enable 2FA - call enrollment endpoint
+    try {
+      setIsEnrollingMfa(true)
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaEnroll),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supabaseAccessToken,
+            supabaseRefreshToken,
+            factorType: 'totp',
+            friendlyName: 'Authenticator App'
+          }),
+        }
+      )
+
+      if (response.status === 401) {
+        // Logout and redirect
+        localStorage.clear()
+        toast.error('Session expired. Please login again.')
+        router.push('/lp-portal/login')
+        return
+      }
+
+      const data = await response.json()
+
+      // If enrollment fails because factor already exists, show verification dialog
+      if (!data.success && data.error && data.error.includes('already exists')) {
+        console.log('[LP Settings] Factor already exists, need to verify MFA first...')
+        toast.info('An MFA factor already exists. Please verify your current MFA code to continue.')
+        setIsEnrollingMfa(false)
+        setPendingAction('retry-enroll')
+        setShowMfaVerifyDialog(true)
+        return
+      }
+
+      if (data.success && data.data) {
+        setTwoFactorEnabled(true)
+        setMfaQrCode(data.data.qrCode)
+        setMfaSecret(data.data.secret)
+        setMfaFactorId(data.data.factorId)
+        toast.success("2FA enrollment initiated. Scan the QR code with your authenticator app.")
+      } else {
+        throw new Error(data.message || 'Failed to enroll in MFA')
+      }
+    } catch (error) {
+      console.error('[LP Settings] Error enrolling in MFA:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to enable 2FA')
+      setTwoFactorEnabled(false)
+    } finally {
+      setIsEnrollingMfa(false)
+    }
   }
 
   const handleUpdateLegalInfo = async () => {
@@ -625,13 +966,58 @@ export default function LPSettingsPage() {
                   <div className="space-y-0.5">
                     <Label className="text-base">Multi-Factor Authentication (MFA)</Label>
                     <p className="text-sm text-muted-foreground">
-                      Add an extra layer of security to your account with two-factor authentication
+                      Add an extra layer of security to your account
                     </p>
                   </div>
-                  <Switch checked={twoFactorEnabled} onCheckedChange={handleEnable2FA} />
+                  <Switch
+                    checked={twoFactorEnabled}
+                    onCheckedChange={handleEnable2FA}
+                    disabled={isEnrollingMfa}
+                  />
                 </div>
 
-                {twoFactorEnabled && (
+                {isEnrollingMfa && (
+                  <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                    <p className="text-sm">Enrolling in MFA...</p>
+                  </div>
+                )}
+
+                {twoFactorEnabled && mfaQrCode && (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                      <div className="text-sm flex-1">
+                        <p className="font-medium text-blue-900 dark:text-blue-100">
+                          Scan the QR code with your authenticator app
+                        </p>
+                        <p className="text-blue-700 dark:text-blue-300 mt-1">
+                          Use Google Authenticator, Authy, or any TOTP-compatible app
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-4 p-4 bg-white dark:bg-gray-900 rounded-lg">
+                      <img
+                        src={mfaQrCode}
+                        alt="MFA QR Code"
+                        className="w-64 h-64"
+                      />
+                      {mfaSecret && (
+                        <div className="text-center space-y-2">
+                          <p className="text-xs text-muted-foreground">
+                            Or enter this code manually:
+                          </p>
+                          <code className="block text-sm font-mono bg-muted px-3 py-2 rounded border">
+                            {mfaSecret}
+                          </code>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {twoFactorEnabled && !mfaQrCode && (
                   <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="flex items-start gap-3">
                       <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
@@ -953,6 +1339,75 @@ export default function LPSettingsPage() {
         </TabsContent>
 
       </Tabs>
+
+      {/* MFA Verification Dialog */}
+      <Dialog open={showMfaVerifyDialog} onOpenChange={setShowMfaVerifyDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Verify MFA Code</DialogTitle>
+            <DialogDescription>
+              Enter the 6-digit code from your authenticator app to continue.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="mfaCode">Authentication Code</Label>
+              <Input
+                id="mfaCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={mfaVerifyCode}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '')
+                  setMfaVerifyCode(value)
+                }}
+                placeholder="000000"
+                className="text-center text-2xl tracking-widest font-mono"
+                autoFocus
+                disabled={isVerifyingMfa}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && mfaVerifyCode.length === 6) {
+                    handleVerifyMfa()
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground text-center">
+                Enter the code shown in your authenticator app
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowMfaVerifyDialog(false)
+                setMfaVerifyCode('')
+                setPendingAction(null)
+              }}
+              disabled={isVerifyingMfa}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleVerifyMfa}
+              disabled={isVerifyingMfa || mfaVerifyCode.length !== 6}
+            >
+              {isVerifyingMfa ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                  Verifying...
+                </>
+              ) : (
+                'Verify'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -7,8 +7,12 @@ export const API_CONFIG = {
 
   endpoints: {
     login: '/api/custom/login',
+    mfaLoginVerify: '/api/custom/mfa/login-verify',
     mfaEnroll: '/api/custom/mfa/enroll',
     mfaUnenroll: '/api/custom/mfa/unenroll',
+    mfaChallenge: '/api/custom/mfa/challenge',
+    mfaVerify: '/api/custom/mfa/verify',
+    mfaStatus: '/api/custom/mfa/status',
     diditSession: '/api/custom/didit/session',
     getDiditSession: (sessionId: string) => `/api/custom/didit/session/${sessionId}`,
     getAllStructures: '/api/structures',

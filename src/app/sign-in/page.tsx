@@ -48,8 +48,22 @@ export default function SignInPage() {
       // Login via API
       const response = await login(email, password)
 
-      // If login failed, response will be null and error message already shown by useAuth
-      if (!response || !response.success) {
+      // If login failed completely (no response), exit
+      if (!response) {
+        console.log('[Sign-In] Login failed - no response')
+        setIsLoading(false)
+        return
+      }
+
+      // Check if MFA is required BEFORE checking success
+      if (response.mfaRequired) {
+        console.log('[Sign-In] MFA verification required, redirecting...')
+        router.push(`/sign-in/mfa-validation?userId=${response.userId}`)
+        return
+      }
+
+      // If not MFA required and login failed, exit
+      if (!response.success) {
         console.log('[Sign-In] Login failed')
         setIsLoading(false)
         return

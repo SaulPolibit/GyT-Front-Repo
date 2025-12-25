@@ -1,0 +1,216 @@
+"use client"
+
+import * as React from "react"
+import { Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getRedirectPathForRole, updateUserKycData } from "@/lib/auth-storage"
+import { ShieldCheck } from "lucide-react"
+
+function MfaValidationContent() {
+  const [code, setCode] = React.useState('')
+  const [isLoading, setIsLoading] = React.useState(false)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Get userId from URL params (set during login redirect)
+  const userId = searchParams.get('userId')
+
+  React.useEffect(() => {
+    // Redirect back to sign-in if no userId
+    if (!userId) {
+      toast.error('Invalid MFA session. Please login again.')
+      router.replace('/sign-in')
+    }
+  }, [userId, router])
+
+  const handleVerify = async () => {
+    if (!code || code.length !== 6) {
+      toast.error('Please enter a valid 6-digit code')
+      return
+    }
+
+    if (!userId) {
+      toast.error('Invalid session. Please login again.')
+      router.replace('/sign-in')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.mfaLoginVerify), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          code,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        toast.error(data.message || 'Invalid MFA code')
+        setIsLoading(false)
+        return
+      }
+
+      console.log('[MFA Validation] Verification successful')
+      toast.success('MFA verified successfully!')
+
+      // Save auth data
+      const { saveLoginResponse } = await import('@/lib/auth-storage')
+      saveLoginResponse(data)
+
+      // Handle KYC for investors
+      if (data.user.role === 3 && data.user.kycStatus !== 'Approved') {
+        console.log('[MFA Validation] Retrieving DiDit session for user...')
+        try {
+          const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${data.token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (diditResponse.ok) {
+            const diditData = await diditResponse.json()
+            console.log('[MFA Validation] DiDit session created:', diditData)
+
+            if (diditData.data?.sessionId && diditData.data?.url) {
+              updateUserKycData(
+                diditData.data.sessionId,
+                diditData.data.url,
+                diditData.data.status
+              )
+              console.log('[MFA Validation] KYC data updated in localStorage')
+            }
+          }
+        } catch (diditError) {
+          console.error('[MFA Validation] Error creating DiDit session:', diditError)
+        }
+      }
+
+      // Redirect to appropriate dashboard
+      const redirectPath = sessionStorage.getItem('redirectAfterLogin') || getRedirectPathForRole(data.user.role)
+      sessionStorage.removeItem('redirectAfterLogin')
+
+      console.log('[MFA Validation] Redirecting to:', redirectPath)
+      router.replace(redirectPath)
+    } catch (error) {
+      console.error('[MFA Validation] Error:', error)
+      toast.error('Failed to verify MFA code')
+      setIsLoading(false)
+    }
+  }
+
+  const handleBackToLogin = () => {
+    router.replace('/sign-in')
+  }
+
+  if (!userId) {
+    return null // Will redirect in useEffect
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <ShieldCheck className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle className="text-2xl">Verify MFA Code</CardTitle>
+          <CardDescription>
+            Enter the 6-digit code from your authenticator app
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="code">Authentication Code</Label>
+            <Input
+              id="code"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={code}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '')
+                setCode(value)
+              }}
+              placeholder="000000"
+              className="text-center text-2xl tracking-widest font-mono"
+              autoFocus
+              disabled={isLoading}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && code.length === 6) {
+                  handleVerify()
+                }
+              }}
+            />
+            <p className="text-xs text-muted-foreground text-center">
+              Enter the code shown in your authenticator app (Google Authenticator, Authy, etc.)
+            </p>
+          </div>
+
+          <Button
+            onClick={handleVerify}
+            className="w-full"
+            disabled={isLoading || code.length !== 6}
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                Verifying...
+              </>
+            ) : (
+              'Verify Code'
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={handleBackToLogin}
+            className="w-full"
+            disabled={isLoading}
+          >
+            Back to Login
+          </Button>
+
+          <div className="text-center text-xs text-muted-foreground mt-4 p-3 bg-muted rounded-lg">
+            <p className="font-medium mb-1">Having trouble?</p>
+            <p>Make sure your device time is synchronized and you&apos;re using the correct authenticator app.</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+export default function MfaValidationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center gap-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <MfaValidationContent />
+    </Suspense>
+  )
+}
