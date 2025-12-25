@@ -60,10 +60,13 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
   const [documentsLoading, setDocumentsLoading] = React.useState(false)
   const [documentsError, setDocumentsError] = React.useState<string | null>(null)
 
-  // Check if user can buy (KYC approved AND token deployed)
-  const canBuy = user?.kycStatus === 'Approved' &&
-                 structure?.smartContract?.deploymentResponse?.deployment?.tokenAddress &&
-                 structure.smartContract.deploymentResponse.deployment.tokenAddress.trim() !== ''
+  // Check KYC status and token deployment separately
+  const isKycApproved = user?.kycStatus === 'Approved'
+  const hasTokenAddress = structure?.smartContract?.deploymentResponse?.deployment?.tokenAddress &&
+                          structure.smartContract.deploymentResponse.deployment.tokenAddress.trim() !== ''
+
+  // User can buy only if both conditions are met
+  const canBuy = isKycApproved && hasTokenAddress
 
   // Hide the structure ID in the breadcrumb
   React.useEffect(() => {
@@ -258,22 +261,37 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                 </a>
               </Button>
             ) : (
-              <Button disabled title="KYC approval required to buy">
+              <Button disabled title={!isKycApproved ? "KYC approval required" : "Tokens not yet available"}>
                 Buy
               </Button>
             )}
           </div>
         </div>
-        {!canBuy && (
+        {/* Show KYC warning if not approved */}
+        {!isKycApproved && (
           <Card className="border-amber-200 bg-amber-50">
             <CardContent className="flex gap-3 py-4">
               <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-amber-900 mb-1">KYC Approval Required</p>
                 <p className="text-sm text-amber-800">
-                  Tokens not available or you need to complete and have your KYC approved before you can purchase tokens.
+                  You need to complete and have your KYC approved before you can purchase tokens.
                   {user?.kycStatus === null && ' Please complete your KYC verification.'}
                   {user?.kycStatus && user.kycStatus !== 'Approved' && ` Current status: ${user.kycStatus}`}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {/* Show token availability warning if KYC approved but tokens not available */}
+        {isKycApproved && !hasTokenAddress && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="flex gap-3 py-4">
+              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-900 mb-1">Tokens Not Yet Available</p>
+                <p className="text-sm text-amber-800">
+                  The tokens for this structure have not been deployed yet. Please check back later or contact the fund administrator for more information.
                 </p>
               </div>
             </CardContent>

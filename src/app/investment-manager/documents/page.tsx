@@ -14,7 +14,6 @@ import {
   IconFileDescription,
   IconUpload,
   IconSearch,
-  IconDownload,
   IconEye,
   IconTrash,
   IconFolder,
@@ -592,13 +591,6 @@ export default function DocumentsPage() {
                         >
                           <IconEye className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownloadDocument(doc)}
-                        >
-                          <IconDownload className="w-4 h-4" />
-                        </Button>
                         {!isGuest && (
                           <Button
                             variant="ghost"
@@ -646,10 +638,6 @@ export default function DocumentsPage() {
                             {data.documents.length} document{data.documents.length !== 1 ? 's' : ''}
                           </p>
                         </div>
-                        <Button variant="outline" size="sm">
-                          <IconUpload className="w-4 h-4 mr-2" />
-                          Upload for Investor
-                        </Button>
                       </div>
 
                       <div className="space-y-2">
@@ -690,13 +678,6 @@ export default function DocumentsPage() {
                                 }}
                               >
                                 <IconEye className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownloadDocument(doc)}
-                              >
-                                <IconDownload className="w-4 h-4" />
                               </Button>
                               {!isGuest && (
                                 <Button
@@ -775,13 +756,6 @@ export default function DocumentsPage() {
                           }}
                         >
                           <IconEye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownloadDocument(doc)}
-                        >
-                          <IconDownload className="w-4 h-4" />
                         </Button>
                         {!isGuest && (
                           <Button
