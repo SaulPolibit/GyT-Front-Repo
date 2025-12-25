@@ -32,7 +32,7 @@ import {
   FileText,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 
 interface Payment {
@@ -86,6 +86,12 @@ interface PaymentStats {
 
 export default function ApprovalsPage() {
   const { toast } = useToast()
+
+  // Check if user is guest
+  const authState = getAuthState()
+  const currentUserRole = authState.user?.role ?? null
+  const isGuest = currentUserRole === 4
+
   const [payments, setPayments] = React.useState<Payment[]>([])
   const [stats, setStats] = React.useState<PaymentStats | null>(null)
   const [selectedPayment, setSelectedPayment] = React.useState<Payment | null>(null)
@@ -962,30 +968,34 @@ export default function ApprovalsPage() {
                   <div className="flex gap-3 pt-4 border-t">
                     <Button
                       variant="outline"
-                      className="flex-1"
+                      className={isGuest ? "w-full" : "flex-1"}
                       onClick={() => setShowDetailDialog(false)}
                       disabled={isProcessing}
                     >
-                      Cancel
+                      {isGuest ? 'Close' : 'Cancel'}
                     </Button>
-                    <Button
-                      variant="destructive"
-                      className="flex-1"
-                      onClick={handleReject}
-                      disabled={isProcessing || isLoadingPaymentDetails}
-                    >
-                      <XCircle className="h-4 w-4 mr-2" />
-                      Reject
-                    </Button>
-                    <Button
-                      variant="default"
-                      className="flex-1 bg-green-600 hover:bg-green-700"
-                      onClick={handleApprove}
-                      disabled={isProcessing || !canApprove}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      {isLoadingPaymentDetails ? 'Loading...' : 'Approve'}
-                    </Button>
+                    {!isGuest && (
+                      <>
+                        <Button
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={handleReject}
+                          disabled={isProcessing || isLoadingPaymentDetails}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                        <Button
+                          variant="default"
+                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          onClick={handleApprove}
+                          disabled={isProcessing || !canApprove}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          {isLoadingPaymentDetails ? 'Loading...' : 'Approve'}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )
               })()}
