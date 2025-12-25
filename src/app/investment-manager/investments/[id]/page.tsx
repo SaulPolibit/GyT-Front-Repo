@@ -436,7 +436,7 @@ export default function InvestmentDetailPage({ params }: PageProps) {
                   <span>•</span>
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    {investment.geography.city}, {investment.geography.state}
+                    {typeof investment.geography === 'string' ? investment.geography : `${investment.geography.city}, ${investment.geography.state}`}
                   </div>
                 </>
               )}
@@ -573,18 +573,13 @@ export default function InvestmentDetailPage({ params }: PageProps) {
                 </div>
               </div>
               <Separator />
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">Country</div>
-                  <div className="font-medium">{investment.geography.country}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">State</div>
-                  <div className="font-medium">{investment.geography.state}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">City</div>
-                  <div className="font-medium">{investment.geography.city}</div>
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Geography</div>
+                <div className="font-medium">
+                  {typeof investment.geography === 'string'
+                    ? investment.geography
+                    : `${investment.geography.city}${investment.geography.state ? ', ' + investment.geography.state : ''}, ${investment.geography.country}`
+                  }
                 </div>
               </div>
             </CardContent>

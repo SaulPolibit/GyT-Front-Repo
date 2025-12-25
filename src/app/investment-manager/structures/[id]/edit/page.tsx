@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { ArrowLeft, Save, AlertCircle } from 'lucide-react'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
 import { getAuthToken } from '@/lib/auth-storage'
+import { toast } from 'sonner'
 import Link from 'next/link'
 
 interface PageProps {
@@ -184,28 +185,28 @@ export default function EditStructurePage({ params }: PageProps) {
             withdrawalConditions: textToArray(structure.withdrawalConditions || ''),
             withdrawalProcess: textToArray(structure.withdrawalProcess || ''),
             // Transfer Restrictions
-            transferProhibition: structure.GeneralProhibition || '',
-            permittedTransfers: textToArray(structure.PermittedTransfers || ''),
-            transferRequirements: textToArray(structure.TransferRequirements || ''),
+            transferProhibition: structure.generalProhibition || '',
+            permittedTransfers: textToArray(structure.permittedTransfers || ''),
+            transferRequirements: textToArray(structure.transferRequirements || ''),
             // Reporting
             quarterlyReports: structure.quarterlyReports || '',
             annualReports: structure.annualReports || '',
             taxForms: structure.taxForms || '',
-            capitalNotices: structure.CapitalCallDistributionsNotices || '',
+            capitalNotices: structure.capitalCallDistributionsNotices || '',
             additionalCommunications: textToArray(structure.additionalCommunications || ''),
             // Liability
             liabilityProtection: structure.limitedLiability || '',
-            liabilityExceptions: textToArray(structure.ExceptionsLiability || ''),
+            liabilityExceptions: textToArray(structure.exceptionsLiability || ''),
             maximumExposure: structure.maximumExposure || '',
             // Indemnification
-            partnershipIndemnifiesLP: textToArray(structure.IndemnifiesPartnership || ''),
-            lpIndemnifiesPartnership: textToArray(structure.LPIndemnifiesPartnership || ''),
-            indemnificationProcedures: structure.IndemnifiesProcedures || '',
+            partnershipIndemnifiesLP: textToArray(structure.indemnifiesPartnership || ''),
+            lpIndemnifiesPartnership: textToArray(structure.lpIndemnifiesPartnership || ''),
+            indemnificationProcedures: structure.indemnifiesProcedures || '',
             // Additional Provisions
-            amendments: structure.Amendments || '',
-            dissolution: structure.Dissolution || '',
-            disputes: structure.DisputesResolution || '',
-            governingLaw: structure.GoverningLaw || '',
+            amendments: structure.amendments || '',
+            dissolution: structure.dissolution || '',
+            disputes: structure.disputesResolution || '',
+            governingLaw: structure.governingLaw || '',
             additionalProvisions: structure.additionalProvisions || ''
           }
         })
@@ -278,24 +279,24 @@ export default function EditStructurePage({ params }: PageProps) {
           lockUpPeriod: formData.legalTerms.lockUpPeriod,
           withdrawalConditions: arrayToText(formData.legalTerms.withdrawalConditions),
           withdrawalProcess: arrayToText(formData.legalTerms.withdrawalProcess),
-          GeneralProhibition: formData.legalTerms.transferProhibition,
-          PermittedTransfers: arrayToText(formData.legalTerms.permittedTransfers),
-          TransferRequirements: arrayToText(formData.legalTerms.transferRequirements),
+          generalProhibition: formData.legalTerms.transferProhibition,
+          permittedTransfers: arrayToText(formData.legalTerms.permittedTransfers),
+          transferRequirements: arrayToText(formData.legalTerms.transferRequirements),
           quarterlyReports: formData.legalTerms.quarterlyReports,
           annualReports: formData.legalTerms.annualReports,
           taxForms: formData.legalTerms.taxForms,
-          CapitalCallDistributionsNotices: formData.legalTerms.capitalNotices,
+          capitalCallDistributionsNotices: formData.legalTerms.capitalNotices,
           additionalCommunications: arrayToText(formData.legalTerms.additionalCommunications),
           limitedLiability: formData.legalTerms.liabilityProtection,
-          ExceptionsLiability: arrayToText(formData.legalTerms.liabilityExceptions),
+          exceptionsLiability: arrayToText(formData.legalTerms.liabilityExceptions),
           maximumExposure: formData.legalTerms.maximumExposure,
-          IndemnifiesPartnership: arrayToText(formData.legalTerms.partnershipIndemnifiesLP),
-          LPIndemnifiesPartnership: arrayToText(formData.legalTerms.lpIndemnifiesPartnership),
-          IndemnifiesProcedures: formData.legalTerms.indemnificationProcedures,
-          Amendments: formData.legalTerms.amendments,
-          Dissolution: formData.legalTerms.dissolution,
-          DisputesResolution: formData.legalTerms.disputes,
-          GoverningLaw: formData.legalTerms.governingLaw,
+          indemnifiesPartnership: arrayToText(formData.legalTerms.partnershipIndemnifiesLP),
+          lpIndemnifiesPartnership: arrayToText(formData.legalTerms.lpIndemnifiesPartnership),
+          indemnifiesProcedures: formData.legalTerms.indemnificationProcedures,
+          amendments: formData.legalTerms.amendments,
+          dissolution: formData.legalTerms.dissolution,
+          disputesResolution: formData.legalTerms.disputes,
+          governingLaw: formData.legalTerms.governingLaw,
           additionalProvisions: formData.legalTerms.additionalProvisions
       }
 
@@ -320,12 +321,15 @@ export default function EditStructurePage({ params }: PageProps) {
       const result = await response.json()
 
       if (result.success) {
+        toast.success('Structure updated successfully')
         // router.push(`/investment-manager/structures/${id}`)
       } else {
         setError(result.message || 'Failed to update structure')
+        toast.error(result.message || 'Failed to update structure')
       }
     } catch (err) {
       setError('An error occurred while saving')
+      toast.error('An error occurred while saving')
       console.error(err)
     } finally {
       setSaving(false)
