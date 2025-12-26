@@ -10,125 +10,77 @@ export interface NotificationEvent {
 }
 
 export interface NotificationSettings {
-  // Capital Operations
-  capitalCallIssued: NotificationEvent
-  distributionExecuted: NotificationEvent
-  paymentOverdue: NotificationEvent
-  paymentReceived: NotificationEvent
+  // Main notification toggles
+  emailNotifications?: boolean
+  smsNotifications?: boolean
+  pushNotifications?: boolean
 
-  // Reports
-  reportGenerated: NotificationEvent
-  quarterlyReportDue: NotificationEvent
+  // Email notification sub-settings
+  capitalCallNotices?: boolean
+  distributionNotices?: boolean
+  quarterlyReports?: boolean
+  k1TaxForms?: boolean
+  documentUploads?: boolean
+  generalAnnouncements?: boolean
 
-  // Investors
-  newInvestorAdded: NotificationEvent
-  investorDocumentUploaded: NotificationEvent
+  // SMS notification sub-settings
+  urgentCapitalCalls?: boolean
+  paymentConfirmations?: boolean
+  securityAlerts?: boolean
 
-  // System
-  systemMaintenance: NotificationEvent
-  securityAlert: NotificationEvent
-  generalAnnouncements: NotificationEvent
+  // Communication preferences
+  preferredContactMethod?: string
+  reportDeliveryFormat?: string
+  notificationFrequency?: string
+
+  // Legacy structure (for backward compatibility)
+  capitalCallIssued?: NotificationEvent
+  distributionExecuted?: NotificationEvent
+  paymentOverdue?: NotificationEvent
+  paymentReceived?: NotificationEvent
+  reportGenerated?: NotificationEvent
+  quarterlyReportDue?: NotificationEvent
+  newInvestorAdded?: NotificationEvent
+  investorDocumentUploaded?: NotificationEvent
+  systemMaintenance?: NotificationEvent
+  securityAlert?: NotificationEvent
 
   // Global settings
-  emailAddress: string
-  enableEmailNotifications: boolean
-  enableInAppNotifications: boolean
+  emailAddress?: string
+  enableEmailNotifications?: boolean
+  enableInAppNotifications?: boolean
 
-  updatedAt: Date
+  updatedAt?: Date
 }
 
 const STORAGE_KEY = 'polibit_notification_settings'
 
 // Default notification settings
 const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
-  capitalCallIssued: {
-    id: 'capital-call-issued',
-    name: 'Capital Call Issued',
-    description: 'Notification when a new capital call is issued',
-    category: 'capital',
-    enabled: true,
-    frequency: 'real-time',
-  },
-  distributionExecuted: {
-    id: 'distribution-executed',
-    name: 'Distribution Executed',
-    description: 'Notification when a distribution is executed',
-    category: 'capital',
-    enabled: true,
-    frequency: 'real-time',
-  },
-  paymentOverdue: {
-    id: 'payment-overdue',
-    name: 'Payment Overdue',
-    description: 'Alert when a payment is overdue',
-    category: 'capital',
-    enabled: true,
-    frequency: 'daily-digest',
-  },
-  paymentReceived: {
-    id: 'payment-received',
-    name: 'Payment Received',
-    description: 'Confirmation when a payment is received',
-    category: 'capital',
-    enabled: true,
-    frequency: 'real-time',
-  },
-  reportGenerated: {
-    id: 'report-generated',
-    name: 'Report Generated',
-    description: 'Notification when a report is generated',
-    category: 'reports',
-    enabled: true,
-    frequency: 'real-time',
-  },
-  quarterlyReportDue: {
-    id: 'quarterly-report-due',
-    name: 'Quarterly Report Due',
-    description: 'Reminder for upcoming quarterly report',
-    category: 'reports',
-    enabled: true,
-    frequency: 'weekly-summary',
-  },
-  newInvestorAdded: {
-    id: 'new-investor-added',
-    name: 'New Investor Added',
-    description: 'Notification when a new investor is added',
-    category: 'investors',
-    enabled: true,
-    frequency: 'real-time',
-  },
-  investorDocumentUploaded: {
-    id: 'investor-document-uploaded',
-    name: 'Investor Document Uploaded',
-    description: 'Notification when an investor uploads a document',
-    category: 'investors',
-    enabled: false,
-    frequency: 'daily-digest',
-  },
-  systemMaintenance: {
-    id: 'system-maintenance',
-    name: 'System Maintenance',
-    description: 'Notice of scheduled system maintenance',
-    category: 'system',
-    enabled: true,
-    frequency: 'real-time',
-  },
-  securityAlert: {
-    id: 'security-alert',
-    name: 'Security Alert',
-    description: 'Important security alerts',
-    category: 'system',
-    enabled: true,
-    frequency: 'real-time',
-  },
-  generalAnnouncements: {
-    id: 'general-announcements',
-    name: 'General Announcements',
-    description: 'General platform announcements and updates',
-    category: 'system',
-    enabled: true,
-    frequency: 'real-time',
-  },
+  // Main notification toggles
+  emailNotifications: true,
+  smsNotifications: false,
+  pushNotifications: true,
+
+  // Email notification sub-settings
+  capitalCallNotices: true,
+  distributionNotices: true,
+  quarterlyReports: true,
+  k1TaxForms: true,
+  documentUploads: true,
+  generalAnnouncements: true,
+
+  // SMS notification sub-settings
+  urgentCapitalCalls: false,
+  paymentConfirmations: false,
+  securityAlerts: false,
+
+  // Communication preferences
+  preferredContactMethod: 'email',
+  reportDeliveryFormat: 'pdf',
+  notificationFrequency: 'real-time',
+
+  // Global settings
   emailAddress: '',
   enableEmailNotifications: true,
   enableInAppNotifications: true,

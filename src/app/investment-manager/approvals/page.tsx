@@ -34,6 +34,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { sendPaymentCreatedNotificationEmail } from "@/lib/email-service"
 
 interface Payment {
   id: string
@@ -377,6 +378,66 @@ export default function ApprovalsPage() {
               throw new Error(`Failed to update payment: ${updatePaymentResponse.statusText}`)
             }
             console.log('[Approvals] Payment updated successfully after minting')
+
+            // Send payment confirmation email if user has paymentConfirmations enabled
+            const userIdToFetch = selectedPayment.userId
+            if (userIdToFetch) {
+              try {
+                console.log('[Approvals] Fetching user notification settings for user:', userIdToFetch)
+                const notificationSettingsResponse = await fetch(
+                  getApiUrl(API_CONFIG.endpoints.getNotificationSettingsById(userIdToFetch)),
+                  {
+                    method: 'GET',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                  }
+                )
+
+                if (notificationSettingsResponse.ok) {
+                  const notificationData = await notificationSettingsResponse.json()
+                  console.log('[Approvals] User notification settings:', notificationData)
+
+                  if (notificationData.success && notificationData.data?.paymentConfirmations) {
+                    const currentDate = new Date().toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+
+                    await sendPaymentCreatedNotificationEmail(
+                      userIdToFetch,
+                      selectedPayment.email,
+                      {
+                        investorName: selectedPayment.investorName || selectedPayment.email,
+                        paymentAmount: selectedPayment.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                        paymentCurrency: selectedPayment.paymentMethod === 'usdc' ? 'USDC' : 'USD',
+                        paymentMethod: selectedPayment.paymentMethod === 'usdc' ? 'Cryptocurrency (USDC)' : 'Bank Transfer',
+                        paymentDate: currentDate,
+                        paymentReference: selectedPayment.id,
+                        structureName: selectedPayment.structure?.name || selectedPayment.structureName || 'N/A',
+                        fundManagerName: 'Polibit Team',
+                        fundManagerEmail: 'support@polibit.com',
+                        additionalDetails: `Your payment has been approved and ${selectedPayment.tokens || 0} tokens have been minted to your account.${mintTransactionHash ? `\n\nMint Transaction Hash: ${mintTransactionHash}` : ''}${selectedPayment.paymentTransactionHash ? `\nPayment Transaction Hash: ${selectedPayment.paymentTransactionHash}` : ''}`
+                      }
+                    )
+                    console.log('[Approvals] Payment approval notification email sent successfully')
+                  } else {
+                    console.log('[Approvals] User has paymentConfirmations disabled, skipping email notification')
+                  }
+                } else {
+                  console.warn('[Approvals] Failed to fetch user notification settings')
+                }
+              } catch (emailError) {
+                console.error('[Approvals] Error sending payment approval notification:', emailError)
+                // Don't fail the approval if email fails
+              }
+            } else {
+              console.warn('[Approvals] No user ID found to send notification')
+            }
 
             // Close modal
             setShowDetailDialog(false)

@@ -48,6 +48,7 @@ export const API_CONFIG = {
 
     // Notification settings
     getNotificationSettings: '/api/notifications/settings',
+    getNotificationSettingsById: (userId: string) => `/api/notifications/settings/${userId}`,
     updateNotificationSettings: '/api/notifications/settings',
     enableAllNotifications: '/api/notifications/settings/enable-all',
     disableAllNotifications: '/api/notifications/settings/disable-all',

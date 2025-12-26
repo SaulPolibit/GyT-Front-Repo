@@ -85,6 +85,19 @@ export interface GeneralAnnouncementEmailData {
   ctaUrl?: string
 }
 
+export interface PaymentCreatedEmailData {
+  investorName: string
+  paymentAmount: string
+  paymentCurrency: string
+  paymentMethod: string
+  paymentDate: string
+  paymentReference: string
+  structureName?: string
+  fundManagerName: string
+  fundManagerEmail: string
+  additionalDetails?: string
+}
+
 /**
  * Send email using the API endpoint
  */
@@ -642,6 +655,115 @@ This is an automated message. Please do not reply to this email directly.
 }
 
 /**
+ * Payment Created Notification Email Template
+ */
+export function createPaymentCreatedEmail(data: PaymentCreatedEmailData): { subject: string; bodyHtml: string; bodyText: string } {
+  const subject = `Payment Confirmation - ${data.paymentReference}`
+
+  const bodyHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+    <h1 style="color: #27ae60; margin: 0 0 10px 0; font-size: 24px;">Payment Confirmation</h1>
+    <p style="color: #7f8c8d; margin: 0; font-size: 14px;">Reference: ${data.paymentReference}</p>
+  </div>
+
+  <p>Dear ${data.investorName},</p>
+
+  <p>This email confirms that your payment has been successfully created and is being processed.</p>
+
+  <div style="background-color: #e8f8f1; padding: 20px; border-left: 4px solid #27ae60; margin: 20px 0;">
+    <h2 style="margin: 0 0 15px 0; color: #2c3e50; font-size: 18px;">Payment Details</h2>
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; font-weight: bold; width: 40%;">Amount:</td>
+        <td style="padding: 8px 0;">${data.paymentCurrency} ${data.paymentAmount}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; font-weight: bold;">Payment Method:</td>
+        <td style="padding: 8px 0;">${data.paymentMethod}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; font-weight: bold;">Payment Date:</td>
+        <td style="padding: 8px 0;">${data.paymentDate}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; font-weight: bold;">Reference Number:</td>
+        <td style="padding: 8px 0;">${data.paymentReference}</td>
+      </tr>
+      ${data.structureName ? `
+      <tr>
+        <td style="padding: 8px 0; font-weight: bold;">Structure:</td>
+        <td style="padding: 8px 0;">${data.structureName}</td>
+      </tr>
+      ` : ''}
+    </table>
+  </div>
+
+  ${data.additionalDetails ? `
+  <div style="margin: 20px 0;">
+    <h3 style="color: #2c3e50; font-size: 16px; margin-bottom: 10px;">Additional Information</h3>
+    <p style="margin: 0;">${data.additionalDetails}</p>
+  </div>
+  ` : ''}
+
+  <div style="background-color: #d1ecf1; padding: 15px; border-radius: 4px; margin: 20px 0;">
+    <h3 style="color: #0c5460; font-size: 16px; margin: 0 0 10px 0;">What Happens Next?</h3>
+    <p style="margin: 0; color: #0c5460;">Your payment is currently being processed. You will receive another notification once the payment has been approved and completed.</p>
+  </div>
+
+  <p>Please keep this confirmation for your records. If you have any questions regarding this payment, please contact us with the reference number above.</p>
+
+  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+    <p style="margin: 5px 0;"><strong>${data.fundManagerName}</strong></p>
+    <p style="margin: 5px 0; color: #7f8c8d;">${data.fundManagerEmail}</p>
+  </div>
+
+  <div style="margin-top: 30px; padding: 15px; background-color: #f8f9fa; border-radius: 4px; font-size: 12px; color: #7f8c8d;">
+    <p style="margin: 0;">This is an automated message. Please do not reply to this email directly.</p>
+  </div>
+</body>
+</html>
+  `
+
+  const bodyText = `
+Payment Confirmation - ${data.paymentReference}
+
+Dear ${data.investorName},
+
+This email confirms that your payment has been successfully created and is being processed.
+
+PAYMENT DETAILS:
+Amount: ${data.paymentCurrency} ${data.paymentAmount}
+Payment Method: ${data.paymentMethod}
+Payment Date: ${data.paymentDate}
+Reference Number: ${data.paymentReference}
+${data.structureName ? `Structure: ${data.structureName}\n` : ''}
+
+${data.additionalDetails ? `ADDITIONAL INFORMATION:\n${data.additionalDetails}\n\n` : ''}
+
+WHAT HAPPENS NEXT?
+Your payment is currently being processed. You will receive another notification once the payment has been approved and completed.
+
+Please keep this confirmation for your records. If you have any questions regarding this payment, please contact us with the reference number above.
+
+Best regards,
+${data.fundManagerName}
+${data.fundManagerEmail}
+
+---
+This is an automated message. Please do not reply to this email directly.
+  `
+
+  return { subject, bodyHtml, bodyText }
+}
+
+/**
  * Helper function to send Capital Call email
  */
 export async function sendCapitalCallEmail(
@@ -771,6 +893,30 @@ export async function sendGeneralAnnouncementEmail(
   options?: { cc?: string | string[]; bcc?: string | string[]; fromEmail?: string; fromName?: string; replyTo?: string }
 ): Promise<{ success: boolean; message?: string }> {
   const { subject, bodyHtml, bodyText } = createGeneralAnnouncementEmail(data)
+
+  return sendEmail(userId, {
+    to,
+    cc: options?.cc,
+    bcc: options?.bcc,
+    subject,
+    bodyHtml,
+    bodyText,
+    fromEmail: options?.fromEmail,
+    fromName: options?.fromName,
+    replyTo: options?.replyTo,
+  })
+}
+
+/**
+ * Helper function to send Payment Created Notification email
+ */
+export async function sendPaymentCreatedNotificationEmail(
+  userId: string,
+  to: string | string[],
+  data: PaymentCreatedEmailData,
+  options?: { cc?: string | string[]; bcc?: string | string[]; fromEmail?: string; fromName?: string; replyTo?: string }
+): Promise<{ success: boolean; message?: string }> {
+  const { subject, bodyHtml, bodyText } = createPaymentCreatedEmail(data)
 
   return sendEmail(userId, {
     to,

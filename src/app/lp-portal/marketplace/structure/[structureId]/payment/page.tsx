@@ -38,9 +38,11 @@ import {
 import type { Structure } from "@/lib/structures-storage"
 import { useToast } from "@/hooks/use-toast"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, getCurrentUser } from "@/lib/auth-storage"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
+import { getNotificationSettings } from "@/lib/notification-settings-storage"
+import { sendPaymentCreatedNotificationEmail } from "@/lib/email-service"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -547,6 +549,43 @@ export default function PaymentPage({ params }: Props) {
                 console.warn('[Payment] Failed to create payment record:', data.message)
               } else {
                 console.log('[Payment] Payment record created successfully:', data)
+
+                // Send email notification if paymentConfirmations is enabled
+                const notificationSettings = getNotificationSettings()
+                const currentUser = getCurrentUser()
+
+                if (currentUser?.id && currentUser?.email && notificationSettings.paymentConfirmations) {
+                  try {
+                    const currentDate = new Date().toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+
+                    await sendPaymentCreatedNotificationEmail(
+                      currentUser.id,
+                      currentUser.email,
+                      {
+                        investorName: user?.firstName || currentUser.email,
+                        paymentAmount: amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                        paymentCurrency: 'USDC',
+                        paymentMethod: 'Cryptocurrency (MetaMask)',
+                        paymentDate: currentDate,
+                        paymentReference: data.data?.id || `PAY-${Date.now()}`,
+                        structureName: structure?.name || 'N/A',
+                        fundManagerName: 'Polibit Team',
+                        fundManagerEmail: 'support@polibit.com',
+                        additionalDetails: `Mint Hash: ${mintTransactionHash}\nPayment Transaction Hash: ${txHash}\nYour payment is being processed and will be reviewed by our team.`
+                      }
+                    )
+                    console.log('[Payment] Payment confirmation email sent successfully')
+                  } catch (emailError) {
+                    console.error('[Payment] Error sending payment confirmation email:', emailError)
+                    // Don't fail payment if email fails
+                  }
+                }
               }
 
             } catch (apiError) {
@@ -629,9 +668,9 @@ export default function PaymentPage({ params }: Props) {
         })
 
         // Redirect to portfolio after a short delay
-        setTimeout(() => {
-          window.location.href = `/lp-portal/portfolio`
-        }, 2500)
+        // setTimeout(() => {
+        //   window.location.href = `/lp-portal/portfolio`
+        // }, 2500)
       } else {
         // Simulate payment processing for other methods
         await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -651,9 +690,9 @@ export default function PaymentPage({ params }: Props) {
       console.log('✅ Payment successful')
 
       // Redirect to portfolio after a short delay
-      setTimeout(() => {
-        window.location.href = `/lp-portal/portfolio`
-      }, 1500)
+      // setTimeout(() => {
+      //   window.location.href = `/lp-portal/portfolio`
+      // }, 1500)
     } catch (error) {
       console.error('Payment error:', error)
       toast({
