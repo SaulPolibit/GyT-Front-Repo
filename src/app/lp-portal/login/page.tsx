@@ -16,6 +16,8 @@ import { getUserRoleType, updateUserKycData, saveLoginResponse, getRedirectPathF
 import { toast } from "sonner"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { AlertCircle } from "lucide-react"
+import { saveNotificationSettings } from "@/lib/notification-settings-storage"
+import { sendInvestorActivityEmail } from "@/lib/email-service"
 
 function LPLoginPageContent() {
   const [email, setEmail] = React.useState('')
@@ -152,6 +154,66 @@ function LPLoginPageContent() {
           } catch (diditError) {
             console.error('[LP Login] Error creating DiDit session:', diditError)
           }
+        }
+
+        // Fetch and save notification settings after successful login
+        try {
+          console.log('[LP Login] Fetching notification settings...')
+          const notificationResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getNotificationSettings), {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${response.token}`,
+            },
+          })
+
+          if (notificationResponse.ok) {
+            const notificationData = await notificationResponse.json()
+            console.log('[LP Login] Notification settings fetched:', notificationData)
+
+            if (notificationData.success && notificationData.data) {
+              saveNotificationSettings(notificationData.data)
+              console.log('[LP Login] Notification settings saved to localStorage')
+
+              // Send security alert email if enabled
+              if (notificationData.data.securityAlerts && response.user?.id && response.user?.email) {
+                try {
+                  const currentDate = new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+
+                  const loginLocation = 'Unknown' // You can enhance this with IP geolocation
+                  const deviceInfo = navigator.userAgent
+
+                  await sendInvestorActivityEmail(
+                    response.user.id,
+                    response.user.email,
+                    {
+                      investorName: response.user.email,
+                      activityType: 'Security Alert: New Login Detected',
+                      activityDescription: `A new login to your account was detected.\n\nLogin Details:\nDate & Time: ${currentDate}\nDevice: ${deviceInfo}\nLocation: ${loginLocation}\n\nIf this was you, no action is needed. If you did not log in, please secure your account immediately by changing your password and enabling two-factor authentication.`,
+                      date: currentDate,
+                      fundManagerName: 'Polibit Security Team',
+                      fundManagerEmail: 'security@polibit.com',
+                    }
+                  )
+                  console.log('[LP Login] Security alert email sent successfully')
+                } catch (emailError) {
+                  console.error('[LP Login] Error sending security alert email:', emailError)
+                  // Don't fail login if email fails
+                }
+              }
+            }
+          } else {
+            console.warn('[LP Login] Failed to fetch notification settings:', await notificationResponse.text())
+          }
+        } catch (notificationError) {
+          console.error('[LP Login] Error fetching notification settings:', notificationError)
+          // Don't fail login if notification settings fetch fails
         }
 
         // Redirect will happen via useEffect once isLoggedIn updates
