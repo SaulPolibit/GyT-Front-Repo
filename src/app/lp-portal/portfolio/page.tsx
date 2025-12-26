@@ -718,23 +718,6 @@ export default function PortfolioPage() {
           )}
         </div>
       )}
-
-      {/* TODO Notice */}
-      {structures.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="py-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-blue-900">
-                  <strong>Note:</strong> Portfolio metrics (commitment, called capital, ownership, etc.) are currently showing placeholder values.
-                  The backend API needs to provide investor-specific financial data through the structure_investors relationship.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

@@ -115,37 +115,56 @@ export default function PaymentPage({ params }: Props) {
 
       console.log('Subscription created:', subscription.id)
 
-      // Auto-approve the subscription and link investor to fund
-      updateInvestmentSubscriptionStatus(subscription.id, 'approved', 'Auto-approved via marketplace purchase')
+      // Handle differently based on payment method
+      if (paymentMethod === 'bank-transfer') {
+        // Bank transfer: Keep pending, wait for manager approval
+        setPaymentComplete(true)
 
-      // Add fund ownership to investor (this is what shows in their portfolio!)
-      const ownershipAdded = addFundOwnershipToInvestor(
-        investor.id,
-        investment.fundId,
-        parseInt(amount) // commitment amount
-      )
+        toast({
+          title: "Payment Submitted!",
+          description: `Your bank transfer payment has been submitted and is pending approval. Once approved by the fund manager, you'll receive your ${tokens} tokens and see them in your portfolio.`,
+          variant: "default",
+        })
 
-      if (!ownershipAdded) {
-        console.warn('Could not add fund ownership - investor may already have this fund')
+        console.log('✅ Bank transfer payment submitted, staying pending for approval')
+
+        // Redirect to portfolio after a short delay
+        setTimeout(() => {
+          window.location.href = `/lp-portal/portfolio`
+        }, 2000)
       } else {
-        console.log('Investor linked to fund successfully')
+        // Credit card & USDC: Auto-approve and add to portfolio
+        updateInvestmentSubscriptionStatus(subscription.id, 'approved', 'Auto-approved via marketplace purchase')
+
+        // Add fund ownership to investor (this is what shows in their portfolio!)
+        const ownershipAdded = addFundOwnershipToInvestor(
+          investor.id,
+          investment.fundId,
+          parseInt(amount) // commitment amount
+        )
+
+        if (!ownershipAdded) {
+          console.warn('Could not add fund ownership - investor may already have this fund')
+        } else {
+          console.log('Investor linked to fund successfully')
+        }
+
+        setPaymentComplete(true)
+
+        // Show success toast
+        toast({
+          title: "✅ Payment Successful!",
+          description: `You've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${investment.name}. The fund has been added to your portfolio.`,
+          variant: "default",
+        })
+
+        console.log('✅ Payment successful, redirecting to portfolio...')
+
+        // Redirect to portfolio after a short delay
+        setTimeout(() => {
+          window.location.href = `/lp-portal/portfolio`
+        }, 1500)
       }
-
-      setPaymentComplete(true)
-
-      // Show success toast
-      toast({
-        title: "✅ Payment Successful!",
-        description: `You've successfully invested ${tokens} tokens for ${formatCurrency(amount)} in ${investment.name}. The fund has been added to your portfolio.`,
-        variant: "default",
-      })
-
-      console.log('✅ Payment successful, redirecting to portfolio...')
-
-      // Redirect to portfolio after a short delay
-      setTimeout(() => {
-        window.location.href = `/lp-portal/portfolio`
-      }, 1500)
     } catch (error) {
       console.error('Payment error:', error)
       toast({
