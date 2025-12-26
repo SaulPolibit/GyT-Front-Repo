@@ -62,8 +62,8 @@ export default function InvestorsPage() {
           return
         }
 
-        // Fetch investors from API
-        const investorsUrl = getApiUrl(API_CONFIG.endpoints.getAllInvestors)
+        // Fetch investors from users table (role 3 = INVESTOR)
+        const investorsUrl = getApiUrl(API_CONFIG.endpoints.getUsersByRole('3'))
         const investorsResponse = await fetch(investorsUrl, {
           method: 'GET',
           headers: {
