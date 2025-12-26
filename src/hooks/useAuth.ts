@@ -13,6 +13,7 @@ import {
 } from '@/lib/auth-storage'
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
 import { toast } from 'sonner'
+import { saveNotificationSettings } from '@/lib/notification-settings-storage'
 
 export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
@@ -67,6 +68,33 @@ export function useAuth() {
       // Update React state
       setAuthState(newState)
       console.log('[useAuth] State updated')
+
+      // Fetch and save notification settings after successful login
+      try {
+        console.log('[useAuth] Fetching notification settings...')
+        const notificationResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getNotificationSettings), {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${data.token}`,
+          },
+        })
+
+        if (notificationResponse.ok) {
+          const notificationData = await notificationResponse.json()
+          console.log('[useAuth] Notification settings fetched:', notificationData)
+
+          if (notificationData.success && notificationData.data) {
+            saveNotificationSettings(notificationData.data)
+            console.log('[useAuth] Notification settings saved to localStorage')
+          }
+        } else {
+          console.warn('[useAuth] Failed to fetch notification settings:', await notificationResponse.text())
+        }
+      } catch (notificationError) {
+        console.error('[useAuth] Error fetching notification settings:', notificationError)
+        // Don't fail login if notification settings fetch fails
+      }
 
       return data
     } catch (error) {

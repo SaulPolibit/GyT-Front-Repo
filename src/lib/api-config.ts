@@ -69,6 +69,7 @@ export const API_CONFIG = {
     getUserById: (userId: string) => `/api/users/${userId}`,
     deleteUser: (userId: string) => `/api/users/${userId}`,
     createInvestor: '/api/investors',
+    sendEmail: (userId: string) => `/api/users/${userId}/send-email`,
 
     // Chat/Messages API
     getConversations: '/api/conversations',

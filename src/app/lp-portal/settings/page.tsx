@@ -38,6 +38,8 @@ import { getCurrentUser, getAuthToken, getSupabaseAuth } from "@/lib/auth-storag
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { sendInvestorActivityEmail } from "@/lib/email-service"
+import { getNotificationSettings, saveNotificationSettings } from "@/lib/notification-settings-storage"
 
 export default function LPSettingsPage() {
   const router = useRouter()
@@ -278,6 +280,33 @@ export default function LPSettingsPage() {
       }
 
       toast.success("Notification preferences updated")
+
+      // Fetch and save updated notification settings to localStorage
+      try {
+        console.log('[Settings] Fetching updated notification settings...')
+        const notificationResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getNotificationSettings), {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (notificationResponse.ok) {
+          const notificationData = await notificationResponse.json()
+          console.log('[Settings] Notification settings fetched:', notificationData)
+
+          if (notificationData.success && notificationData.data) {
+            saveNotificationSettings(notificationData.data)
+            console.log('[Settings] Notification settings saved to localStorage')
+          }
+        } else {
+          console.warn('[Settings] Failed to fetch notification settings:', await notificationResponse.text())
+        }
+      } catch (notificationError) {
+        console.error('[Settings] Error fetching notification settings:', notificationError)
+        // Don't fail the update if notification settings fetch fails
+      }
     } catch (error) {
       console.error('[Settings] Error updating notifications:', error)
       toast.error('Failed to update notification preferences')
@@ -422,6 +451,35 @@ export default function LPSettingsPage() {
         setMfaSecret(null)
         setMfaFactorId(null)
         toast.success("2FA disabled successfully")
+
+        // Send email notification about MFA disable
+        const notificationSettings = getNotificationSettings()
+        if (investor?.id && investor?.email && investor?.name && notificationSettings.generalAnnouncements) {
+          try {
+            const currentDate = new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+
+            await sendInvestorActivityEmail(
+              investor.id,
+              investor.email,
+              {
+                investorName: investor.name,
+                activityType: 'Multi-Factor Authentication Disabled',
+                activityDescription: 'Two-factor authentication (2FA) has been disabled on your account. If you did not make this change, please contact support immediately to secure your account.',
+                date: currentDate,
+                fundManagerName: 'Polibit Security Team',
+                fundManagerEmail: 'security@polibit.com',
+              }
+            )
+          } catch (emailError) {
+            console.error('[Settings] Error sending MFA disable notification:', emailError)
+          }
+        }
       } else {
         throw new Error(data.message || 'Failed to disable MFA')
       }
@@ -496,6 +554,35 @@ export default function LPSettingsPage() {
         setMfaSecret(data.data.secret)
         setMfaFactorId(data.data.factorId)
         toast.success("2FA enrollment successful. Scan the QR code with your authenticator app.")
+
+        // Send email notification about MFA enable
+        const notificationSettings = getNotificationSettings()
+        if (investor?.id && investor?.email && investor?.name && notificationSettings.generalAnnouncements) {
+          try {
+            const currentDate = new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+
+            await sendInvestorActivityEmail(
+              investor.id,
+              investor.email,
+              {
+                investorName: investor.name,
+                activityType: 'Multi-Factor Authentication Enabled',
+                activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
+                date: currentDate,
+                fundManagerName: 'Polibit Security Team',
+                fundManagerEmail: 'security@polibit.com',
+              }
+            )
+          } catch (emailError) {
+            console.error('[Settings] Error sending MFA enable notification:', emailError)
+          }
+        }
       } else {
         throw new Error(data.message || 'Failed to enroll in MFA')
       }
@@ -590,6 +677,35 @@ export default function LPSettingsPage() {
         setMfaSecret(data.data.secret)
         setMfaFactorId(data.data.factorId)
         toast.success("2FA enrollment initiated. Scan the QR code with your authenticator app.")
+
+        // Send email notification about MFA enable
+        const notificationSettings = getNotificationSettings()
+        if (investor?.id && investor?.email && investor?.name && notificationSettings.generalAnnouncements) {
+          try {
+            const currentDate = new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+
+            await sendInvestorActivityEmail(
+              investor.id,
+              investor.email,
+              {
+                investorName: investor.name,
+                activityType: 'Multi-Factor Authentication Enabled',
+                activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
+                date: currentDate,
+                fundManagerName: 'Polibit Security Team',
+                fundManagerEmail: 'security@polibit.com',
+              }
+            )
+          } catch (emailError) {
+            console.error('[Settings] Error sending MFA enable notification:', emailError)
+          }
+        }
       } else {
         throw new Error(data.message || 'Failed to enroll in MFA')
       }
@@ -644,6 +760,36 @@ export default function LPSettingsPage() {
       }
 
       toast.success("Profile updated successfully")
+
+      // Send email notification about profile update
+      const notificationSettings = getNotificationSettings()
+      if (investor?.id && investor?.email && investor?.name && notificationSettings.generalAnnouncements) {
+        try {
+          const currentDate = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+
+          await sendInvestorActivityEmail(
+            investor.id,
+            investor.email,
+            {
+              investorName: investor.name,
+              activityType: 'Profile Settings Updated',
+              activityDescription: 'Your profile settings have been successfully updated. The following information was modified: contact details and address information.',
+              date: currentDate,
+              fundManagerName: 'Polibit Team',
+              fundManagerEmail: 'support@polibit.com',
+            }
+          )
+        } catch (emailError) {
+          // Don't fail the whole operation if email fails
+          console.error('[Settings] Error sending notification email:', emailError)
+        }
+      }
     } catch (error) {
       console.error('[Settings] Error updating user profile:', error)
       toast.error('Failed to update profile')

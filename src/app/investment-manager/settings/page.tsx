@@ -31,6 +31,7 @@ import {
 import { getCurrentUser, getAuthToken, getSupabaseAuth } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
+import { sendInvestorActivityEmail } from "@/lib/email-service"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -40,6 +41,7 @@ import { getFirmSettings, saveFirmSettings, FirmSettings } from '@/lib/firm-sett
 import { getUsers, deleteUser, User, getRoleLabel } from '@/lib/user-management-storage'
 import { InviteUserModal } from '@/components/invite-user-modal'
 import { PermissionsMatrixDialog } from '@/components/permissions-matrix-dialog'
+import { getNotificationSettings, saveNotificationSettings } from '@/lib/notification-settings-storage'
 
 export default function InvestmentManagerSettingsPage() {
   const router = useRouter()
@@ -379,6 +381,38 @@ export default function InvestmentManagerSettingsPage() {
       saveFirmSettings(settings)
 
       toast.success('Firm settings saved successfully!')
+
+      // Send email notification about firm settings update
+      const notificationSettings = getNotificationSettings()
+      const user = getCurrentUser()
+
+      if (user?.id && user?.email && notificationSettings.generalAnnouncements) {
+        try {
+          const currentDate = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+
+          await sendInvestorActivityEmail(
+            user.id,
+            user.email,
+            {
+              investorName: user.email,
+              activityType: 'Firm Settings Updated',
+              activityDescription: `Your firm settings have been successfully updated. Changes include firm name, contact information, and other administrative details. If you did not make these changes, please contact support immediately.`,
+              date: currentDate,
+              fundManagerName: 'Polibit Team',
+              fundManagerEmail: 'support@polibit.com',
+            }
+          )
+        } catch (emailError) {
+          console.error('[Settings] Error sending firm settings update notification:', emailError)
+          // Don't throw - email failure shouldn't block the settings update
+        }
+      }
     } catch (error) {
       console.error('Error saving settings:', error)
       toast.error('Failed to save settings')
@@ -433,6 +467,33 @@ export default function InvestmentManagerSettingsPage() {
       }
 
       toast.success("Notification preferences updated")
+
+      // Fetch and save updated notification settings to localStorage
+      try {
+        console.log('[Settings] Fetching updated notification settings...')
+        const notificationResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getNotificationSettings), {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (notificationResponse.ok) {
+          const notificationData = await notificationResponse.json()
+          console.log('[Settings] Notification settings fetched:', notificationData)
+
+          if (notificationData.success && notificationData.data) {
+            saveNotificationSettings(notificationData.data)
+            console.log('[Settings] Notification settings saved to localStorage')
+          }
+        } else {
+          console.warn('[Settings] Failed to fetch notification settings:', await notificationResponse.text())
+        }
+      } catch (notificationError) {
+        console.error('[Settings] Error fetching notification settings:', notificationError)
+        // Don't fail the update if notification settings fetch fails
+      }
     } catch (error) {
       console.error('[Settings] Error updating notifications:', error)
       toast.error('Failed to update notification preferences')
@@ -576,6 +637,36 @@ export default function InvestmentManagerSettingsPage() {
         setMfaSecret(null)
         setMfaFactorId(null)
         toast.success("2FA disabled successfully")
+
+        // Send email notification about MFA disable
+        const notificationSettings = getNotificationSettings()
+        const user = getCurrentUser()
+        if (user?.id && user?.email && notificationSettings.generalAnnouncements) {
+          try {
+            const currentDate = new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+
+            await sendInvestorActivityEmail(
+              user.id,
+              user.email,
+              {
+                investorName: user.email,
+                activityType: 'Multi-Factor Authentication Disabled',
+                activityDescription: 'Two-factor authentication (2FA) has been disabled on your account. If you did not make this change, please contact support immediately to secure your account.',
+                date: currentDate,
+                fundManagerName: 'Polibit Security Team',
+                fundManagerEmail: 'security@polibit.com',
+              }
+            )
+          } catch (emailError) {
+            console.error('[Settings] Error sending MFA disable notification:', emailError)
+          }
+        }
       } else {
         throw new Error(data.message || 'Failed to disable MFA')
       }
@@ -650,6 +741,36 @@ export default function InvestmentManagerSettingsPage() {
         setMfaSecret(data.data.secret)
         setMfaFactorId(data.data.factorId)
         toast.success("2FA enrollment successful. Scan the QR code with your authenticator app.")
+
+        // Send email notification about MFA enable
+        const notificationSettings = getNotificationSettings()
+        const user = getCurrentUser()
+        if (user?.id && user?.email && notificationSettings.generalAnnouncements) {
+          try {
+            const currentDate = new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+
+            await sendInvestorActivityEmail(
+              user.id,
+              user.email,
+              {
+                investorName: user.email,
+                activityType: 'Multi-Factor Authentication Enabled',
+                activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
+                date: currentDate,
+                fundManagerName: 'Polibit Security Team',
+                fundManagerEmail: 'security@polibit.com',
+              }
+            )
+          } catch (emailError) {
+            console.error('[Settings] Error sending MFA enable notification:', emailError)
+          }
+        }
       } else {
         throw new Error(data.message || 'Failed to enroll in MFA')
       }
@@ -744,6 +865,37 @@ export default function InvestmentManagerSettingsPage() {
         setMfaSecret(data.data.secret)
         setMfaFactorId(data.data.factorId)
         toast.success("2FA enrollment initiated. Scan the QR code with your authenticator app.")
+
+        // Send email notification about MFA enable
+        const notificationSettings = getNotificationSettings()
+        const user = getCurrentUser()
+        if (user?.id && user?.email && notificationSettings.generalAnnouncements) {
+          try {
+            const currentDate = new Date().toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+
+            await sendInvestorActivityEmail(
+              user.id,
+              user.email,
+              {
+                investorName: user.email,
+                activityType: 'Multi-Factor Authentication Enabled',
+                activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
+                date: currentDate,
+                fundManagerName: 'Polibit Security Team',
+                fundManagerEmail: 'security@polibit.com',
+              }
+            )
+          } catch (emailError) {
+            console.error('[Settings] Error sending MFA enable notification:', emailError)
+            // Don't throw - email failure shouldn't block the MFA enable flow
+          }
+        }
       } else {
         throw new Error(data.message || 'Failed to enroll in MFA')
       }

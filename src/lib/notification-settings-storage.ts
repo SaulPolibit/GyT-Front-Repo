@@ -27,6 +27,7 @@ export interface NotificationSettings {
   // System
   systemMaintenance: NotificationEvent
   securityAlert: NotificationEvent
+  generalAnnouncements: NotificationEvent
 
   // Global settings
   emailAddress: string
@@ -116,6 +117,14 @@ const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
     id: 'security-alert',
     name: 'Security Alert',
     description: 'Important security alerts',
+    category: 'system',
+    enabled: true,
+    frequency: 'real-time',
+  },
+  generalAnnouncements: {
+    id: 'general-announcements',
+    name: 'General Announcements',
+    description: 'General platform announcements and updates',
     category: 'system',
     enabled: true,
     frequency: 'real-time',
