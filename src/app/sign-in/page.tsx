@@ -50,6 +50,8 @@ export default function SignInPage() {
       // Login via API
       const response = await login(email, password)
 
+      console.log('[Sign-In] Login response received:', response)
+
       // If login failed completely (no response), exit
       if (!response) {
         console.log('[Sign-In] Login failed - no response')
@@ -60,7 +62,19 @@ export default function SignInPage() {
       // Check if MFA is required BEFORE checking success
       if (response.mfaRequired) {
         console.log('[Sign-In] MFA verification required, redirecting...')
-        router.push(`/sign-in/mfa-validation?userId=${response.userId}`)
+        console.log('[Sign-In] MFA userId:', response.userId)
+        console.log('[Sign-In] MFA factorId:', response.factorId)
+        const params = new URLSearchParams()
+        if (response.userId) {
+          params.append('userId', response.userId)
+        }
+        if (response.factorId) {
+          params.append('factorId', response.factorId)
+        }
+        const redirectUrl = `/sign-in/mfa-validation?${params.toString()}`
+        console.log('[Sign-In] Redirecting to:', redirectUrl)
+        router.push(redirectUrl)
+        setIsLoading(false)
         return
       }
 
@@ -71,7 +85,7 @@ export default function SignInPage() {
         return
       }
 
-      if (response.success) {
+      if (response.success && response.user) {
         console.log('[Sign-In] Login successful, user role:', response.user.role)
         console.log('[Sign-In] KYC Status:', response.user.kycStatus)
 

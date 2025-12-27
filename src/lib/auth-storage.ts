@@ -30,10 +30,13 @@ export interface SupabaseAuth {
 export interface LoginResponse {
   success: boolean
   message: string
-  token: string
-  expiresIn: string
-  supabase: SupabaseAuth
-  user: ApiUser
+  token?: string
+  expiresIn?: string
+  supabase?: SupabaseAuth
+  user?: ApiUser
+  mfaRequired?: boolean
+  userId?: string
+  factorId?: string
 }
 
 // Auth state stored in localStorage
@@ -72,11 +75,16 @@ export function saveLoginResponse(response: LoginResponse): AuthState {
     throw new Error('Cannot login on server side')
   }
 
+  // Ensure we have required fields for a successful login
+  if (!response.token || !response.user) {
+    throw new Error('Invalid login response: missing required fields')
+  }
+
   const authState: AuthState = {
     isLoggedIn: true,
     token: response.token,
     user: response.user,
-    supabase: response.supabase,
+    supabase: response.supabase || null,
   }
 
   try {

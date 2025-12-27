@@ -44,12 +44,25 @@ export function useAuth() {
         body: JSON.stringify({ email, password }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Login failed' }))
-        throw new Error(errorData.message || 'Login failed')
+      // Parse response JSON first to check for MFA
+      const data: LoginResponse = await response.json().catch(() => ({
+        success: false,
+        message: 'Failed to parse response'
+      }))
+
+      console.log('[useAuth] Response status:', response.status)
+      console.log('[useAuth] Response ok:', response.ok)
+
+      console.log('[useAuth] Login response data:', data)
+      console.log('[useAuth] MFA required?', data.mfaRequired)
+
+      // Check if MFA is required - this is not an error, just a different flow
+      if (data.mfaRequired) {
+        console.log('[useAuth] MFA verification required - returning MFA data')
+        return data
       }
 
-      const data: LoginResponse = await response.json()
+      console.log('[useAuth] MFA not required, checking success status')
 
       if (!data.success) {
         console.error('[useAuth] Login failed:', data.message)
@@ -58,8 +71,8 @@ export function useAuth() {
       }
 
       console.log('[useAuth] Login successful, saving response')
-      console.log('[useAuth] User role:', data.user.role)
-      console.log('[useAuth] User email:', data.user.email)
+      console.log('[useAuth] User role:', data.user?.role)
+      console.log('[useAuth] User email:', data.user?.email)
 
       // Save to localStorage
       const newState = saveLoginResponse(data)
