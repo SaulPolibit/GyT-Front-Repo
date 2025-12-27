@@ -1284,28 +1284,21 @@ export default function PaymentPage({ params }: Props) {
                   </Button>
                 </div>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or enter manually</span>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="usdc-address">Your Wallet Address (Polygon)</Label>
-                  <Input
-                    id="usdc-address"
-                    placeholder="0x742d35Cc6634C0532925a3b844Bc51e39552b97e"
-                    value={usdcWalletAddress}
-                    onChange={(e) => setUsdcWalletAddress(e.target.value)}
-                    disabled={isMetaMaskConnected}
-                  />
+                  <Label>Your Wallet Address (Polygon)</Label>
+                  {usdcWalletAddress ? (
+                    <div className="p-3 bg-muted rounded-md border">
+                      <p className="font-mono text-sm break-all">{usdcWalletAddress}</p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-muted/50 rounded-md border border-dashed">
+                      <p className="text-sm text-muted-foreground">Connect your wallet to see address</p>
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {isMetaMaskConnected
                       ? "Your connected wallet address"
-                      : "Enter your Polygon wallet address where USDC will be received"}
+                      : "Connect your wallet to automatically populate your address"}
                   </p>
                 </div>
 
