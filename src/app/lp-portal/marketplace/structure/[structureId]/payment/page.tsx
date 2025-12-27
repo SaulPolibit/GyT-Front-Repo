@@ -180,10 +180,19 @@ export default function PaymentPage({ params }: Props) {
 
         // Handle 401 Unauthorized - session expired or invalid
         if (response.status === 401) {
-          console.log('[Payment Signature Verify] 401 Unauthorized - clearing session and redirecting to login')
-          logout()
-          router.push('/lp-portal/login')
-          return
+
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/lp-portal/login')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
         }
 
         const data = await response.json()
@@ -580,10 +589,19 @@ export default function PaymentPage({ params }: Props) {
 
               // Handle 401 Unauthorized - session expired or invalid
               if (response.status === 401) {
-                console.log('[Payment Create Record] 401 Unauthorized - clearing session and redirecting to login')
-                logout()
-                router.push('/lp-portal/login')
-                return
+
+                // Check if it's an expired token error
+                try {
+                  const errorData = await response.json()
+                  if (errorData.error === "Invalid or expired token") {
+                    console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+                    logout()
+                    router.push('/lp-portal/login')
+                    return
+                  }
+                } catch (e) {
+                  console.log('Error: ', e)
+                }
               }
 
               const data = await response.json()
@@ -694,10 +712,19 @@ export default function PaymentPage({ params }: Props) {
 
         // Handle 401 Unauthorized - session expired or invalid
         if (response.status === 401) {
-          console.log('[Payment Bank Transfer] 401 Unauthorized - clearing session and redirecting to login')
-          logout()
-          router.push('/lp-portal/login')
-          return
+
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/lp-portal/login')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
         }
 
         const data = await response.json()

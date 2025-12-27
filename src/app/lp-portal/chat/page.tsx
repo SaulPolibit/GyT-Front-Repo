@@ -138,10 +138,19 @@ export default function LPChatPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
 
       if (response.ok) {
@@ -252,10 +261,19 @@ export default function LPChatPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Chat Users] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
 
       if (response.ok) {
@@ -296,10 +314,19 @@ export default function LPChatPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Chat Create] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
 
       if (!response.ok) {
@@ -355,10 +382,19 @@ export default function LPChatPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Chat Messages] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
 
       if (!response.ok) {
@@ -447,10 +483,19 @@ export default function LPChatPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Chat Send] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
 
       if (!response.ok) {
@@ -493,10 +538,19 @@ export default function LPChatPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Chat Mark Read] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
     } catch (error) {
       console.error('Error marking message as read:', error)
@@ -521,10 +575,19 @@ export default function LPChatPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Chat Delete] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
 
       if (!response.ok) {
@@ -574,10 +637,19 @@ export default function LPChatPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Chat Delete Conversation] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
 
       // Handle HTTP errors

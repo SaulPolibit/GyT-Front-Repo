@@ -88,10 +88,19 @@ export default function LPDashboardPage() {
 
       // Handle 401 Unauthorized - session expired or invalid
       if (response.status === 401) {
-        console.log('[Dashboard] 401 Unauthorized - clearing session and redirecting to login')
-        logout()
-        router.push('/lp-portal/login')
-        return
+
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
       }
 
       if (!response.ok) {
