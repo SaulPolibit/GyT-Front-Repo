@@ -19,10 +19,11 @@ import {
   Download,
 } from "lucide-react"
 import type { Structure } from "@/lib/structures-storage"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, logout } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { useAuth } from "@/hooks/useAuth"
 import { useBreadcrumb } from "@/contexts/lp-breadcrumb-context"
+import { useRouter } from "next/navigation"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -50,6 +51,7 @@ interface Document {
 
 export default function MarketplaceStructureDetailPage({ params }: Props) {
   const { structureId } = use(params)
+  const router = useRouter()
   const { user } = useAuth()
   const { setCustomBreadcrumb, clearCustomBreadcrumb } = useBreadcrumb()
   const [structure, setStructure] = React.useState<Structure | null>(null)
@@ -95,6 +97,14 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
             'Content-Type': 'application/json',
           },
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          console.log('[Structure Detail] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
 
         if (!response.ok) {
           throw new Error(`Failed to fetch structure: ${response.statusText}`)
@@ -149,6 +159,14 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
             'Content-Type': 'application/json',
           },
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          console.log('[Structure Documents] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
 
         if (!response.ok) {
           throw new Error(`Failed to fetch documents: ${response.statusText}`)

@@ -79,6 +79,14 @@ export default function ContractsSigningPage({ params }: Props) {
           },
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          console.log('[Structure Contracts] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
+
         if (!response.ok) {
           throw new Error(`Failed to fetch structure: ${response.statusText}`)
         }
@@ -242,6 +250,15 @@ export default function ContractsSigningPage({ params }: Props) {
           'Content-Type': 'application/json',
         },
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Structure Contracts Verify] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
+
       const data = await response.json()
 
       console.log("Signature verification response:", data)

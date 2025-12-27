@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { useBreadcrumb } from "@/contexts/lp-breadcrumb-context"
 import { toast } from "sonner"
-import { getCurrentUser, getAuthToken } from '@/lib/auth-storage'
+import { getCurrentUser, getAuthToken, logout } from '@/lib/auth-storage'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
 
 type OnboardingStep = 'KYC/KYB' | 'Contracts' | 'Commitment' | 'Complete'
@@ -128,6 +128,14 @@ export default function OnboardingPage() {
 
         console.log('[Onboarding] Search response status:', searchResponse.status)
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (searchResponse.status === 401) {
+          console.log('[Onboarding Search] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
+
         if (!searchResponse.ok) {
           console.error('[Onboarding] Search failed with status:', searchResponse.status)
           toast.error('Failed to load investor data')
@@ -163,6 +171,14 @@ export default function OnboardingPage() {
         )
 
         console.log('[Onboarding] Commitments response status:', commitmentsResponse.status)
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (commitmentsResponse.status === 401) {
+          console.log('[Onboarding Commitments] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
 
         if (!commitmentsResponse.ok) {
           console.error('[Onboarding] Failed to fetch investor commitments')
@@ -216,6 +232,14 @@ export default function OnboardingPage() {
         )
 
         console.log('[Onboarding] Structure response status:', structureResponse.status)
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (structureResponse.status === 401) {
+          console.log('[Onboarding Structure] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
 
         if (structureResponse.ok) {
           const structureDataResponse = await structureResponse.json()

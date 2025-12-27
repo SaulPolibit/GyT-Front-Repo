@@ -17,8 +17,9 @@ import { calculateLPMetric } from "@/lib/lp-metric-calculations"
 import { lpMetricTemplates, lpMetricCategories, getMetricsByCategory as getLPMetricsByCategory, type LPMetricTemplate } from "@/lib/lp-metric-templates"
 import { lpChartTemplates, lpChartCategories, getTemplatesByCategory as getLPTemplatesByCategory, type LPChartTemplate } from "@/lib/lp-chart-templates"
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken } from '@/lib/auth-storage'
+import { getAuthToken, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface DashboardData {
   investor: {
@@ -59,6 +60,7 @@ interface DashboardData {
 }
 
 export default function LPDashboardPage() {
+  const router = useRouter()
   const [widgets, setWidgets] = React.useState<DashboardWidget[]>([])
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingWidget, setEditingWidget] = React.useState<DashboardWidget | null>(null)
@@ -83,6 +85,14 @@ export default function LPDashboardPage() {
           'Content-Type': 'application/json',
         },
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Dashboard] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to load dashboard data')

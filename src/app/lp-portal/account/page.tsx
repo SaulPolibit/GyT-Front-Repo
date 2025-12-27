@@ -12,8 +12,11 @@ import { Camera, Save, Wallet, Copy, CheckCircle2 } from "lucide-react"
 import { getCurrentUser, getAuthToken, updateUserProfile } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
+import { logout } from "@/lib/auth-storage"
 
 export default function AccountPage() {
+  const router = useRouter()
   const [loading, setLoading] = React.useState(true)
   const [formData, setFormData] = React.useState({
     firstName: '',
@@ -341,6 +344,14 @@ export default function AccountPage() {
           'Content-Type': 'application/json'
         }
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch wallet balances')

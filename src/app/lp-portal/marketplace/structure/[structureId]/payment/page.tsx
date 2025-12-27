@@ -178,6 +178,14 @@ export default function PaymentPage({ params }: Props) {
           },
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          console.log('[Payment Signature Verify] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
+
         const data = await response.json()
 
         // Check for invalid or expired token error
@@ -444,6 +452,14 @@ export default function PaymentPage({ params }: Props) {
                   }),
                 })
 
+                // Handle 401 Unauthorized - session expired or invalid
+                if (registerResponse.status === 401) {
+                  console.log('[Payment Register User] 401 Unauthorized - clearing session and redirecting to login')
+                  logout()
+                  router.push('/lp-portal/login')
+                  return
+                }
+
                 const registerData = await registerResponse.json()
 
                 if (registerData.error === "Invalid or expired token" || registerData.message === "Please provide a valid authentication token") {
@@ -487,6 +503,14 @@ export default function PaymentPage({ params }: Props) {
                     amount: tokens
                   }),
                 })
+
+                // Handle 401 Unauthorized - session expired or invalid
+                if (mintResponse.status === 401) {
+                  console.log('[Payment Mint Tokens] 401 Unauthorized - clearing session and redirecting to login')
+                  logout()
+                  router.push('/lp-portal/login')
+                  return
+                }
 
                 const mintData = await mintResponse.json()
 
@@ -537,6 +561,14 @@ export default function PaymentPage({ params }: Props) {
                 },
                 body: formData,
               })
+
+              // Handle 401 Unauthorized - session expired or invalid
+              if (response.status === 401) {
+                console.log('[Payment Create Record] 401 Unauthorized - clearing session and redirecting to login')
+                logout()
+                router.push('/lp-portal/login')
+                return
+              }
 
               const data = await response.json()
 
@@ -643,6 +675,14 @@ export default function PaymentPage({ params }: Props) {
           },
           body: formData,
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          console.log('[Payment Bank Transfer] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
 
         const data = await response.json()
 

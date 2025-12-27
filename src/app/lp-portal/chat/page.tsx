@@ -38,8 +38,9 @@ import {
   getCurrentInvestorEmail,
 } from '@/lib/lp-portal-helpers'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken, getCurrentUser } from '@/lib/auth-storage'
+import { getAuthToken, getCurrentUser, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface Message {
   id: string
@@ -85,6 +86,7 @@ interface AdminStaffUser {
 }
 
 export default function LPChatPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [messageInput, setMessageInput] = useState('')
@@ -133,6 +135,14 @@ export default function LPChatPage() {
           'Content-Type': 'application/json',
         },
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (response.ok) {
         const result = await response.json()
@@ -240,6 +250,14 @@ export default function LPChatPage() {
         },
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Chat Users] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
+
       if (response.ok) {
         const result = await response.json()
         if (result.success && result.data) {
@@ -275,6 +293,14 @@ export default function LPChatPage() {
           name: participantName,
         }),
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Chat Create] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to create conversation')
@@ -326,6 +352,14 @@ export default function LPChatPage() {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Chat Messages] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -411,6 +445,14 @@ export default function LPChatPage() {
         )
       }
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Chat Send] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
+
       if (!response.ok) {
         throw new Error('Failed to send message')
       }
@@ -438,7 +480,7 @@ export default function LPChatPage() {
     if (!token) return
 
     try {
-      await fetch(
+      const response = await fetch(
         getApiUrl(API_CONFIG.endpoints.markMessageAsRead(messageId)),
         {
           method: 'PUT',
@@ -448,6 +490,14 @@ export default function LPChatPage() {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Chat Mark Read] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
     } catch (error) {
       console.error('Error marking message as read:', error)
     }
@@ -468,6 +518,14 @@ export default function LPChatPage() {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Chat Delete] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to delete message')
@@ -513,6 +571,14 @@ export default function LPChatPage() {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Chat Delete Conversation] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       // Handle HTTP errors
       if (!response.ok) {

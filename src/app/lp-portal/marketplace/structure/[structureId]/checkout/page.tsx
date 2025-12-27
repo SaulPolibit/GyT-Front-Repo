@@ -19,8 +19,9 @@ import {
 import { getCurrentInvestorEmail } from "@/lib/lp-portal-helpers"
 import { useToast } from "@/hooks/use-toast"
 import type { Structure } from "@/lib/structures-storage"
-import { getAuthToken } from "@/lib/auth-storage"
+import { getAuthToken, logout } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { useRouter } from "next/navigation"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -28,6 +29,7 @@ interface Props {
 
 export default function StructureCheckoutPage({ params }: Props) {
   const { structureId } = use(params)
+  const router = useRouter()
   const { toast } = useToast()
   const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -58,6 +60,14 @@ export default function StructureCheckoutPage({ params }: Props) {
             'Content-Type': 'application/json',
           },
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          console.log('[Structure Checkout] 401 Unauthorized - clearing session and redirecting to login')
+          logout()
+          router.push('/lp-portal/login')
+          return
+        }
 
         if (!response.ok) {
           throw new Error(`Failed to fetch structure: ${response.statusText}`)

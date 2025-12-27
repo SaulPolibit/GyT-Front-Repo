@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { IconTrendingDown, IconFileText, IconSend, IconClock, IconCircleCheck, IconAlertCircle, IconCircleX, IconEye } from '@tabler/icons-react'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthState } from '@/lib/auth-storage'
+import { getAuthState, logout } from '@/lib/auth-storage'
+import { useRouter } from 'next/navigation'
 
 interface InvestorCapitalCall {
   id: string
@@ -23,6 +24,7 @@ interface InvestorCapitalCall {
 }
 
 export default function LPCapitalCallsPage() {
+  const router = useRouter()
   const [capitalCalls, setCapitalCalls] = useState<InvestorCapitalCall[]>([])
   const [summary, setSummary] = useState({
     totalCalled: 0,
@@ -79,6 +81,14 @@ export default function LPCapitalCallsPage() {
       const response = await fetch(getApiUrl(API_CONFIG.endpoints.getMyCapitalCalls), {
         headers
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Capital Calls] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (!response.ok) {
         console.error('Failed to fetch capital calls:', response.status)

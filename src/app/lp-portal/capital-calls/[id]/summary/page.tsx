@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { IconArrowLeft, IconDownload, IconCircleCheck, IconBuildingBank } from '@tabler/icons-react'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getCurrentUser, getAuthToken } from '@/lib/auth-storage'
+import { getCurrentUser, getAuthToken, logout } from '@/lib/auth-storage'
 
 export default function CapitalCallSummaryPage() {
   const router = useRouter()
@@ -41,6 +41,14 @@ export default function CapitalCallSummaryPage() {
           'Content-Type': 'application/json'
         }
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        console.log('[Capital Call Summary] 401 Unauthorized - clearing session and redirecting to login')
+        logout()
+        router.push('/lp-portal/login')
+        return
+      }
 
       if (!response.ok) {
         console.error('[Summary] Failed to fetch capital calls:', response.status)
