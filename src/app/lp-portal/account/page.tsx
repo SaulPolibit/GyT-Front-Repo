@@ -328,7 +328,7 @@ export default function AccountPage() {
 
     setLoadingBalances(true)
     try {
-      const token = localStorage.getItem('token')
+      const token = getAuthToken()
       if (!token) {
         console.error('No authentication token found')
         return
