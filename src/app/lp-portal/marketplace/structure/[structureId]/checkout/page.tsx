@@ -122,11 +122,17 @@ export default function StructureCheckoutPage({ params }: Props) {
   const totalCost = tokens * pricePerToken
   const isFormValid = tokens > 0 && agreedToTerms
 
+  // Check if contract signing is enabled
+  const enableContractSigning = process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNING !== 'false'
+
   const handleSignContracts = async () => {
     if (!isFormValid || !structure) return
 
     setIsSubmitting(true)
     try {
+      // Check if contract signing is enabled via environment variable
+      const enableContractSigning = process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNING !== 'false'
+
       // Get current investor email
       const investorEmail = getCurrentInvestorEmail()
 
@@ -139,14 +145,21 @@ export default function StructureCheckoutPage({ params }: Props) {
         ? `${localPart}+${randomSuffix}@${domain}`
         : `${investorEmail}+${randomSuffix}`
 
-      // Redirect to contracts page with structure details as query params
-      const contractsUrl = `/lp-portal/marketplace/structure/${structureId}/contracts?tokens=${tokens}&email=${encodeURIComponent(uniqueEmail)}&amount=${totalCost}`
-      window.location.href = contractsUrl
+      // Navigate based on contract signing configuration
+      if (enableContractSigning) {
+        // Redirect to contracts page with structure details as query params
+        const contractsUrl = `/lp-portal/marketplace/structure/${structureId}/contracts?tokens=${tokens}&email=${encodeURIComponent(uniqueEmail)}&amount=${totalCost}`
+        window.location.href = contractsUrl
+      } else {
+        // Skip contracts and go directly to payment
+        const paymentUrl = `/lp-portal/marketplace/structure/${structureId}/payment?tokens=${tokens}&email=${encodeURIComponent(uniqueEmail)}&amount=${totalCost}`
+        window.location.href = paymentUrl
+      }
     } catch (error) {
       console.error('Navigation error:', error)
       toast({
         title: "Error",
-        description: "Failed to navigate to contracts. Please try again.",
+        description: "Failed to proceed. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -383,12 +396,12 @@ export default function StructureCheckoutPage({ params }: Props) {
               {isSubmitting ? (
                 <>
                   <span className="animate-spin mr-2">⏳</span>
-                  Proceeding to Contracts...
+                  {enableContractSigning ? 'Proceeding to Contracts...' : 'Proceeding to Payment...'}
                 </>
               ) : (
                 <>
                   <Check className="h-4 w-4 mr-2" />
-                  Continue to Sign Contracts
+                  {enableContractSigning ? 'Continue to Sign Contracts' : 'Continue to Payment'}
                 </>
               )}
             </Button>
