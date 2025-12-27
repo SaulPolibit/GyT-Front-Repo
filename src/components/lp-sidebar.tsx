@@ -19,6 +19,7 @@ import {
   MessageSquare,
   LayoutDashboard,
   Store,
+  Share2,
 } from "lucide-react"
 
 import {
@@ -34,12 +35,18 @@ import { NavMain } from "@/components/nav-main"
 import { NavManagement } from "@/components/nav-management"
 import { NavSecondary } from "@/components/nav-secondary"
 import { LPNavUser } from "@/components/lp-nav-user"
+import { getFirmSettings, FirmSettings } from "@/lib/firm-settings-storage"
 
 interface LPSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
 }
 
 export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
+  const [firmSettings, setFirmSettings] = React.useState<FirmSettings | null>(null)
+
+  React.useEffect(() => {
+    setFirmSettings(getFirmSettings())
+  }, [])
 
   const data = {
     navMain: [
@@ -136,8 +143,17 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="/lp-portal">
+                {firmSettings?.firmLogo ? (
+                  <img
+                    src={firmSettings.firmLogo}
+                    alt="Firm logo"
+                    className="!size-5 object-contain rounded"
+                  />
+                ) : (
+                  <Share2 className="!size-5" />
+                )}
                 <span className="text-base font-semibold">
-                  Investor Portal
+                  {firmSettings?.firmName || 'Polibit'}
                 </span>
               </a>
             </SidebarMenuButton>
