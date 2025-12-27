@@ -37,6 +37,7 @@ export const API_CONFIG = {
     getInvestorWithStructures: (investorId: string) => `/api/investors/${investorId}/with-structures`,
     getInvestorById: (investorId: string) => `/api/investors/${investorId}`,
     updateInvestorById: (investorId: string) => `/api/investors/${investorId}`,
+    deleteInvestor: (investorId: string) => `/api/investors/${investorId}`,
     getInvestorCommitments: (investorId: string) => `/api/investors/${investorId}/commitments`,
     getInvestorCapitalCalls: (investorId: string) => `/api/investors/${investorId}/capital-calls`,
 

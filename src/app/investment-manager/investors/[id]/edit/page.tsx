@@ -172,11 +172,18 @@ export default function EditInvestorPage({ params }: PageProps) {
         setAssetsUnderManagement(investor.assetsUnderManagement?.toString() || "")
 
         // Get structure from investor's structureId
+        // Priority: 1) structureId field, 2) structure.id object, 3) first fundOwnership
         if (investor.structureId) {
           setSelectedStructure(investor.structureId)
         } else if (investor.structure && investor.structure.id) {
           // Fallback to structure object if structureId not directly available
           setSelectedStructure(investor.structure.id)
+        } else if (investor.fundOwnerships && investor.fundOwnerships.length > 0) {
+          // Fallback to first structure in fundOwnerships array
+          const firstOwnership = investor.fundOwnerships[0]
+          if (firstOwnership.fundId || firstOwnership.structure_id) {
+            setSelectedStructure(firstOwnership.fundId || firstOwnership.structure_id)
+          }
         }
 
         // Store associated user data if available
@@ -336,7 +343,7 @@ export default function EditInvestorPage({ params }: PageProps) {
       const result = await response.json()
 
       toast.success('Investor updated successfully')
-      router.push(`/investment-manager/investors/${id}`)
+      // router.push(`/investment-manager/investors/${id}`)
     } catch (err: any) {
       console.error('Error updating investor:', err)
       toast.error(err.message || 'Failed to update investor')

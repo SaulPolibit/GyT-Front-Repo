@@ -44,7 +44,6 @@ import { getDistributions } from "@/lib/distributions-storage"
 import { calculateIRR } from "@/lib/performance-calculations"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken, getAuthState } from "@/lib/auth-storage"
-import { deleteInvestor } from "@/lib/investors-storage"
 
 // Helper function to handle 401 authentication errors
 const handleAuthError = (response: Response, errorData: any) => {
@@ -357,14 +356,39 @@ export default function InvestorDetailPage({ params }: PageProps) {
     router.push(`/investment-manager/investors/${id}/edit`)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     try {
-      deleteInvestor(id)
+      const token = getAuthToken()
+      if (!token) {
+        toast.error('Authentication required. Please log in.')
+        return
+      }
+
+      const deleteUrl = getApiUrl(API_CONFIG.endpoints.deleteInvestor(id))
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+
+        // Handle 401 authentication errors
+        if (handleAuthError(response, errorData)) {
+          return // Exit early as we're redirecting
+        }
+
+        throw new Error(errorData.message || 'Failed to delete investor')
+      }
+
       toast.success('Investor deleted successfully')
-      router.push('/investment-manager/investors')
+      // router.push('/investment-manager/investors')
     } catch (error) {
       console.error('Delete error:', error)
-      toast.error('Failed to delete investor. Please try again.')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete investor. Please try again.')
     }
   }
 
