@@ -38,9 +38,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useTranslation } from "@/hooks/useTranslation"
-import { FirmSettings } from "@/lib/firm-settings-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken } from "@/lib/auth-storage"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
@@ -48,34 +46,26 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
   const { t } = useTranslation()
-  const [firmSettings, setFirmSettings] = React.useState<FirmSettings | null>(null)
+  const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    async function fetchFirmSettings() {
+    async function fetchFirmLogo() {
       try {
-        const token = getAuthToken()
-        if (!token) return  // No auth, skip
-
-        const url = getApiUrl(API_CONFIG.endpoints.getFirmSettings)
-        const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        const url = getApiUrl(API_CONFIG.endpoints.getFirmLogo)
+        const response = await fetch(url)
 
         if (response.ok) {
           const result = await response.json()
           if (result.success && result.data) {
-            setFirmSettings(result.data)
+            setFirmLogo(result.data.firmLogo)
           }
         }
       } catch (error) {
-        console.error('Failed to fetch firm settings:', error)
+        console.error('Failed to fetch firm logo:', error)
       }
     }
 
-    fetchFirmSettings()
+    fetchFirmLogo()
   }, [])
 
   const data = {
@@ -222,9 +212,9 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
                 className="data-[slot=sidebar-menu-button]:!p-1.5"
               >
                 <a href="#" className="flex items-center justify-center">
-                  {firmSettings?.firmLogo ? (
+                  {firmLogo ? (
                     <img
-                      src={firmSettings.firmLogo}
+                      src={firmLogo}
                       alt="Firm logo"
                       className="h-8 w-auto object-contain rounded"
                     />

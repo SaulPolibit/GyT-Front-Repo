@@ -55,6 +55,7 @@ export const API_CONFIG = {
 
     // Firm settings
     getFirmSettings: '/api/firm-settings',
+    getFirmLogo: '/api/firm-settings/logo',
     updateFirmSettings: '/api/firm-settings',
 
     // Email configuration

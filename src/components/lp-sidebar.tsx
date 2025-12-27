@@ -35,43 +35,33 @@ import { NavMain } from "@/components/nav-main"
 import { NavManagement } from "@/components/nav-management"
 import { NavSecondary } from "@/components/nav-secondary"
 import { LPNavUser } from "@/components/lp-nav-user"
-import { FirmSettings } from "@/lib/firm-settings-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken } from "@/lib/auth-storage"
 
 interface LPSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
 }
 
 export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
-  const [firmSettings, setFirmSettings] = React.useState<FirmSettings | null>(null)
+  const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    async function fetchFirmSettings() {
+    async function fetchFirmLogo() {
       try {
-        const token = getAuthToken()
-        if (!token) return  // No auth, skip
-
-        const url = getApiUrl(API_CONFIG.endpoints.getFirmSettings)
-        const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        const url = getApiUrl(API_CONFIG.endpoints.getFirmLogo)
+        const response = await fetch(url)
 
         if (response.ok) {
           const result = await response.json()
           if (result.success && result.data) {
-            setFirmSettings(result.data)
+            setFirmLogo(result.data.firmLogo)
           }
         }
       } catch (error) {
-        console.error('Failed to fetch firm settings:', error)
+        console.error('Failed to fetch firm logo:', error)
       }
     }
 
-    fetchFirmSettings()
+    fetchFirmLogo()
   }, [])
 
   const data = {
@@ -169,9 +159,9 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="/lp-portal" className="flex items-center justify-center">
-                {firmSettings?.firmLogo ? (
+                {firmLogo ? (
                   <img
-                    src={firmSettings.firmLogo}
+                    src={firmLogo}
                     alt="Firm logo"
                     className="h-8 w-auto object-contain rounded"
                   />
