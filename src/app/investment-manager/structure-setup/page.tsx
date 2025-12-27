@@ -364,6 +364,9 @@ export default function OnboardingPage() {
   // Operating agreement hash state
   const [manuallyEnterHash, setManuallyEnterHash] = useState(false)
 
+  // Track focused currency field for formatting
+  const [focusedCurrencyField, setFocusedCurrencyField] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     // Step 1: Structure Type Selection
     structureType: '',
@@ -3319,15 +3322,23 @@ export default function OnboardingPage() {
                     <Input
                       id="totalCapitalCommitment"
                       type="text"
-                      placeholder="10,000,000.00"
+                      placeholder="10,000,000"
                       className="rounded-l-none"
-                      value={formData.totalCapitalCommitment ? parseFloat(formData.totalCapitalCommitment.replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                      value={
+                        focusedCurrencyField === 'totalCapitalCommitment'
+                          ? formData.totalCapitalCommitment
+                          : formData.totalCapitalCommitment
+                          ? parseFloat(formData.totalCapitalCommitment).toLocaleString('en-US')
+                          : ''
+                      }
                       onChange={(e) => {
                         const rawValue = e.target.value.replace(/,/g, '')
                         if (rawValue === '' || !isNaN(parseFloat(rawValue))) {
                           updateFormData('totalCapitalCommitment', rawValue)
                         }
                       }}
+                      onFocus={() => setFocusedCurrencyField('totalCapitalCommitment')}
+                      onBlur={() => setFocusedCurrencyField(null)}
                     />
                   </div>
                 </div>
@@ -3511,15 +3522,23 @@ export default function OnboardingPage() {
                       <Input
                         id="minCheckSize"
                         type="text"
-                        placeholder="50,000.00"
+                        placeholder="50,000"
                         className="rounded-l-none"
-                        value={formData.minCheckSize ? parseFloat(formData.minCheckSize.replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                        value={
+                          focusedCurrencyField === 'minCheckSize'
+                            ? formData.minCheckSize
+                            : formData.minCheckSize
+                            ? parseFloat(formData.minCheckSize).toLocaleString('en-US')
+                            : ''
+                        }
                         onChange={(e) => {
                           const rawValue = e.target.value.replace(/,/g, '')
                           if (rawValue === '' || !isNaN(parseFloat(rawValue))) {
                             updateFormData('minCheckSize', rawValue)
                           }
                         }}
+                        onFocus={() => setFocusedCurrencyField('minCheckSize')}
+                        onBlur={() => setFocusedCurrencyField(null)}
                         required
                       />
                     </div>
@@ -3534,15 +3553,23 @@ export default function OnboardingPage() {
                       <Input
                         id="maxCheckSize"
                         type="text"
-                        placeholder="150,000.00"
+                        placeholder="150,000"
                         className="rounded-l-none"
-                        value={formData.maxCheckSize ? parseFloat(formData.maxCheckSize.replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
+                        value={
+                          focusedCurrencyField === 'maxCheckSize'
+                            ? formData.maxCheckSize
+                            : formData.maxCheckSize
+                            ? parseFloat(formData.maxCheckSize).toLocaleString('en-US')
+                            : ''
+                        }
                         onChange={(e) => {
                           const rawValue = e.target.value.replace(/,/g, '')
                           if (rawValue === '' || !isNaN(parseFloat(rawValue))) {
                             updateFormData('maxCheckSize', rawValue)
                           }
                         }}
+                        onFocus={() => setFocusedCurrencyField('maxCheckSize')}
+                        onBlur={() => setFocusedCurrencyField(null)}
                         required
                       />
                     </div>
