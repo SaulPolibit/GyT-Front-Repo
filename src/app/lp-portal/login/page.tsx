@@ -4,10 +4,7 @@ import * as React from "react"
 import { Suspense } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -15,23 +12,42 @@ import { useAuth } from "@/hooks/useAuth"
 import { getUserRoleType, updateUserKycData, saveLoginResponse, getRedirectPathForRole } from "@/lib/auth-storage"
 import { toast } from "sonner"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Share2 } from "lucide-react"
 import { saveNotificationSettings } from "@/lib/notification-settings-storage"
 import { sendInvestorActivityEmail } from "@/lib/email-service"
 
 function LPLoginPageContent() {
-  const [email, setEmail] = React.useState('')
-  const [password, setPassword] = React.useState('')
-  const [isLoading, setIsLoading] = React.useState(false)
   const [isProsperapLoading, setIsProsperapLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState('')
   const [prosperapRedirectUrl, setProsperapRedirectUrl] = React.useState<string | null>(null)
   const [showTermsDialog, setShowTermsDialog] = React.useState(false)
   const [termsAccepted, setTermsAccepted] = React.useState(false)
   const [registrationData, setRegistrationData] = React.useState<any>(null)
+  const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login, isLoggedIn, user, refreshAuthState} = useAuth()
+  const { isLoggedIn, user, refreshAuthState} = useAuth()
+
+  // Load firm logo
+  React.useEffect(() => {
+    async function fetchFirmLogo() {
+      try {
+        const url = getApiUrl(API_CONFIG.endpoints.getFirmLogo)
+        const response = await fetch(url)
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && result.data) {
+            setFirmLogo(result.data.firmLogo)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch firm logo:', error)
+      }
+    }
+
+    fetchFirmLogo()
+  }, [])
 
   // Handle OAuth callback from Prospera
   React.useEffect(() => {
@@ -57,175 +73,6 @@ function LPLoginPageContent() {
     }
   }, [isLoggedIn, user, router])
 
-  const handleLogin = async () => {
-    // Clear previous error
-    setErrorMessage('')
-
-    if (!email) {
-      setErrorMessage('Please enter your email')
-      return
-    }
-
-    if (!password) {
-      setErrorMessage('Please enter your password')
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      // Make API call directly to capture error message
-      const apiResponse = await fetch(getApiUrl(API_CONFIG.endpoints.login), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await apiResponse.json()
-
-      // Check if MFA is required BEFORE checking success
-      if (data.mfaRequired) {
-        console.log('[LP Login] MFA verification required, redirecting...')
-        router.push(`/sign-in/mfa-validation?userId=${data.userId}`)
-        return
-      }
-
-      // If not MFA required and login failed, show error message
-      if (!data.success) {
-        console.log('[LP Login] Login failed:', data.message)
-        setErrorMessage(data.message || 'Login failed. Please try again.')
-        setIsLoading(false)
-        return
-      }
-
-      // Now call the login function to save the auth state
-      const response = await login(email, password)
-
-      if (!response || !response.success) {
-        console.log('[LP Login] Login state save failed')
-        setIsLoading(false)
-        return
-      }
-
-      if (response.success) {
-        // Check if user is a customer (role 3)
-        if (response.user.role !== 3) {
-          toast.error('This login is for investors only. Please use the main sign-in page.')
-          setIsLoading(false)
-          return
-        }
-
-        console.log('[LP Login] KYC Status:', response.user.kycStatus)
-
-        // KYC validation for role 3 (investors) without kycId
-        if (!response.user.kycId || response.user.kycStatus !== 'Approved') {
-          console.log('[LP Login] Retrieving DiDit session for investor...')
-          try {
-            const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${response.token}`,
-                'Content-Type': 'application/json',
-              },
-            })
-
-            if (diditResponse.ok) {
-              const diditData = await diditResponse.json()
-              console.log('[LP Login] DiDit session created:', diditData)
-
-              // Update user KYC data in localStorage
-              if (diditData.data?.sessionId && diditData.data?.url) {
-                updateUserKycData(
-                  diditData.data.sessionId,
-                  diditData.data.url,
-                  diditData.data.status
-                )
-                console.log('[LP Login] KYC data updated in localStorage')
-
-                // Refresh auth state to pick up new KYC data
-                refreshAuthState()
-                console.log('[LP Login] Auth state refreshed with new KYC data')
-              }
-            } else {
-              console.error('[LP Login] Failed to create DiDit session:', await diditResponse.text())
-            }
-          } catch (diditError) {
-            console.error('[LP Login] Error creating DiDit session:', diditError)
-          }
-        }
-
-        // Fetch and save notification settings after successful login
-        try {
-          console.log('[LP Login] Fetching notification settings...')
-          const notificationResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getNotificationSettings), {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${response.token}`,
-            },
-          })
-
-          if (notificationResponse.ok) {
-            const notificationData = await notificationResponse.json()
-            console.log('[LP Login] Notification settings fetched:', notificationData)
-
-            if (notificationData.success && notificationData.data) {
-              saveNotificationSettings(notificationData.data)
-              console.log('[LP Login] Notification settings saved to localStorage')
-
-              // Send security alert email if enabled
-              if (notificationData.data.securityAlerts && response.user?.id && response.user?.email) {
-                try {
-                  const currentDate = new Date().toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })
-
-                  const loginLocation = 'Unknown' // You can enhance this with IP geolocation
-                  const deviceInfo = navigator.userAgent
-
-                  await sendInvestorActivityEmail(
-                    response.user.id,
-                    response.user.email,
-                    {
-                      investorName: response.user.email,
-                      activityType: 'Security Alert: New Login Detected',
-                      activityDescription: `A new login to your account was detected.\n\nLogin Details:\nDate & Time: ${currentDate}\nDevice: ${deviceInfo}\nLocation: ${loginLocation}\n\nIf this was you, no action is needed. If you did not log in, please secure your account immediately by changing your password and enabling two-factor authentication.`,
-                      date: currentDate,
-                      fundManagerName: 'Polibit Security Team',
-                      fundManagerEmail: 'security@polibit.com',
-                    }
-                  )
-                  console.log('[LP Login] Security alert email sent successfully')
-                } catch (emailError) {
-                  console.error('[LP Login] Error sending security alert email:', emailError)
-                  // Don't fail login if email fails
-                }
-              }
-            }
-          } else {
-            console.warn('[LP Login] Failed to fetch notification settings:', await notificationResponse.text())
-          }
-        } catch (notificationError) {
-          console.error('[LP Login] Error fetching notification settings:', notificationError)
-          // Don't fail login if notification settings fetch fails
-        }
-
-        // Redirect will happen via useEffect once isLoggedIn updates
-        toast.success('Welcome back!')
-      }
-    } catch (error) {
-      console.error('[LP Login] Error:', error)
-      setErrorMessage('An error occurred. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleProsperapLogin = async () => {
     setIsProsperapLoading(true)
@@ -432,7 +279,19 @@ function LPLoginPageContent() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center space-y-4">
+          {/* Firm Logo */}
+          <div className="flex justify-center">
+            {firmLogo ? (
+              <img
+                src={firmLogo}
+                alt="Firm logo"
+                className="h-16 w-auto object-contain"
+              />
+            ) : (
+              <Share2 className="h-16 w-16 text-primary" />
+            )}
+          </div>
           <CardTitle className="text-2xl">Investor Login</CardTitle>
           <CardDescription>
             Access your investment portfolio
@@ -464,7 +323,7 @@ function LPLoginPageContent() {
           {/* Prospera Login Button */}
           <Button
             onClick={handleProsperapLogin}
-            disabled={isLoading || isProsperapLoading}
+            disabled={isProsperapLoading}
             className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
             size="lg"
           >
@@ -481,53 +340,6 @@ function LPLoginPageContent() {
                 Login with Prospera
               </>
             )}
-          </Button>
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with email
-              </span>
-            </div>
-          </div>
-
-          {/* Email/Password Form */}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              disabled={isLoading || isProsperapLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              placeholder="••••••••"
-              disabled={isLoading || isProsperapLoading}
-            />
-          </div>
-
-          <Button
-            onClick={handleLogin}
-            className="w-full"
-            disabled={isLoading || isProsperapLoading}
-            variant="outline"
-          >
-            {isLoading ? 'Signing in...' : 'Sign In with Email'}
           </Button>
 
           {/* Prospera Sign Up Link */}
