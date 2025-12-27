@@ -640,45 +640,55 @@ export default function AccountPage() {
                   </div>
                 ) : walletBalances.length > 0 ? (
                   (() => {
-                    // Filter for POL, USDT and ERC-3643 tokens
-                    const filteredBalances = walletBalances.filter(balance => {
-                      const isPOL = balance.token?.symbol?.toUpperCase() === 'POL' || balance.token?.symbol?.toUpperCase() === 'MATIC'
-                      const isUSDT = balance.token?.symbol?.toUpperCase() === 'USDT'
-                      const isERC3643 = balance.token?.standard === 'ERC3643' || balance.token?.type === 'ERC3643'
-                      return isPOL || isUSDT || isERC3643
+                    // Filter tokens with balance > 0 only
+                    const tokensWithBalance = walletBalances.filter(balance => {
+                      const amount = parseFloat(balance.amount || '0')
+                      return amount > 0
                     })
 
-                    return filteredBalances.length > 0 ? (
+                    // Sort: native tokens (pol, matic, usdc) first, then custom tokens
+                    const nativeTokens = ['pol', 'matic', 'usdc']
+                    const sortedBalances = tokensWithBalance.sort((a, b) => {
+                      const aIsNative = nativeTokens.includes(a.symbol?.toLowerCase() || '')
+                      const bIsNative = nativeTokens.includes(b.symbol?.toLowerCase() || '')
+
+                      if (aIsNative && !bIsNative) return -1
+                      if (!aIsNative && bIsNative) return 1
+                      return 0
+                    })
+
+                    return sortedBalances.length > 0 ? (
                       <div className="space-y-2">
-                        {filteredBalances.map((balance, index) => {
-                          const isERC3643 = balance.token?.standard === 'ERC3643' || balance.token?.type === 'ERC3643'
+                        {sortedBalances.map((balance, index) => {
+                          // Get contract address from chains data
+                          const chainData = balance.chains?.['polygon-amoy']
+                          const contractAddress = chainData?.contractAddress
 
                           return (
                             <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-md">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                                   <span className="text-xs font-semibold text-primary">
-                                    {balance.token?.symbol?.substring(0, 2) || 'TK'}
+                                    {balance.symbol?.substring(0, 2)?.toUpperCase() || 'TK'}
                                   </span>
                                 </div>
                                 <div>
                                   <div className="font-medium text-sm">
-                                    {balance.token?.name || balance.token?.symbol || 'Unknown Token'}
+                                    {balance.name || balance.symbol || 'Unknown Token'}
                                   </div>
                                   <div className="text-xs text-muted-foreground">
-                                    {balance.token?.symbol || 'N/A'}
-                                    {isERC3643 && <span className="ml-1 text-blue-600">(ERC-3643)</span>}
+                                    {balance.symbol || 'N/A'}
                                   </div>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <div className="font-medium text-sm">
-                                  {balance.amount || balance.balance || '0'}
+                                  {balance.amount || '0'}
                                 </div>
-                                {balance.token?.contractAddress && (
+                                {contractAddress && (
                                   <div className="text-xs text-muted-foreground font-mono">
-                                    {balance.token.contractAddress.substring(0, 6)}...
-                                    {balance.token.contractAddress.substring(balance.token.contractAddress.length - 4)}
+                                    {contractAddress.substring(0, 6)}...
+                                    {contractAddress.substring(contractAddress.length - 4)}
                                   </div>
                                 )}
                               </div>
@@ -689,7 +699,7 @@ export default function AccountPage() {
                     ) : (
                       <div className="p-3 bg-muted rounded-md text-center">
                         <p className="text-sm text-muted-foreground">
-                          No POL, USDT or ERC-3643 tokens found
+                          No tokens found
                         </p>
                       </div>
                     )
