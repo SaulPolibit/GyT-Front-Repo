@@ -3863,7 +3863,6 @@ export default function OnboardingPage() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Polygon">Polygon</SelectItem>
-                              <SelectItem value="Arbitrum">Arbitrum</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
