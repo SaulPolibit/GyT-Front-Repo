@@ -106,15 +106,21 @@ export default function SignInPage() {
 
             if (diditResponse.ok) {
               const diditData = await diditResponse.json()
-              console.log('[Sign-In] DiDit session created:', diditData)
+              console.log('[Sign-In] DiDit session response:', diditData)
+
+              // Check if session was renewed
+              if (diditData.sessionRenewed) {
+                console.log('[Sign-In] KYC session was expired and has been renewed')
+              }
 
               // Update user KYC data in localStorage
-              if (diditData.data?.sessionId && diditData.data?.url) {
-                updateUserKycData(
-                  diditData.data.sessionId,
-                  diditData.data.url,
-                  diditData.data.status
-                )
+              // API returns session_id and url (snake_case)
+              const sessionId = diditData.data?.session_id || diditData.data?.sessionId
+              const sessionUrl = diditData.data?.url
+              const sessionStatus = diditData.data?.status
+
+              if (sessionId && sessionUrl) {
+                updateUserKycData(sessionId, sessionUrl, sessionStatus)
                 console.log('[Sign-In] KYC data updated in localStorage')
 
                 // Refresh auth state to pick up new KYC data
