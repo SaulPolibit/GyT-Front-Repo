@@ -74,11 +74,11 @@ export default function PaymentPage({ params }: Props) {
 
   const tokens = searchParams.get("tokens") || "0"
   const email = searchParams.get("email") || "investor@demo.polibit.io"
-  const amount = 1//searchParams.get("amount") || "1"
+  const amount = searchParams.get("amount") || null
 
   // Testing mode: Use POL (native token) instead of USDC for testing
   // Set to false for production (USDC mode)
-  const USE_NATIVE_TOKEN_FOR_TESTING = true
+  const USE_NATIVE_TOKEN_FOR_TESTING = false
 
   // Check if USDC payment is enabled based on structure blockchain configuration and user wallet
   const isMetamaskPaymentEnabled = structure?.blockchainNetwork &&
@@ -239,6 +239,16 @@ export default function PaymentPage({ params }: Props) {
   const handlePayment = async () => {
     if (!isFormValid() || !structure) return
 
+    // Validate amount is not null
+    if (!amount || parseFloat(amount) <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Payment amount is required and must be greater than zero",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsProcessing(true)
     try {
       // Handle USDC/POL payment via MetaMask
@@ -249,9 +259,19 @@ export default function PaymentPage({ params }: Props) {
           throw new Error('MetaMask is not installed')
         }
 
-        const network = structure.blockchainNetwork || 'Polygon Amoy'
+        // Validate network is Polygon Mainnet for production wallet payments
+        const network = structure.blockchainNetwork || 'Polygon'
         console.log('[Payment] Structure blockchain network:', structure.blockchainNetwork)
         console.log('[Payment] Using network:', network)
+
+        // Ensure production network (Polygon Mainnet) is used, not testnet (Amoy)
+        if (network.toLowerCase().includes('amoy')) {
+          throw new Error('Testnet (Amoy) is not supported for payments. Please use Polygon Mainnet.')
+        }
+
+        // Default to Polygon Mainnet if not specified
+        const productionNetwork = network === 'Polygon' || network === 'Polygon PoS' ? network : 'Polygon'
+        console.log('[Payment] Production network validated:', productionNetwork)
 
         if (!structure.walletAddress) {
           throw new Error('Destination wallet address not configured')
@@ -259,12 +279,12 @@ export default function PaymentPage({ params }: Props) {
 
         // Switch to the correct network before sending transaction
         try {
-          console.log('[Payment] Attempting to switch to network:', network)
-          await switchNetwork(network)
-          console.log(`[Payment] Successfully switched to ${network} network`)
+          console.log('[Payment] Attempting to switch to network:', productionNetwork)
+          await switchNetwork(productionNetwork)
+          console.log(`[Payment] Successfully switched to ${productionNetwork} network`)
         } catch (networkError) {
           console.error('[Payment] Network switch error:', networkError)
-          throw new Error(`Failed to switch to ${network} network. Please switch manually in MetaMask.`)
+          throw new Error(`Failed to switch to ${productionNetwork} network. Please switch manually in MetaMask.`)
         }
 
         let txHash: string
@@ -280,7 +300,7 @@ export default function PaymentPage({ params }: Props) {
           const hexValue = '0x' + amountInWei.toString(16)
 
           console.log('[Payment] Native token transaction details:', {
-            network,
+            network: productionNetwork,
             to: structure.walletAddress,
             from: usdcWalletAddress,
             amount: amount,
@@ -337,10 +357,10 @@ export default function PaymentPage({ params }: Props) {
             'Amoy': '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
           }
 
-          const usdcContractAddress = USDC_ADDRESSES[network]
+          const usdcContractAddress = USDC_ADDRESSES[productionNetwork]
 
           if (!usdcContractAddress) {
-            throw new Error(`USDC contract address not found for network: ${network}`)
+            throw new Error(`USDC contract address not found for network: ${productionNetwork}`)
           }
 
           // Convert amount to USDC units (6 decimals for USDC) using BigInt
@@ -362,7 +382,7 @@ export default function PaymentPage({ params }: Props) {
           const data = transferMethodId + toAddress + transferAmount
 
           console.log('[Payment] USDC transaction details:', {
-            network,
+            network: productionNetwork,
             usdcContract: usdcContractAddress,
             to: structure.walletAddress,
             amount: amount,
@@ -398,7 +418,7 @@ export default function PaymentPage({ params }: Props) {
           })
 
           // Check transaction status on blockchain
-          const txStatus = await checkTransactionStatus(txHash, network)
+          const txStatus = await checkTransactionStatus(txHash, productionNetwork)
 
           if (!txStatus.success) {
             throw new Error(txStatus.error || 'Transaction failed on blockchain')
