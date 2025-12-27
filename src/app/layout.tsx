@@ -13,43 +13,81 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "PoliBit - Investment Management Platform for Real Estate, PE & Private Debt",
-  description: "Automate investment operations from fundraising to distributions. Streamline real estate, equity and debt investments with digital workflows. $5M+ AUM, 500+ investors across 3 countries.",
-  openGraph: {
-    title: "PoliBit - Investment Management Platform for Real Estate, PE & Private Debt",
-    description: "Automate investment operations from fundraising to distributions. Streamline real estate, equity and debt investments with digital workflows. $5M+ AUM, 500+ investors across 3 countries.",
-    url: "https://www.polibit.io",
-    siteName: "PoliBit",
-    images: [
-      {
-        url: "https://www.polibit.io/logo.png",
-        width: 1200,
-        height: 630,
-        alt: "PoliBit - Investment Management Platform",
+export async function generateMetadata(): Promise<Metadata> {
+  let firmName = 'PoliBit'
+  let firmLogo = null
+
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+    const response = await fetch(`${apiUrl}/api/firm-settings/logo`, {
+      cache: 'no-store' // Ensure we get fresh data
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data) {
+        if (result.data.firmName) {
+          firmName = result.data.firmName
+        }
+        if (result.data.firmLogo) {
+          firmLogo = result.data.firmLogo
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch firm settings for metadata:', error)
+  }
+
+  const description = "Automate investment operations from fundraising to distributions. Streamline real estate, equity and debt investments with digital workflows. $5M+ AUM, 500+ investors across 3 countries."
+
+  return {
+    title: firmName,
+    description: description,
+    ...(firmLogo && {
+      icons: {
+        icon: firmLogo,
+        apple: firmLogo,
       },
-    ],
-    locale: "en_US",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "PoliBit - Investment Management Platform for Real Estate, PE & Private Debt",
-    description: "Automate investment operations from fundraising to distributions. Streamline real estate, equity and debt investments with digital workflows. $5M+ AUM, 500+ investors across 3 countries.",
-    images: ["https://www.polibit.io/logo.png"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    }),
+    openGraph: {
+      title: firmName,
+      description: description,
+      url: "https://www.polibit.io",
+      siteName: firmName,
+      ...(firmLogo && {
+        images: [
+          {
+            url: firmLogo,
+            width: 1200,
+            height: 630,
+            alt: `${firmName} - Investment Management Platform`,
+          },
+        ],
+      }),
+      locale: "en_US",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: firmName,
+      description: description,
+      ...(firmLogo && {
+        images: [firmLogo],
+      }),
+    },
+    robots: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
-  },
-};
+  }
+}
 
 export default function RootLayout({
   children,
