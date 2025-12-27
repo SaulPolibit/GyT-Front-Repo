@@ -33,7 +33,7 @@ import {
 import { ArrowLeft, MapPin, Building2, TrendingUp, TrendingDown, DollarSign, Pencil, Trash2, Loader2, AlertCircle, Upload, Eye } from "lucide-react"
 import type { Investment } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken, getAuthState } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState, logout } from "@/lib/auth-storage"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -93,6 +93,22 @@ export default function InvestmentDetailPage({ params }: PageProps) {
           }
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investment Detail] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
         if (!response.ok) {
           const errorData = await response.json()
           setError(errorData.message || 'Failed to fetch investment')
@@ -142,6 +158,22 @@ export default function InvestmentDetailPage({ params }: PageProps) {
             'Authorization': `Bearer ${token}`
           }
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investment Detail] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
 
         if (response.ok) {
           const result = await response.json()
@@ -220,6 +252,22 @@ export default function InvestmentDetailPage({ params }: PageProps) {
         }
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Investment Detail] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json()
         toast.error(errorData.message || 'Failed to delete document')
@@ -287,6 +335,22 @@ export default function InvestmentDetailPage({ params }: PageProps) {
         body: formData
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Investment Detail] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json()
         toast.error(errorData.message || 'Failed to upload document')
@@ -315,6 +379,22 @@ export default function InvestmentDetailPage({ params }: PageProps) {
             'Authorization': `Bearer ${token}`
           }
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (documentsResponse.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await documentsResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investment Detail] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
 
         if (documentsResponse.ok) {
           const documentsResult = await documentsResponse.json()
@@ -351,6 +431,22 @@ export default function InvestmentDetailPage({ params }: PageProps) {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Investment Detail] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         throw new Error('Failed to delete investment')

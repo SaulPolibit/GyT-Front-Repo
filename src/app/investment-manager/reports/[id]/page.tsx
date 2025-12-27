@@ -1,9 +1,10 @@
 "use client"
 
 import { use, useState, useEffect } from "react"
-import { notFound } from "next/navigation"
+import { notFound, useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from 'sonner'
+import { useAuth } from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +28,8 @@ interface PageProps {
 
 export default function ReportDetailPage({ params }: PageProps) {
   const { id } = use(params)
+  const router = useRouter()
+  const { logout } = useAuth()
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false)
   const [isDownloadingExcel, setIsDownloadingExcel] = useState(false)
   const [waterfallResult, setWaterfallResult] = useState<WaterfallDistribution | null>(null)
@@ -75,6 +78,23 @@ export default function ReportDetailPage({ params }: PageProps) {
     try {
       setIsDownloadingPDF(true)
       const response = await fetch(`/api/reports/${id}/export/pdf`)
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Report Detail] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) throw new Error('Failed to download PDF')
 
       const blob = await response.blob()
@@ -98,6 +118,23 @@ export default function ReportDetailPage({ params }: PageProps) {
     try {
       setIsDownloadingExcel(true)
       const response = await fetch(`/api/reports/${id}/export/excel`)
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Report Detail] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) throw new Error('Failed to download Excel')
 
       const blob = await response.blob()

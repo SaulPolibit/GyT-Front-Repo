@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { Structure } from "@/lib/structures-storage"
 import type { Investment, AssetSector } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken, getAuthState } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState, logout } from "@/lib/auth-storage"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -75,6 +75,22 @@ export default function EditInvestmentPage({ params }: PageProps) {
           }
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investment Edit] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
         if (response.ok) {
           const result = await response.json()
           if (result.success && Array.isArray(result.data)) {
@@ -114,6 +130,22 @@ export default function EditInvestmentPage({ params }: PageProps) {
             'Authorization': `Bearer ${token}`
           }
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investment Edit] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
 
         if (!response.ok) {
           const errorData = await response.json()
@@ -350,6 +382,22 @@ export default function EditInvestmentPage({ params }: PageProps) {
         },
         body: JSON.stringify(updateData)
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Investment Edit] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json()

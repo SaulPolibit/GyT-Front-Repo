@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/useAuth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -56,6 +57,7 @@ interface PageProps {
 
 export default function ChildStructureDetailPage({ params }: PageProps) {
   const router = useRouter()
+  const { logout } = useAuth()
   const [parentStructure, setParentStructure] = useState<Structure | null>(null)
   const [childStructure, setChildStructure] = useState<Structure | null>(null)
   const [investments, setInvestments] = useState<Investment[]>([])
@@ -112,6 +114,22 @@ export default function ChildStructureDetailPage({ params }: PageProps) {
   const handleDownload = async (filename: string, docType: 'fund' | 'investor') => {
     try {
       const response = await fetch(`/api/structures/${childSlug}/documents/${docType}/${filename}`)
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Child Structure] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         if (response.status === 404) {

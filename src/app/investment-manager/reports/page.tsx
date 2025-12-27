@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { toast } from 'sonner'
 import { Button } from "@/components/ui/button"
@@ -11,8 +12,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Plus, FileText, Download, Send, Eye, Calendar, Users, Loader2 } from "lucide-react"
 import reportsData from "@/data/reports.json"
 import type { Report } from "@/lib/types"
+import { useAuth } from "@/hooks/useAuth"
 
 export default function ReportsPage() {
+  const router = useRouter()
+  const { logout } = useAuth()
   const reports = reportsData as Report[]
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
@@ -87,6 +91,23 @@ export default function ReportsPage() {
         : `/api/reports/${reportId}/export/excel`
 
       const response = await fetch(endpoint)
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Reports] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) throw new Error(`Failed to download ${type.toUpperCase()}`)
 
       const blob = await response.blob()

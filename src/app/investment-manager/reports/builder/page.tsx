@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { toast } from 'sonner'
+import { useAuth } from "@/hooks/useAuth"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +20,7 @@ import type { Investor, Investment } from "@/lib/types"
 
 export default function ReportBuilderPage() {
   const router = useRouter()
+  const { logout } = useAuth()
 
   // Load data from localStorage
   const [investors, setInvestors] = useState<Investor[]>([])
@@ -198,6 +200,22 @@ export default function ReportBuilderPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Report Builder] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
 
         if (!response.ok) throw new Error('Failed to generate report')
 

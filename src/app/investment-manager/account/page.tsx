@@ -98,6 +98,22 @@ function AccountPageContent() {
         body: JSON.stringify({ redirectUri }),
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            // Note: logout() would need to be imported from auth context if available
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) {
         throw new Error('Failed to generate auth URL')
       }
@@ -151,6 +167,22 @@ function AccountPageContent() {
         },
         body: JSON.stringify({ code, codeVerifier, nonce, redirectUri }),
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
+            // Note: logout() would need to be imported from auth context if available
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))

@@ -18,10 +18,12 @@ import { calculateMetric, type DashboardData } from "@/lib/metric-calculations"
 import { getStructures } from "@/lib/structures-storage"
 import { ComparisonTable } from "@/components/comparison-table"
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
-import { getAuthState } from '@/lib/auth-storage'
+import { getAuthState, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 export default function Page() {
+  const router = useRouter()
   const [widgets, setWidgets] = React.useState<DashboardWidget[]>([])
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingWidget, setEditingWidget] = React.useState<DashboardWidget | null>(null)
@@ -80,6 +82,86 @@ export default function Page() {
           fetch(getApiUrl(API_CONFIG.endpoints.getAllCapitalCalls), { headers }),
           fetch(getApiUrl(API_CONFIG.endpoints.getAllDistributions), { headers })
         ])
+
+        // Handle 401 Unauthorized for structures endpoint
+        if (structuresRes.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await structuresRes.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Dashboard] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
+        // Handle 401 Unauthorized for investments endpoint
+        if (investmentsRes.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await investmentsRes.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Dashboard] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
+        // Handle 401 Unauthorized for investors endpoint
+        if (investorsRes.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await investorsRes.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Dashboard] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
+        // Handle 401 Unauthorized for capital calls endpoint
+        if (capitalCallsRes.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await capitalCallsRes.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Dashboard] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
+        // Handle 401 Unauthorized for distributions endpoint
+        if (distributionsRes.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await distributionsRes.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Dashboard] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
 
         const structuresData = structuresRes.ok ? (await structuresRes.json()).data || [] : []
         const investmentsData = investmentsRes.ok ? (await investmentsRes.json()).data || [] : []

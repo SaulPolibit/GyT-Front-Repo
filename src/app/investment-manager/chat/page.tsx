@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,7 +34,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken, getCurrentUser } from '@/lib/auth-storage'
+import { getAuthToken, getCurrentUser, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
 
 interface Message {
@@ -80,6 +81,7 @@ interface InvestorUser {
 }
 
 export default function InvestmentManagerChatPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [messageInput, setMessageInput] = useState('')
@@ -128,6 +130,22 @@ export default function InvestmentManagerChatPage() {
           'Content-Type': 'application/json',
         },
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (response.ok) {
         const result = await response.json()
@@ -199,6 +217,22 @@ export default function InvestmentManagerChatPage() {
         },
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (response.ok) {
         const result = await response.json()
         if (result.success && result.data) {
@@ -234,6 +268,22 @@ export default function InvestmentManagerChatPage() {
           name: participantName,
         }),
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         throw new Error('Failed to create conversation')
@@ -285,6 +335,22 @@ export default function InvestmentManagerChatPage() {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         if (response.status === 403) {
@@ -370,6 +436,22 @@ export default function InvestmentManagerChatPage() {
         )
       }
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) {
         throw new Error('Failed to send message')
       }
@@ -397,7 +479,7 @@ export default function InvestmentManagerChatPage() {
     if (!token) return
 
     try {
-      await fetch(
+      const response = await fetch(
         getApiUrl(API_CONFIG.endpoints.markMessageAsRead(messageId)),
         {
           method: 'PUT',
@@ -407,6 +489,22 @@ export default function InvestmentManagerChatPage() {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
     } catch (error) {
       console.error('Error marking message as read:', error)
     }
@@ -427,6 +525,22 @@ export default function InvestmentManagerChatPage() {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         throw new Error('Failed to delete message')
@@ -472,6 +586,22 @@ export default function InvestmentManagerChatPage() {
           },
         }
       )
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Chat] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       // Handle HTTP errors
       if (!response.ok) {

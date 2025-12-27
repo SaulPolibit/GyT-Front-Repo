@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { getAuthToken, getAuthState } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState, logout } from "@/lib/auth-storage"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -118,6 +118,21 @@ export default function EditInvestorPage({ params }: PageProps) {
           }
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (investorResponse.status === 401) {
+          try {
+            const errorData = await investorResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investor Edit] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
         if (!investorResponse.ok) {
           throw new Error('Failed to fetch investor data')
         }
@@ -201,6 +216,21 @@ export default function EditInvestorPage({ params }: PageProps) {
           }
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (structuresResponse.status === 401) {
+          try {
+            const errorData = await structuresResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investor Edit] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
         if (structuresResponse.ok) {
           const structuresResult = await structuresResponse.json()
           if (structuresResult.success && Array.isArray(structuresResult.data)) {
@@ -217,6 +247,21 @@ export default function EditInvestorPage({ params }: PageProps) {
             'Authorization': `Bearer ${token}`
           }
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (usersResponse.status === 401) {
+          try {
+            const errorData = await usersResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investor Edit] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
 
         if (usersResponse.ok) {
           const usersResult = await usersResponse.json()
@@ -334,6 +379,21 @@ export default function EditInvestorPage({ params }: PageProps) {
         },
         body: JSON.stringify(payload)
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Investor Edit] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json()

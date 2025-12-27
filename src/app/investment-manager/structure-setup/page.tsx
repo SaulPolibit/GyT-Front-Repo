@@ -28,7 +28,7 @@ import { saveInvestor, getInvestors } from '@/lib/investors-storage'
 import { useRouter } from 'next/navigation'
 import { getVisibilitySettings } from '@/lib/visibility-storage'
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
-import { getAuthState } from '@/lib/auth-storage'
+import { getAuthState, logout } from '@/lib/auth-storage'
 
 // V3.1: Investor Pre-Registration Interface
 interface InvestorPreRegistration {
@@ -656,6 +656,20 @@ export default function OnboardingPage() {
         })
 
         if (!response.ok) {
+          // Handle 401 Unauthorized - session expired or invalid
+          if (response.status === 401) {
+            try {
+              const errorData = await response.json()
+              if (errorData.error === "Invalid or expired token") {
+                console.log('[Parent Structures] 401 Unauthorized - clearing session and redirecting to login')
+                logout()
+                router.push('/sign-in')
+                return
+              }
+            } catch (e) {
+              console.log('Error: ', e)
+            }
+          }
           throw new Error('Failed to fetch structures')
         }
 
@@ -1604,6 +1618,20 @@ export default function OnboardingPage() {
       })
 
       if (!structureResponse.ok) {
+        // Handle 401 Unauthorized - session expired or invalid
+        if (structureResponse.status === 401) {
+          try {
+            const errorData = await structureResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Structure Setup] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
         throw new Error('Failed to create structure')
       }
 
@@ -1635,6 +1663,20 @@ export default function OnboardingPage() {
         })
 
         if (!waterfallResponse.ok) {
+          // Handle 401 Unauthorized - session expired or invalid
+          if (waterfallResponse.status === 401) {
+            try {
+              const errorData = await waterfallResponse.json()
+              if (errorData.error === "Invalid or expired token") {
+                console.log('[Waterfall Tiers] 401 Unauthorized - clearing session and redirecting to login')
+                logout()
+                router.push('/sign-in')
+                return
+              }
+            } catch (e) {
+              console.log('Error: ', e)
+            }
+          }
           const errorData = await waterfallResponse.json().catch(() => ({}))
           console.error('[Waterfall Tiers] Failed to create:', errorData)
         } else {
@@ -1670,6 +1712,20 @@ export default function OnboardingPage() {
             })
 
             if (!capitalCallResponse.ok) {
+              // Handle 401 Unauthorized - session expired or invalid
+              if (capitalCallResponse.status === 401) {
+                try {
+                  const errorData = await capitalCallResponse.json()
+                  if (errorData.error === "Invalid or expired token") {
+                    console.log('[Capital Calls] 401 Unauthorized - clearing session and redirecting to login')
+                    logout()
+                    router.push('/sign-in')
+                    return
+                  }
+                } catch (e) {
+                  console.log('Error: ', e)
+                }
+              }
               const errorData = await capitalCallResponse.json()
               console.error(`[Capital Call ${index + 1}] Failed:`, errorData)
             } else {
@@ -1716,6 +1772,20 @@ export default function OnboardingPage() {
 
       console.log('[Blockchain] Response status:', blockchainResponse.status)
       if (!blockchainResponse.ok) {
+        // Handle 401 Unauthorized - session expired or invalid
+        if (blockchainResponse.status === 401) {
+          try {
+            const errorData = await blockchainResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Blockchain] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
         const errorData = await blockchainResponse.json().catch(() => ({}))
         console.error('[Blockchain] Error response:', errorData)
       }
@@ -1752,6 +1822,20 @@ export default function OnboardingPage() {
             })
 
             if (!documentResponse.ok) {
+              // Handle 401 Unauthorized - session expired or invalid
+              if (documentResponse.status === 401) {
+                try {
+                  const errorData = await documentResponse.json()
+                  if (errorData.error === "Invalid or expired token") {
+                    console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+                    logout()
+                    router.push('/sign-in')
+                    return
+                  }
+                } catch (e) {
+                  console.log('Error: ', e)
+                }
+              }
               console.error(`Failed to upload document: ${doc.name}`)
             }
           } catch (error) {

@@ -51,15 +51,24 @@ export default function InvestmentsPage() {
           }
         })
 
-        if (!response.ok) {
-          // Handle 401 Unauthorized - Invalid or expired token
-          if (response.status === 401) {
-            console.log('[Auth] 401 Unauthorized - Clearing session and redirecting to login')
-            logout()
-            window.location.href = '/sign-in'
-            return
-          }
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
 
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investments] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              window.location.href = '/sign-in'
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
+        if (!response.ok) {
           const errorData = await response.json()
           setError(errorData.message || 'Failed to fetch investments')
           setIsLoading(false)

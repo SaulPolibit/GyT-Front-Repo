@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { ArrowLeft, Save, AlertCircle } from 'lucide-react'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken } from '@/lib/auth-storage'
+import { getAuthToken, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -135,6 +135,22 @@ export default function EditStructurePage({ params }: PageProps) {
             'Authorization': `Bearer ${token}`
           }
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Structure Edit] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
 
         if (!response.ok) {
           const errorData = await response.json()
@@ -310,6 +326,23 @@ export default function EditStructurePage({ params }: PageProps) {
         },
         body: JSON.stringify(updateData)
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Structure Edit] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            setSaving(false)
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json()

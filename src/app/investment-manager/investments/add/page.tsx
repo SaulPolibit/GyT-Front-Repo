@@ -62,15 +62,24 @@ export default function AddInvestmentPage() {
           }
         })
 
-        if (!response.ok) {
-          // Handle 401 Unauthorized - Invalid or expired token
-          if (response.status === 401) {
-            console.log('[Auth] 401 Unauthorized - Clearing session and redirecting to login')
-            logout()
-            window.location.href = '/sign-in'
-            return
+        // Handle 401 Unauthorized - session expired or invalid
+        if (response.status === 401) {
+
+          // Check if it's an expired token error
+          try {
+            const errorData = await response.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Investments Add] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              window.location.href = '/sign-in'
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
           }
-        } else {
+        }
+
+        if (response.ok) {
           const result = await response.json()
           if (result.success && Array.isArray(result.data)) {
             setStructures(result.data)
@@ -218,15 +227,24 @@ export default function AddInvestmentPage() {
         body: JSON.stringify(investmentData)
       })
 
-      if (!response.ok) {
-        // Handle 401 Unauthorized - Invalid or expired token
-        if (response.status === 401) {
-          console.log('[Auth] 401 Unauthorized - Clearing session and redirecting to login')
-          logout()
-          window.location.href = '/sign-in'
-          return
-        }
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
 
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Investments Add] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            window.location.href = '/sign-in'
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
+      if (!response.ok) {
         const errorData = await response.json()
         toast.error(errorData.message || 'Failed to create investment')
         return

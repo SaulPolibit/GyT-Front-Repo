@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -32,7 +33,7 @@ import {
   FileText,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { getAuthToken, getAuthState } from "@/lib/auth-storage"
+import { getAuthToken, getAuthState, logout } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { sendPaymentCreatedNotificationEmail } from "@/lib/email-service"
 
@@ -87,6 +88,7 @@ interface PaymentStats {
 
 export default function ApprovalsPage() {
   const { toast } = useToast()
+  const router = useRouter()
 
   // Check if user is guest
   const authState = getAuthState()
@@ -137,6 +139,22 @@ export default function ApprovalsPage() {
         },
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`Failed to fetch payments: ${response.statusText}`)
       }
@@ -165,6 +183,22 @@ export default function ApprovalsPage() {
           'Content-Type': 'application/json',
         },
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to fetch stats: ${response.statusText}`)
@@ -239,6 +273,22 @@ export default function ApprovalsPage() {
           },
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (structureResponse.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await structureResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
         if (structureResponse.ok) {
           const structureResult = await structureResponse.json()
           if (structureResult.success && structureResult.data) {
@@ -306,6 +356,22 @@ export default function ApprovalsPage() {
           }),
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (registerResponse.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await registerResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
         const registerData = await registerResponse.json()
 
         if (!registerData.success) {
@@ -347,6 +413,22 @@ export default function ApprovalsPage() {
           }),
         })
 
+        // Handle 401 Unauthorized - session expired or invalid
+        if (mintResponse.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await mintResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
         const mintData = await mintResponse.json()
 
         if (!mintData.success) {
@@ -374,6 +456,23 @@ export default function ApprovalsPage() {
                 adminNotes: adminNotes || undefined,
               }),
             })
+
+            // Handle 401 Unauthorized - session expired or invalid
+            if (updatePaymentResponse.status === 401) {
+              // Check if it's an expired token error
+              try {
+                const errorData = await updatePaymentResponse.json()
+                if (errorData.error === "Invalid or expired token") {
+                  console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+                  logout()
+                  router.push('/sign-in')
+                  return
+                }
+              } catch (e) {
+                console.log('Error: ', e)
+              }
+            }
+
             if (!updatePaymentResponse.ok) {
               throw new Error(`Failed to update payment: ${updatePaymentResponse.statusText}`)
             }
@@ -394,6 +493,22 @@ export default function ApprovalsPage() {
                     },
                   }
                 )
+
+                // Handle 401 Unauthorized - session expired or invalid
+                if (notificationSettingsResponse.status === 401) {
+                  // Check if it's an expired token error
+                  try {
+                    const errorData = await notificationSettingsResponse.json()
+                    if (errorData.error === "Invalid or expired token") {
+                      console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+                      logout()
+                      router.push('/sign-in')
+                      return
+                    }
+                  } catch (e) {
+                    console.log('Error: ', e)
+                  }
+                }
 
                 if (notificationSettingsResponse.ok) {
                   const notificationData = await notificationSettingsResponse.json()
@@ -514,6 +629,22 @@ export default function ApprovalsPage() {
         }),
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`Failed to reject payment: ${response.statusText}`)
       }
@@ -565,6 +696,22 @@ export default function ApprovalsPage() {
         },
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (structureResponse.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await structureResponse.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (structureResponse.ok) {
         const structureResult = await structureResponse.json()
         if (structureResult.success && structureResult.data) {
@@ -605,6 +752,22 @@ export default function ApprovalsPage() {
             'Content-Type': 'application/json',
           },
         })
+
+        // Handle 401 Unauthorized - session expired or invalid
+        if (userResponse.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await userResponse.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Approvals] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
 
         if (userResponse.ok) {
           const userResult = await userResponse.json()

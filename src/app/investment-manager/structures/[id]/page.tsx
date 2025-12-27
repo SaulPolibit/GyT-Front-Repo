@@ -26,7 +26,7 @@ import type { Investment } from '@/lib/types'
 import { StructureValuationSection } from '@/components/structure-valuation-section'
 import { StructureCapTable } from '@/components/structure-cap-table'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken, getAuthState } from '@/lib/auth-storage'
+import { getAuthToken, getAuthState, logout } from '@/lib/auth-storage'
 import { formatCompactCurrency } from '@/lib/format-utils'
 
 // Type labels
@@ -86,6 +86,22 @@ export default function StructureDetailPage({ params }: PageProps) {
         }
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Structure Detail] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`Failed to fetch structure: ${response.statusText}`)
       }
@@ -137,6 +153,22 @@ export default function StructureDetailPage({ params }: PageProps) {
           'Authorization': `Bearer ${token}`
         }
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (investmentsResponse.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await investmentsResponse.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Structure Detail] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (investmentsResponse.ok) {
         const investmentsData = await investmentsResponse.json()
@@ -269,6 +301,22 @@ export default function StructureDetailPage({ params }: PageProps) {
           'Authorization': `Bearer ${token}`
         }
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Structure Detail] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json()

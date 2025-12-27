@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,7 +28,7 @@ import {
 } from '@tabler/icons-react'
 import { Loader2 } from 'lucide-react'
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
-import { getAuthToken, getAuthState } from '@/lib/auth-storage'
+import { getAuthToken, getAuthState, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
 
 interface Document {
@@ -65,6 +66,8 @@ interface Investment {
 }
 
 export default function DocumentsPage() {
+  const router = useRouter()
+
   // Check if user is guest
   const authState = getAuthState()
   const currentUserRole = authState.user?.role ?? null
@@ -121,6 +124,22 @@ export default function DocumentsPage() {
         }
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (documentsResponse.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await documentsResponse.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (documentsResponse.ok) {
         const result = await documentsResponse.json()
         if (result.success && Array.isArray(result.data)) {
@@ -137,6 +156,22 @@ export default function DocumentsPage() {
           'Authorization': `Bearer ${token}`
         }
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (structuresResponse.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await structuresResponse.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (structuresResponse.ok) {
         const result = await structuresResponse.json()
@@ -156,6 +191,22 @@ export default function DocumentsPage() {
         }
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (investorsResponse.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await investorsResponse.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (investorsResponse.ok) {
         const result = await investorsResponse.json()
         if (result.success && Array.isArray(result.data)) {
@@ -173,6 +224,22 @@ export default function DocumentsPage() {
           'Authorization': `Bearer ${token}`
         }
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (investmentsResponse.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await investmentsResponse.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (investmentsResponse.ok) {
         const result = await investmentsResponse.json()
@@ -281,6 +348,22 @@ export default function DocumentsPage() {
         }
       })
 
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
       if (response.ok) {
         // Remove document from state
         setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== documentId))
@@ -351,6 +434,22 @@ export default function DocumentsPage() {
         },
         body: formData
       })
+
+      // Handle 401 Unauthorized - session expired or invalid
+      if (response.status === 401) {
+        // Check if it's an expired token error
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Documents] 401 Unauthorized - clearing session and redirecting to login')
+            logout()
+            router.push('/sign-in')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
 
       if (response.ok) {
         await response.json()
