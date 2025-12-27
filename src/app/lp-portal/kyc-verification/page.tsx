@@ -229,67 +229,30 @@ export default function KYCVerificationPage() {
 
   // Show KYC verification iframe
   return (
-    <div className="space-y-6 p-4 md:p-6 h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-4">
+    <div className="h-screen flex flex-col">
+      {/* Compact Header */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b bg-background">
         <Button variant="ghost" size="icon" onClick={handleGoBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Complete KYC Verification</h1>
-          <p className="text-muted-foreground">
-            Verify your identity to access investment features
-          </p>
+        <div className="flex-1">
+          <h1 className="text-lg font-semibold">Complete KYC Verification</h1>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Shield className="h-3.5 w-3.5" />
+          <span>Status: <span className="font-medium">{user.kycStatus || 'Not started'}</span></span>
         </div>
       </div>
 
-      {/* Info Notice */}
-      <Card className="border-blue-200 bg-blue-50">
-        <CardContent className="flex gap-3 py-4">
-          <Shield className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-semibold text-blue-900 mb-1">Secure Identity Verification</p>
-            <p className="text-sm text-blue-800">
-              Please complete the verification form below. You may be asked to:
-            </p>
-            <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc space-y-1">
-              <li>Upload a government-issued ID (passport, driver's license, etc.)</li>
-              <li>Take a selfie for liveness verification</li>
-              <li>Provide personal information</li>
-            </ul>
-            <p className="text-xs text-blue-700 mt-2">
-              Current status: <span className="font-semibold">{user.kycStatus || 'Not started'}</span>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* KYC iFrame */}
-      <Card className="flex-1 flex flex-col min-h-0">
-        <CardHeader>
-          <CardTitle>Identity Verification Form</CardTitle>
-          <CardDescription>
-            Complete the form below to verify your identity
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex-1 min-h-0 p-0">
-          <iframe
-            src={user.kycUrl.startsWith('http') ? user.kycUrl : `https://${user.kycUrl}`}
-            className="w-full h-full border-0"
-            title="KYC Verification"
-            allow="camera; microphone"
-          />
-        </CardContent>
-      </Card>
-
-      {/* Footer Note */}
-      <Card className="border-muted">
-        <CardContent className="py-3">
-          <p className="text-xs text-muted-foreground text-center">
-            After completing verification, you may need to refresh this page or log out and log back in to see the updated status.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Full-size iFrame - takes all remaining space */}
+      <div className="flex-1 relative">
+        <iframe
+          src={user.kycUrl.startsWith('http') ? user.kycUrl : `https://${user.kycUrl}`}
+          className="absolute inset-0 w-full h-full border-0"
+          title="KYC Verification"
+          allow="camera; microphone"
+        />
+      </div>
     </div>
   )
 }
