@@ -2799,13 +2799,27 @@ export default function OnboardingPage() {
                           </Label>
                           <Input
                             id="parentOwnershipPercentage"
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            placeholder="e.g., 50"
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="e.g., 50 or 99.5"
                             value={formData.parentStructureOwnershipPercentage ?? ''}
-                            onChange={(e) => updateFormData('parentStructureOwnershipPercentage', e.target.value ? parseFloat(e.target.value) : null)}
+                            onChange={(e) => {
+                              let value = e.target.value.replace(',', '.');
+                              // Allow empty, digits, and one decimal point
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                // Validate range if it's a complete number
+                                if (value === '' || value === '.') {
+                                  updateFormData('parentStructureOwnershipPercentage', value === '' ? null : value);
+                                } else {
+                                  const numValue = parseFloat(value);
+                                  if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+                                    updateFormData('parentStructureOwnershipPercentage', value.endsWith('.') ? value : numValue);
+                                  } else if (value.endsWith('.') && numValue >= 0 && numValue <= 100) {
+                                    updateFormData('parentStructureOwnershipPercentage', value);
+                                  }
+                                }
+                              }
+                            }}
                             required
                           />
                           <p className="text-xs text-muted-foreground">
