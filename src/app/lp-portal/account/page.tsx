@@ -629,11 +629,12 @@ export default function AccountPage() {
                   </div>
                 ) : walletBalances.length > 0 ? (
                   (() => {
-                    // Filter for USDT and ERC-3643 tokens
+                    // Filter for POL, USDT and ERC-3643 tokens
                     const filteredBalances = walletBalances.filter(balance => {
+                      const isPOL = balance.token?.symbol?.toUpperCase() === 'POL' || balance.token?.symbol?.toUpperCase() === 'MATIC'
                       const isUSDT = balance.token?.symbol?.toUpperCase() === 'USDT'
                       const isERC3643 = balance.token?.standard === 'ERC3643' || balance.token?.type === 'ERC3643'
-                      return isUSDT || isERC3643
+                      return isPOL || isUSDT || isERC3643
                     })
 
                     return filteredBalances.length > 0 ? (
@@ -677,7 +678,7 @@ export default function AccountPage() {
                     ) : (
                       <div className="p-3 bg-muted rounded-md text-center">
                         <p className="text-sm text-muted-foreground">
-                          No USDT or ERC-3643 tokens found
+                          No POL, USDT or ERC-3643 tokens found
                         </p>
                       </div>
                     )
