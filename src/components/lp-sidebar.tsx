@@ -142,19 +142,16 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="/lp-portal">
+              <a href="/lp-portal" className="flex items-center justify-center">
                 {firmSettings?.firmLogo ? (
                   <img
                     src={firmSettings.firmLogo}
                     alt="Firm logo"
-                    className="!size-5 object-contain rounded"
+                    className="h-8 w-auto object-contain rounded"
                   />
                 ) : (
-                  <Share2 className="!size-5" />
+                  <Share2 className="!size-8" />
                 )}
-                <span className="text-base font-semibold">
-                  {firmSettings?.firmName || 'Polibit'}
-                </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
