@@ -308,13 +308,20 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           <Card className="border-amber-200 bg-amber-50">
             <CardContent className="flex gap-3 py-4">
               <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-amber-900 mb-1">KYC Approval Required</p>
-                <p className="text-sm text-amber-800">
+                <p className="text-sm text-amber-800 mb-3">
                   You need to complete and have your KYC approved before you can purchase tokens.
                   {user?.kycStatus === null && ' Please complete your KYC verification.'}
                   {user?.kycStatus && user.kycStatus !== 'Approved' && ` Current status: ${user.kycStatus}`}
                 </p>
+                <Button
+                  size="sm"
+                  onClick={() => router.push(`/lp-portal/kyc-verification?returnUrl=/lp-portal/marketplace/structure/${structureId}`)}
+                  className="bg-amber-700 hover:bg-amber-800"
+                >
+                  Complete KYC Verification
+                </Button>
               </div>
             </CardContent>
           </Card>
