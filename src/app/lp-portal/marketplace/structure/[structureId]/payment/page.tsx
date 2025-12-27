@@ -331,14 +331,10 @@ export default function PaymentPage({ params }: Props) {
 
           // USDC Token Contract Addresses by Network
           const USDC_ADDRESSES: Record<string, string> = {
-            'Ethereum': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             'Polygon': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
             'Polygon PoS': '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
             'Polygon Amoy': '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
             'Amoy': '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
-            'Arbitrum': '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-            'Optimism': '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85',
-            'Base': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
           }
 
           const usdcContractAddress = USDC_ADDRESSES[network]
@@ -760,13 +756,6 @@ export default function PaymentPage({ params }: Props) {
 
   // Network configurations for MetaMask
   const NETWORK_CONFIGS: Record<string, { chainId: string; chainName: string; rpcUrls: string[]; nativeCurrency: { name: string; symbol: string; decimals: number }; blockExplorerUrls: string[] }> = {
-    'Ethereum': {
-      chainId: '0x1',
-      chainName: 'Ethereum Mainnet',
-      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://mainnet.infura.io/v3/'],
-      blockExplorerUrls: ['https://etherscan.io/']
-    },
     'Polygon': {
       chainId: '0x89',
       chainName: 'Polygon Mainnet',
@@ -795,27 +784,6 @@ export default function PaymentPage({ params }: Props) {
       rpcUrls: ['https://rpc-amoy.polygon.technology/'],
       blockExplorerUrls: ['https://amoy.polygonscan.com/']
     },
-    'Arbitrum': {
-      chainId: '0xa4b1',
-      chainName: 'Arbitrum One',
-      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://arb1.arbitrum.io/rpc'],
-      blockExplorerUrls: ['https://arbiscan.io/']
-    },
-    'Optimism': {
-      chainId: '0xa',
-      chainName: 'Optimism',
-      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://mainnet.optimism.io'],
-      blockExplorerUrls: ['https://optimistic.etherscan.io/']
-    },
-    'Base': {
-      chainId: '0x2105',
-      chainName: 'Base',
-      nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-      rpcUrls: ['https://mainnet.base.org'],
-      blockExplorerUrls: ['https://basescan.org/']
-    }
   }
 
   const switchNetwork = async (networkName: string) => {
@@ -1306,7 +1274,7 @@ export default function PaymentPage({ params }: Props) {
                   <p className="text-sm font-semibold text-blue-900 mb-2">Send Payment</p>
                   <div className="space-y-2 text-sm text-blue-800">
                     <p><strong>Amount:</strong> {amount} USDC</p>
-                    <p><strong>Network:</strong> Ethereum or Polygon</p>
+                    <p><strong>Network:</strong> Polygon</p>
                     <p className="text-xs">Use the wallet address you provided above as recipient.</p>
                   </div>
                 </div>

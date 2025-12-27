@@ -394,7 +394,7 @@ export default function PaymentPage({ params }: Props) {
                     onChange={(e) => setUsdcWalletAddress(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Enter your Ethereum/Polygon wallet address where USDC will be received
+                    Enter your Polygon wallet address where USDC will be received
                   </p>
                 </div>
 
@@ -402,7 +402,7 @@ export default function PaymentPage({ params }: Props) {
                   <p className="text-sm font-semibold text-blue-900 mb-2">Send Payment</p>
                   <div className="space-y-2 text-sm text-blue-800">
                     <p><strong>Amount:</strong> {amount} USDC</p>
-                    <p><strong>Network:</strong> Ethereum or Polygon</p>
+                    <p><strong>Network:</strong> Polygon</p>
                     <p className="text-xs">Use the wallet address you provided above as recipient.</p>
                   </div>
                 </div>
