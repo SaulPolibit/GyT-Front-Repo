@@ -357,6 +357,10 @@ export default function OnboardingPage() {
   // Parent structure toggle state
   const [hasParentStructure, setHasParentStructure] = useState(false)
 
+  // Platform wallet state
+  const [usePlatformWallet, setUsePlatformWallet] = useState(true)
+  const [userWalletAddress, setUserWalletAddress] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     // Step 1: Structure Type Selection
     structureType: '',
@@ -661,6 +665,30 @@ export default function OnboardingPage() {
 
     fetchParentStructures()
   }, [])
+
+  // Fetch user's platform wallet on mount
+  useEffect(() => {
+    const authState = getAuthState()
+    const walletAddress = authState.user?.walletAddress
+
+    if (walletAddress) {
+      setUserWalletAddress(walletAddress)
+      // Auto-fill wallet owner address if using platform wallet
+      if (usePlatformWallet) {
+        updateFormData('walletOwnerAddress', walletAddress)
+      }
+    }
+  }, [])
+
+  // Update wallet owner address when platform wallet toggle changes
+  useEffect(() => {
+    if (usePlatformWallet && userWalletAddress) {
+      updateFormData('walletOwnerAddress', userWalletAddress)
+    } else if (!usePlatformWallet && userWalletAddress === formData.walletOwnerAddress) {
+      // Clear if switching from platform wallet to manual
+      updateFormData('walletOwnerAddress', '')
+    }
+  }, [usePlatformWallet, userWalletAddress])
 
   // Update tier when AUM or currency changes (V3.1 - with currency conversion)
   useEffect(() => {
@@ -2888,34 +2916,85 @@ export default function OnboardingPage() {
                 <div className="space-y-4 pt-6 border-t">
                   <Label className="text-base font-semibold">Blockchain Owner Information *</Label>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="walletOwnerAddress">Wallet Owner Address *</Label>
-                    <Input
-                      id="walletOwnerAddress"
-                      value={formData.walletOwnerAddress}
-                      onChange={(e) => {
-                        const address = e.target.value
-                        updateFormData('walletOwnerAddress', address)
-                      }}
-                      placeholder="0x..."
-                      required
-                      className={
-                        formData.walletOwnerAddress &&
-                        !/^0x[a-fA-F0-9]{40}$/.test(formData.walletOwnerAddress)
-                          ? 'border-red-500'
-                          : ''
-                      }
+                  {/* Use Platform Wallet Checkbox */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="usePlatformWallet"
+                      checked={usePlatformWallet}
+                      onCheckedChange={(checked) => setUsePlatformWallet(checked as boolean)}
                     />
-                    {formData.walletOwnerAddress &&
-                      !/^0x[a-fA-F0-9]{40}$/.test(formData.walletOwnerAddress) && (
-                        <p className="text-xs text-red-600">
-                          Please enter a valid hexadecimal wallet address (0x followed by 40 hexadecimal characters)
-                        </p>
-                      )}
-                    <p className="text-xs text-muted-foreground">
-                      Enter the wallet owner address for blockchain operations
-                    </p>
+                    <Label
+                      htmlFor="usePlatformWallet"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Use Platform Wallet
+                    </Label>
                   </div>
+
+                  {/* Conditional Display Based on Checkbox State */}
+                  {usePlatformWallet ? (
+                    // Platform Wallet Mode
+                    userWalletAddress ? (
+                      // User has wallet - show read-only
+                      <div className="space-y-2">
+                        <Label htmlFor="walletOwnerAddress">Wallet Owner Address *</Label>
+                        <Input
+                          id="walletOwnerAddress"
+                          value={formData.walletOwnerAddress}
+                          disabled
+                          className="bg-muted"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Using your platform wallet for blockchain operations
+                        </p>
+                      </div>
+                    ) : (
+                      // User doesn't have wallet - show alert
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Wallet Required</AlertTitle>
+                        <AlertDescription>
+                          You need to create a platform wallet first.{' '}
+                          <a
+                            href="/investment-manager/account"
+                            className="text-primary hover:underline font-medium"
+                          >
+                            Create wallet now →
+                          </a>
+                        </AlertDescription>
+                      </Alert>
+                    )
+                  ) : (
+                    // Manual Wallet Mode
+                    <div className="space-y-2">
+                      <Label htmlFor="walletOwnerAddress">Wallet Owner Address *</Label>
+                      <Input
+                        id="walletOwnerAddress"
+                        value={formData.walletOwnerAddress}
+                        onChange={(e) => {
+                          const address = e.target.value
+                          updateFormData('walletOwnerAddress', address)
+                        }}
+                        placeholder="0x..."
+                        required
+                        className={
+                          formData.walletOwnerAddress &&
+                          !/^0x[a-fA-F0-9]{40}$/.test(formData.walletOwnerAddress)
+                            ? 'border-red-500'
+                            : ''
+                        }
+                      />
+                      {formData.walletOwnerAddress &&
+                        !/^0x[a-fA-F0-9]{40}$/.test(formData.walletOwnerAddress) && (
+                          <p className="text-xs text-red-600">
+                            Please enter a valid hexadecimal wallet address (0x followed by 40 hexadecimal characters)
+                          </p>
+                        )}
+                      <p className="text-xs text-muted-foreground">
+                        Enter the wallet owner address for blockchain operations
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="operatingAgreementHash">Operating Agreement Hash *</Label>
