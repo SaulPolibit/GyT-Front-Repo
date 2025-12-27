@@ -361,6 +361,9 @@ export default function OnboardingPage() {
   const [usePlatformWallet, setUsePlatformWallet] = useState(true)
   const [userWalletAddress, setUserWalletAddress] = useState<string | null>(null)
 
+  // Operating agreement hash state
+  const [manuallyEnterHash, setManuallyEnterHash] = useState(false)
+
   const [formData, setFormData] = useState({
     // Step 1: Structure Type Selection
     structureType: '',
@@ -689,6 +692,19 @@ export default function OnboardingPage() {
       updateFormData('walletOwnerAddress', '')
     }
   }, [usePlatformWallet, userWalletAddress])
+
+  // Handle operating agreement hash default value
+  useEffect(() => {
+    const defaultHash = '0x0000000000000000000000000000000000000000000000000000000000000000'
+
+    if (!manuallyEnterHash) {
+      // Use default hash when manual entry is disabled
+      updateFormData('operatingAgreementHash', defaultHash)
+    } else if (manuallyEnterHash && formData.operatingAgreementHash === defaultHash) {
+      // Clear default hash when switching to manual entry
+      updateFormData('operatingAgreementHash', '')
+    }
+  }, [manuallyEnterHash])
 
   // Update tier when AUM or currency changes (V3.1 - with currency conversion)
   useEffect(() => {
@@ -2996,34 +3012,67 @@ export default function OnboardingPage() {
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="operatingAgreementHash">Operating Agreement Hash *</Label>
-                    <Input
-                      id="operatingAgreementHash"
-                      value={formData.operatingAgreementHash}
-                      onChange={(e) => {
-                        const hash = e.target.value
-                        updateFormData('operatingAgreementHash', hash)
-                      }}
-                      placeholder="0x..."
-                      required
-                      className={
-                        formData.operatingAgreementHash &&
-                        !/^0x[a-fA-F0-9]+$/.test(formData.operatingAgreementHash)
-                          ? 'border-red-500'
-                          : ''
-                      }
+                  {/* Manually Enter Hash Checkbox */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="manuallyEnterHash"
+                      checked={manuallyEnterHash}
+                      onCheckedChange={(checked) => setManuallyEnterHash(checked as boolean)}
                     />
-                    {formData.operatingAgreementHash &&
-                      !/^0x[a-fA-F0-9]+$/.test(formData.operatingAgreementHash) && (
-                        <p className="text-xs text-red-600">
-                          Please enter a valid hexadecimal hash (0x followed by hexadecimal characters)
-                        </p>
-                      )}
-                    <p className="text-xs text-muted-foreground">
-                      Enter the operating agreement hash for document verification
-                    </p>
+                    <Label
+                      htmlFor="manuallyEnterHash"
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      Manually enter Operating Agreement Hash
+                    </Label>
                   </div>
+
+                  {/* Conditional Display Based on Checkbox State */}
+                  {manuallyEnterHash ? (
+                    // Manual Hash Entry Mode
+                    <div className="space-y-2">
+                      <Label htmlFor="operatingAgreementHash">Operating Agreement Hash *</Label>
+                      <Input
+                        id="operatingAgreementHash"
+                        value={formData.operatingAgreementHash}
+                        onChange={(e) => {
+                          const hash = e.target.value
+                          updateFormData('operatingAgreementHash', hash)
+                        }}
+                        placeholder="0x..."
+                        required
+                        className={
+                          formData.operatingAgreementHash &&
+                          !/^0x[a-fA-F0-9]+$/.test(formData.operatingAgreementHash)
+                            ? 'border-red-500'
+                            : ''
+                        }
+                      />
+                      {formData.operatingAgreementHash &&
+                        !/^0x[a-fA-F0-9]+$/.test(formData.operatingAgreementHash) && (
+                          <p className="text-xs text-red-600">
+                            Please enter a valid hexadecimal hash (0x followed by hexadecimal characters)
+                          </p>
+                        )}
+                      <p className="text-xs text-muted-foreground">
+                        Enter the operating agreement hash for document verification
+                      </p>
+                    </div>
+                  ) : (
+                    // Default Hash Mode
+                    <div className="space-y-2">
+                      <Label htmlFor="operatingAgreementHash">Operating Agreement Hash *</Label>
+                      <Input
+                        id="operatingAgreementHash"
+                        value={formData.operatingAgreementHash}
+                        disabled
+                        className="bg-muted"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Using default hash value for document verification
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
