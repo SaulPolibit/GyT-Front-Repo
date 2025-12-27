@@ -62,8 +62,8 @@ export default function InvestorsPage() {
           return
         }
 
-        // Fetch investors from users table (role 3 = INVESTOR)
-        const investorsUrl = getApiUrl(API_CONFIG.endpoints.getUsersByRole('3'))
+        // Fetch investors with associated user, structure, and payments data
+        const investorsUrl = getApiUrl(API_CONFIG.endpoints.getAllInvestors)
         const investorsResponse = await fetch(investorsUrl, {
           method: 'GET',
           headers: {
@@ -88,21 +88,45 @@ export default function InvestorsPage() {
         const investorsResult = await investorsResponse.json()
         if (investorsResult.success && Array.isArray(investorsResult.data)) {
           // Map the API response to match the expected Investor type
-          const mappedInvestors = investorsResult.data.map((inv: any) => ({
-            ...inv,
-            // Map API fields to expected fields
-            name: inv.name || (inv.user ? `${inv.user.firstName} ${inv.user.lastName}`.trim() : inv.email),
-            type: inv.investorType || 'n/d',
-            status: inv.kycStatus || inv.status || 'Pending',
-            // Map structure object to fundOwnerships array for backward compatibility
-            fundOwnerships: inv.structure ? [{
-              fundId: inv.structure.id,
-              fundName: inv.structure.name,
-              fundType: inv.structure.type,
-              commitment: inv.commitment || 0,
-              investedDate: inv.createdAt,
-            }] : []
-          }))
+          const mappedInvestors = investorsResult.data.map((inv: any) => {
+            // Determine the display name based on investor type
+            let displayName = inv.email
+
+            if (inv.investorType === 'Individual' && inv.fullName) {
+              displayName = inv.fullName
+            } else if (inv.investorType === 'Institution' && inv.institutionName) {
+              displayName = inv.institutionName
+            } else if (inv.user) {
+              displayName = `${inv.user.firstName} ${inv.user.lastName}`.trim()
+            }
+
+            // Calculate total approved payments
+            const approvedPayments = inv.payments?.filter((p: any) => p.status === 'approved') || []
+            const totalCommitment = approvedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+
+            return {
+              ...inv,
+              // Map API fields to expected fields
+              name: displayName,
+              type: inv.investorType || 'n/d',
+              status: inv.kycStatus || 'Not Started',
+              email: inv.email,
+              phoneNumber: inv.phoneNumber || '',
+              country: inv.country || '',
+              // Map structure object to fundOwnerships array for backward compatibility
+              fundOwnerships: inv.structure ? [{
+                fundId: inv.structure.id,
+                fundName: inv.structure.name,
+                fundType: inv.structure.type,
+                commitment: totalCommitment,
+                investedDate: inv.createdAt,
+              }] : [],
+              // Include payments data
+              payments: inv.payments || [],
+              // Include user data
+              user: inv.user || null
+            }
+          })
 
           setInvestors(mappedInvestors)
 
