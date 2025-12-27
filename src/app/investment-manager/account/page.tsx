@@ -511,7 +511,7 @@ function AccountPageContent() {
               <CardTitle>Wallet Information</CardTitle>
             </div>
             <CardDescription>
-              Your Crossmint blockchain wallet linked to Próspera
+              Your blockchain wallet linked to Próspera
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -558,10 +558,6 @@ function AccountPageContent() {
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Network</span>
                     <span className="font-medium">Polygon (Amoy Testnet)</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Provider</span>
-                    <span className="font-medium">Crossmint</span>
                   </div>
                 </div>
 
