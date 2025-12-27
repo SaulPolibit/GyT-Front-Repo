@@ -359,9 +359,8 @@ export default function StructureCheckoutPage({ params }: Props) {
                   className="mt-1 h-4 w-4 rounded border-gray-300"
                 />
                 <label htmlFor="terms" className="text-sm cursor-pointer">
-                  <span className="font-semibold">I agree to the Fund Agreement and Confidentiality Terms</span>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    By proceeding, you acknowledge that you have read and understood the fund terms and agree to be bound by them.
+                  <p className="text-xs leading-relaxed">
+                    By checking this box and completing my purchase, I acknowledge that I have read, understood, and agree to be bound by the Operating Agreement. I understand that my acquisition of Tokens constitutes the legal equivalent of acquiring Membership Units, that the blockchain ledger is the definitive record of ownership, and that I am subject to all transfer restrictions and other terms set forth therein. I confirm that I hold valid Próspera e-Residency or Physical Residency status, have completed all required KYC procedures, and consent to the exclusive jurisdiction of Próspera ZEDE law and the Próspera Arbitration Center for any disputes arising from this agreement.
                   </p>
                 </label>
               </div>
