@@ -65,8 +65,9 @@ export function useAuth() {
       console.log('[useAuth] MFA not required, checking success status')
 
       if (!data.success) {
-        console.error('[useAuth] Login failed:', data.message)
+        console.error('[useAuth] Login failed - showing toast with message:', data.message)
         toast.error(data.message || 'Login failed')
+        console.log('[useAuth] Toast error called, returning null')
         return null
       }
 

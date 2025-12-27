@@ -53,8 +53,9 @@ export default function SignInPage() {
       console.log('[Sign-In] Login response received:', response)
 
       // If login failed completely (no response), exit
+      // Note: useAuth hook already showed error toast
       if (!response) {
-        console.log('[Sign-In] Login failed - no response')
+        console.log('[Sign-In] Login failed - no response (error already shown by useAuth)')
         setIsLoading(false)
         return
       }
@@ -80,7 +81,7 @@ export default function SignInPage() {
 
       // If not MFA required and login failed, exit
       if (!response.success) {
-        console.log('[Sign-In] Login failed')
+        toast.error(response.message || 'Invalid email or password')
         setIsLoading(false)
         return
       }
@@ -219,6 +220,7 @@ export default function SignInPage() {
               placeholder="you@example.com"
               autoFocus
               disabled={isLoading}
+              suppressHydrationWarning
             />
           </div>
 
@@ -232,6 +234,7 @@ export default function SignInPage() {
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
               placeholder="••••••••"
               disabled={isLoading}
+              suppressHydrationWarning
             />
           </div>
 
