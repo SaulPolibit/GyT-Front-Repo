@@ -113,6 +113,9 @@ export const API_CONFIG = {
     registerUserOnBlockchain: '/api/blockchain/contract/register-user',
     mintTokensOnBlockchain: '/api/blockchain/contract/mint-tokens',
 
+    // Wallet API
+    getWalletBalances: '/api/custom/wallet/balances',
+
     // Add other endpoints as needed
   }
 }

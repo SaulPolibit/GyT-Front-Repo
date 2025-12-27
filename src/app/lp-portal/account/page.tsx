@@ -30,11 +30,19 @@ export default function AccountPage() {
     confirmPassword: '',
   })
   const [copiedWallet, setCopiedWallet] = React.useState(false)
+  const [walletBalances, setWalletBalances] = React.useState<any[]>([])
+  const [loadingBalances, setLoadingBalances] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
     loadUserData()
   }, [])
+
+  React.useEffect(() => {
+    if (formData.walletAddress) {
+      loadWalletBalances()
+    }
+  }, [formData.walletAddress])
 
   const loadUserData = () => {
     const user = getCurrentUser()
@@ -315,6 +323,41 @@ export default function AccountPage() {
     }
   }
 
+  const loadWalletBalances = async () => {
+    if (!formData.walletAddress) return
+
+    setLoadingBalances(true)
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        console.error('No authentication token found')
+        return
+      }
+
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getWalletBalances), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch wallet balances')
+      }
+
+      const data = await response.json()
+      if (data.success && data.data) {
+        setWalletBalances(data.data.balances || [])
+      }
+    } catch (error) {
+      console.error('Error loading wallet balances:', error)
+      toast.error('Failed to load wallet balances')
+    } finally {
+      setLoadingBalances(false)
+    }
+  }
+
   const formatWalletAddress = (address: string) => {
     if (!address) return ''
     if (address.length <= 13) return address
@@ -573,6 +616,79 @@ export default function AccountPage() {
                   <span className="text-muted-foreground">Network</span>
                   <span className="font-medium">Polygon (Amoy Testnet)</span>
                 </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label>Token Balances</Label>
+                {loadingBalances ? (
+                  <div className="flex items-center justify-center p-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    <span className="ml-2 text-sm text-muted-foreground">Loading balances...</span>
+                  </div>
+                ) : walletBalances.length > 0 ? (
+                  (() => {
+                    // Filter for USDT and ERC-3643 tokens
+                    const filteredBalances = walletBalances.filter(balance => {
+                      const isUSDT = balance.token?.symbol?.toUpperCase() === 'USDT'
+                      const isERC3643 = balance.token?.standard === 'ERC3643' || balance.token?.type === 'ERC3643'
+                      return isUSDT || isERC3643
+                    })
+
+                    return filteredBalances.length > 0 ? (
+                      <div className="space-y-2">
+                        {filteredBalances.map((balance, index) => {
+                          const isERC3643 = balance.token?.standard === 'ERC3643' || balance.token?.type === 'ERC3643'
+
+                          return (
+                            <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-md">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <span className="text-xs font-semibold text-primary">
+                                    {balance.token?.symbol?.substring(0, 2) || 'TK'}
+                                  </span>
+                                </div>
+                                <div>
+                                  <div className="font-medium text-sm">
+                                    {balance.token?.name || balance.token?.symbol || 'Unknown Token'}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {balance.token?.symbol || 'N/A'}
+                                    {isERC3643 && <span className="ml-1 text-blue-600">(ERC-3643)</span>}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-medium text-sm">
+                                  {balance.amount || balance.balance || '0'}
+                                </div>
+                                {balance.token?.contractAddress && (
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {balance.token.contractAddress.substring(0, 6)}...
+                                    {balance.token.contractAddress.substring(balance.token.contractAddress.length - 4)}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-muted rounded-md text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No USDT or ERC-3643 tokens found
+                        </p>
+                      </div>
+                    )
+                  })()
+                ) : (
+                  <div className="p-3 bg-muted rounded-md text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No tokens found in wallet
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
