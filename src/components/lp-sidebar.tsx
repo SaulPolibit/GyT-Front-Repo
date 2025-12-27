@@ -35,7 +35,9 @@ import { NavMain } from "@/components/nav-main"
 import { NavManagement } from "@/components/nav-management"
 import { NavSecondary } from "@/components/nav-secondary"
 import { LPNavUser } from "@/components/lp-nav-user"
-import { getFirmSettings, FirmSettings } from "@/lib/firm-settings-storage"
+import { FirmSettings } from "@/lib/firm-settings-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
 
 interface LPSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
@@ -45,7 +47,31 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
   const [firmSettings, setFirmSettings] = React.useState<FirmSettings | null>(null)
 
   React.useEffect(() => {
-    setFirmSettings(getFirmSettings())
+    async function fetchFirmSettings() {
+      try {
+        const token = getAuthToken()
+        if (!token) return  // No auth, skip
+
+        const url = getApiUrl(API_CONFIG.endpoints.getFirmSettings)
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && result.data) {
+            setFirmSettings(result.data)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch firm settings:', error)
+      }
+    }
+
+    fetchFirmSettings()
   }, [])
 
   const data = {

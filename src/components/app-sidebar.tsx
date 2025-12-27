@@ -38,7 +38,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useTranslation } from "@/hooks/useTranslation"
-import { getFirmSettings, FirmSettings } from "@/lib/firm-settings-storage"
+import { FirmSettings } from "@/lib/firm-settings-storage"
+import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getAuthToken } from "@/lib/auth-storage"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
@@ -49,7 +51,31 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
   const [firmSettings, setFirmSettings] = React.useState<FirmSettings | null>(null)
 
   React.useEffect(() => {
-    setFirmSettings(getFirmSettings())
+    async function fetchFirmSettings() {
+      try {
+        const token = getAuthToken()
+        if (!token) return  // No auth, skip
+
+        const url = getApiUrl(API_CONFIG.endpoints.getFirmSettings)
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && result.data) {
+            setFirmSettings(result.data)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch firm settings:', error)
+      }
+    }
+
+    fetchFirmSettings()
   }, [])
 
   const data = {
