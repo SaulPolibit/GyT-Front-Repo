@@ -497,10 +497,11 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
 
         {/* Offering Terms Tab */}
         <TabsContent value="terms" className="space-y-4">
+          {/* Fee Structure */}
           <Card>
             <CardHeader>
-              <CardTitle>Offering Terms</CardTitle>
-              <CardDescription>Fee structure and performance metrics</CardDescription>
+              <CardTitle>Fee Structure</CardTitle>
+              <CardDescription>Management fees and performance metrics</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
@@ -530,7 +531,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                 )}
               </div>
 
-              <Separator />
+              {(structure.waterfallStructure || structure.distributionFrequency) && <Separator />}
 
               {structure.waterfallStructure && (
                 <div>
@@ -547,6 +548,304 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
               )}
             </CardContent>
           </Card>
+
+          {/* Partnership Agreement */}
+          {structure.legalTerms && (structure.legalTerms.managementControl || structure.legalTerms.capitalContributions || structure.legalTerms.allocationsDistributions) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Partnership Agreement</CardTitle>
+                <CardDescription>Core partnership terms and governance</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {structure.legalTerms.managementControl && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Management & Control</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.managementControl}</p>
+                  </div>
+                )}
+                {structure.legalTerms.capitalContributions && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Capital Contributions</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.capitalContributions}</p>
+                  </div>
+                )}
+                {structure.legalTerms.allocationsDistributions && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Allocations & Distributions</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.allocationsDistributions}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Rights & Obligations */}
+          {structure.legalTerms && (structure.legalTerms.limitedPartnerRights?.length > 0 || structure.legalTerms.limitedPartnerObligations?.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Rights & Obligations</CardTitle>
+                <CardDescription>Limited partner rights and responsibilities</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {structure.legalTerms.limitedPartnerRights?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Your Rights as a Limited Partner</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.limitedPartnerRights.map((right, i) => (
+                        <li key={i}>{right}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {structure.legalTerms.limitedPartnerObligations?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Your Obligations as a Limited Partner</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.limitedPartnerObligations.map((obligation, i) => (
+                        <li key={i}>{obligation}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Redemption & Withdrawal */}
+          {structure.legalTerms && (structure.legalTerms.lockUpPeriod || structure.legalTerms.withdrawalConditions?.length > 0 || structure.legalTerms.withdrawalProcess?.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Redemption & Withdrawal Terms</CardTitle>
+                <CardDescription>Lock-up periods and withdrawal procedures</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {structure.legalTerms.lockUpPeriod && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Lock-Up Period</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.lockUpPeriod}</p>
+                  </div>
+                )}
+                {structure.legalTerms.withdrawalConditions?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Withdrawal Conditions</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.withdrawalConditions.map((condition, i) => (
+                        <li key={i}>{condition}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {structure.legalTerms.withdrawalProcess?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Withdrawal Process</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.withdrawalProcess.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Transfer Restrictions */}
+          {structure.legalTerms && (structure.legalTerms.transferProhibition || structure.legalTerms.permittedTransfers?.length > 0 || structure.legalTerms.transferRequirements?.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Transfer Restrictions</CardTitle>
+                <CardDescription>Rules governing transfer of partnership interests</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {structure.legalTerms.transferProhibition && (
+                  <div>
+                    <h3 className="font-semibold mb-2">General Prohibition</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.transferProhibition}</p>
+                  </div>
+                )}
+                {structure.legalTerms.permittedTransfers?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Permitted Transfers</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.permittedTransfers.map((transfer, i) => (
+                        <li key={i}>{transfer}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {structure.legalTerms.transferRequirements?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Transfer Requirements</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.transferRequirements.map((requirement, i) => (
+                        <li key={i}>{requirement}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Reporting Commitments */}
+          {structure.legalTerms && (structure.legalTerms.quarterlyReports || structure.legalTerms.annualReports || structure.legalTerms.taxForms || structure.legalTerms.capitalNotices || structure.legalTerms.additionalCommunications?.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Reporting Commitments</CardTitle>
+                <CardDescription>Information you will receive as an investor</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {structure.legalTerms.quarterlyReports && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Quarterly Reports</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.quarterlyReports}</p>
+                  </div>
+                )}
+                {structure.legalTerms.annualReports && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Annual Reports</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.annualReports}</p>
+                  </div>
+                )}
+                {structure.legalTerms.taxForms && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Tax Forms (K-1)</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.taxForms}</p>
+                  </div>
+                )}
+                {structure.legalTerms.capitalNotices && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Capital Call & Distribution Notices</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.capitalNotices}</p>
+                  </div>
+                )}
+                {structure.legalTerms.additionalCommunications?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Additional Communications</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.additionalCommunications.map((comm, i) => (
+                        <li key={i}>{comm}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Liability Limitations */}
+          {structure.legalTerms && (structure.legalTerms.liabilityProtection || structure.legalTerms.liabilityExceptions?.length > 0 || structure.legalTerms.maximumExposure) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Liability Limitations</CardTitle>
+                <CardDescription>Your liability protections and exposure limits</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {structure.legalTerms.liabilityProtection && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Limited Liability Protection</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.liabilityProtection}</p>
+                  </div>
+                )}
+                {structure.legalTerms.liabilityExceptions?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Exceptions to Limited Liability</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.liabilityExceptions.map((exception, i) => (
+                        <li key={i}>{exception}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {structure.legalTerms.maximumExposure && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Maximum Exposure</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.maximumExposure}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Indemnification */}
+          {structure.legalTerms && (structure.legalTerms.partnershipIndemnifiesLP?.length > 0 || structure.legalTerms.lpIndemnifiesPartnership?.length > 0 || structure.legalTerms.indemnificationProcedures) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Indemnification</CardTitle>
+                <CardDescription>Mutual indemnification provisions</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {structure.legalTerms.partnershipIndemnifiesLP?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Partnership Indemnifies You For</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.partnershipIndemnifiesLP.map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {structure.legalTerms.lpIndemnifiesPartnership?.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">You Indemnify Partnership For</h3>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      {structure.legalTerms.lpIndemnifiesPartnership.map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {structure.legalTerms.indemnificationProcedures && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Indemnification Procedures</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.indemnificationProcedures}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Additional Provisions */}
+          {structure.legalTerms && (structure.legalTerms.amendments || structure.legalTerms.dissolution || structure.legalTerms.disputes || structure.legalTerms.governingLaw || structure.legalTerms.additionalProvisions) && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Additional Provisions</CardTitle>
+                <CardDescription>Other important legal terms and conditions</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {structure.legalTerms.amendments && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Amendments</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.amendments}</p>
+                  </div>
+                )}
+                {structure.legalTerms.dissolution && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Dissolution</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.dissolution}</p>
+                  </div>
+                )}
+                {structure.legalTerms.disputes && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Dispute Resolution</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.disputes}</p>
+                  </div>
+                )}
+                {structure.legalTerms.governingLaw && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Governing Law</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.governingLaw}</p>
+                  </div>
+                )}
+                {structure.legalTerms.additionalProvisions && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Additional Provisions</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.additionalProvisions}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Token Info Tab */}
