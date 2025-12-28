@@ -1496,7 +1496,7 @@ export default function PaymentPage({ params }: Props) {
                   <Button
                     className="flex-1"
                     size="lg"
-                    disabled={!isFormValid() || isProcessing || paymentComplete || !submissionId || submissionId.trim() === ''}
+                    disabled={!isFormValid() || isProcessing || paymentComplete || (process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNING !== 'false' && (!submissionId || submissionId.trim() === ''))}
                     onClick={handlePayment}
                   >
                     {isProcessing ? (
