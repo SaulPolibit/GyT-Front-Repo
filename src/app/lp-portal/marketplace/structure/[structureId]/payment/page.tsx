@@ -751,9 +751,9 @@ export default function PaymentPage({ params }: Props) {
         })
 
         // Redirect to portfolio after a short delay
-        setTimeout(() => {
-          window.location.href = `/lp-portal/portfolio`
-        }, 2500)
+        // setTimeout(() => {
+        //   window.location.href = `/lp-portal/portfolio`
+        // }, 2500)
       } else {
         // Simulate payment processing for other methods
         await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -773,9 +773,9 @@ export default function PaymentPage({ params }: Props) {
       console.log('✅ Payment successful')
 
       // Redirect to portfolio after a short delay
-      setTimeout(() => {
-        window.location.href = `/lp-portal/portfolio`
-      }, 1500)
+      // setTimeout(() => {
+      //   window.location.href = `/lp-portal/portfolio`
+      // }, 1500)
     } catch (error) {
       console.error('Payment error:', error)
       toast({
