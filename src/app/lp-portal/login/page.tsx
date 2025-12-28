@@ -268,7 +268,7 @@ function LPLoginPageContent() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
             <p className="text-center mt-4 text-muted-foreground">
-              Authenticating with Prospera...
+              Authenticating with Próspera...
             </p>
           </CardContent>
         </Card>
@@ -330,28 +330,28 @@ function LPLoginPageContent() {
             {isProsperapLoading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Connecting to Prospera...
+                Connecting to Próspera...
               </>
             ) : (
               <>
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
                 </svg>
-                Login with Prospera
+                Login with Próspera
               </>
             )}
           </Button>
 
           {/* Prospera Sign Up Link */}
           <div className="text-center text-sm text-muted-foreground border-t pt-4">
-            <p className="mb-2">Don't have a Prospera account?</p>
+            <p className="mb-2">Don't have a Próspera account?</p>
             <a
               href="https://staging-portal.eprospera.com/en/login?returnTo=%2F"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline font-medium"
             >
-              Create one on Prospera →
+              Create one on Próspera →
             </a>
           </div>
         </CardContent>
