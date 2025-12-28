@@ -59,10 +59,20 @@ export const API_CONFIG = {
     getFirmLogo: '/api/firm-settings/logo',
     updateFirmSettings: '/api/firm-settings',
 
-    // Email configuration
+    // Email configuration (legacy SMTP)
     getUserEmailSettings: (userId: string) => `/api/users/${userId}/email-settings`,
     updateUserEmailSettings: (userId: string) => `/api/users/${userId}/email-settings`,
     sendTestEmail: (userId: string) => `/api/users/${userId}/email-settings/test`,
+
+    // Email Domains (Resend)
+    getEmailDomains: '/api/email-domains',
+    getVerifiedEmailDomains: '/api/email-domains/verified',
+    getEmailDomain: (domainId: string) => `/api/email-domains/${domainId}`,
+    createEmailDomain: '/api/email-domains',
+    verifyEmailDomain: (domainId: string) => `/api/email-domains/${domainId}/verify`,
+    updateEmailDomainConfig: (domainId: string) => `/api/email-domains/${domainId}/config`,
+    deleteEmailDomain: (domainId: string) => `/api/email-domains/${domainId}`,
+    getEmailDomainDnsRecords: (domainId: string) => `/api/email-domains/${domainId}/dns-records`,
 
     // User profile
     updateUserProfile: '/api/users/profile',

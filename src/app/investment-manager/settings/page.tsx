@@ -98,7 +98,7 @@ export default function InvestmentManagerSettingsPage() {
   const [isVerifyingMfa, setIsVerifyingMfa] = React.useState(false)
   const [pendingAction, setPendingAction] = React.useState<'unenroll' | 'retry-enroll' | null>(null)
 
-  // Email configuration state
+  // Email configuration state (legacy SMTP - kept for backwards compatibility)
   const [emailConfig, setEmailConfig] = React.useState({
     smtpHost: '',
     smtpPort: '587',
@@ -113,6 +113,41 @@ export default function InvestmentManagerSettingsPage() {
   })
   const [isSendingTest, setIsSendingTest] = React.useState(false)
   const [isSavingEmail, setIsSavingEmail] = React.useState(false)
+
+  // Email Domain state (Resend-based)
+  interface EmailDomainType {
+    id: string
+    resendDomainId: string
+    domainName: string
+    status: 'pending' | 'verified' | 'failed'
+    region: string
+    dnsRecords: Array<{
+      type: string
+      name: string
+      value: string
+      priority?: number
+      ttl?: string
+      status?: string
+    }>
+    fromEmail: string | null
+    fromName: string | null
+    replyToEmail: string | null
+    isActive: boolean
+    createdAt: string
+    verifiedAt: string | null
+  }
+  const [emailDomains, setEmailDomains] = React.useState<EmailDomainType[]>([])
+  const [selectedDomain, setSelectedDomain] = React.useState<EmailDomainType | null>(null)
+  const [newDomainName, setNewDomainName] = React.useState('')
+  const [isAddingDomain, setIsAddingDomain] = React.useState(false)
+  const [isVerifyingDomain, setIsVerifyingDomain] = React.useState(false)
+  const [isDeletingDomain, setIsDeletingDomain] = React.useState(false)
+  const [domainEmailConfig, setDomainEmailConfig] = React.useState({
+    fromEmail: '',
+    fromName: '',
+    replyToEmail: ''
+  })
+  const [isSavingDomainConfig, setIsSavingDomainConfig] = React.useState(false)
 
   React.useEffect(() => {
     loadSettings()
@@ -1184,6 +1219,264 @@ export default function InvestmentManagerSettingsPage() {
     }
   }
 
+  // Email Domain Functions (Resend-based)
+  const loadEmailDomains = async () => {
+    try {
+      const token = getAuthToken()
+      if (!token) return
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.getEmailDomains),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data) {
+          setEmailDomains(data.data)
+          // Select first domain if available
+          if (data.data.length > 0 && !selectedDomain) {
+            const firstDomain = data.data[0]
+            setSelectedDomain(firstDomain)
+            setDomainEmailConfig({
+              fromEmail: firstDomain.fromEmail || '',
+              fromName: firstDomain.fromName || '',
+              replyToEmail: firstDomain.replyToEmail || ''
+            })
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading email domains:', error)
+    }
+  }
+
+  const handleAddDomain = async () => {
+    if (!newDomainName.trim()) {
+      toast.error('Please enter a domain name')
+      return
+    }
+
+    try {
+      setIsAddingDomain(true)
+      const token = getAuthToken()
+
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.createEmailDomain),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            domainName: newDomainName.toLowerCase().trim()
+          }),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to add domain')
+      }
+
+      toast.success('Domain added! Please add the DNS records to verify.')
+      setNewDomainName('')
+      setSelectedDomain(data.data)
+      setDomainEmailConfig({
+        fromEmail: '',
+        fromName: '',
+        replyToEmail: ''
+      })
+      await loadEmailDomains()
+    } catch (error) {
+      console.error('Error adding domain:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to add domain')
+    } finally {
+      setIsAddingDomain(false)
+    }
+  }
+
+  const handleVerifyDomain = async () => {
+    if (!selectedDomain) return
+
+    try {
+      setIsVerifyingDomain(true)
+      const token = getAuthToken()
+
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.verifyEmailDomain(selectedDomain.id)),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Verification failed')
+      }
+
+      if (data.verified) {
+        toast.success('Domain verified successfully!')
+      } else {
+        toast.error('DNS records not yet verified. Please ensure all records are added correctly.')
+      }
+
+      setSelectedDomain(data.data)
+      await loadEmailDomains()
+    } catch (error) {
+      console.error('Error verifying domain:', error)
+      toast.error(error instanceof Error ? error.message : 'Verification failed')
+    } finally {
+      setIsVerifyingDomain(false)
+    }
+  }
+
+  const handleSaveDomainEmailConfig = async () => {
+    if (!selectedDomain) return
+
+    if (!domainEmailConfig.fromEmail) {
+      toast.error('From Email is required')
+      return
+    }
+
+    // Validate that fromEmail uses the domain
+    const emailDomain = domainEmailConfig.fromEmail.split('@')[1]
+    if (emailDomain?.toLowerCase() !== selectedDomain.domainName.toLowerCase()) {
+      toast.error(`From email must use the domain ${selectedDomain.domainName}`)
+      return
+    }
+
+    try {
+      setIsSavingDomainConfig(true)
+      const token = getAuthToken()
+
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.updateEmailDomainConfig(selectedDomain.id)),
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(domainEmailConfig),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to save configuration')
+      }
+
+      toast.success('Email configuration saved!')
+      setSelectedDomain(data.data)
+      await loadEmailDomains()
+    } catch (error) {
+      console.error('Error saving email config:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to save configuration')
+    } finally {
+      setIsSavingDomainConfig(false)
+    }
+  }
+
+  const handleDeleteDomain = async () => {
+    if (!selectedDomain) return
+
+    if (!confirm(`Are you sure you want to delete the domain "${selectedDomain.domainName}"? This cannot be undone.`)) {
+      return
+    }
+
+    try {
+      setIsDeletingDomain(true)
+      const token = getAuthToken()
+
+      if (!token) {
+        toast.error('Authentication required')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.deleteEmailDomain(selectedDomain.id)),
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Failed to delete domain')
+      }
+
+      toast.success('Domain deleted successfully')
+      setSelectedDomain(null)
+      setDomainEmailConfig({
+        fromEmail: '',
+        fromName: '',
+        replyToEmail: ''
+      })
+      await loadEmailDomains()
+    } catch (error) {
+      console.error('Error deleting domain:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete domain')
+    } finally {
+      setIsDeletingDomain(false)
+    }
+  }
+
+  const handleSelectDomain = (domain: EmailDomainType) => {
+    setSelectedDomain(domain)
+    setDomainEmailConfig({
+      fromEmail: domain.fromEmail || '',
+      fromName: domain.fromName || '',
+      replyToEmail: domain.replyToEmail || ''
+    })
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success('Copied to clipboard!')
+  }
+
+  // Load email domains on mount
+  React.useEffect(() => {
+    if (currentUserRole === 0 || currentUserRole === 1) {
+      loadEmailDomains()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserRole])
+
   if (loading || !settings) {
     return (
       <div className="space-y-6 p-4 md:p-6">
@@ -1633,216 +1926,279 @@ export default function InvestmentManagerSettingsPage() {
 
         {/* Email Configuration Tab */}
         <TabsContent value="email" className="space-y-4">
+          {/* Add Domain Section */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />
-                Email Configuration
+                Email Domain Configuration
               </CardTitle>
               <CardDescription>
-                Configure SMTP settings to enable email notifications
+                Configure your email domain for white-label email sending
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="smtpHost">SMTP Host *</Label>
-                  <Input
-                    id="smtpHost"
-                    value={emailConfig.smtpHost}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, smtpHost: e.target.value })}
-                    placeholder="smtp.gmail.com"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Your email provider&apos;s SMTP server address
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="smtpPort">SMTP Port *</Label>
-                  <Input
-                    id="smtpPort"
-                    value={emailConfig.smtpPort}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, smtpPort: e.target.value })}
-                    placeholder="587"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Usually 587 (TLS) or 465 (SSL)
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="smtpUsername">SMTP Username *</Label>
-                  <Input
-                    id="smtpUsername"
-                    value={emailConfig.smtpUsername}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, smtpUsername: e.target.value })}
-                    placeholder="your-email@example.com"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="smtpPassword">SMTP Password</Label>
-                  <Input
-                    id="smtpPassword"
-                    type="password"
-                    value={emailConfig.smtpPassword}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, smtpPassword: e.target.value })}
-                    placeholder="••••••••"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Leave blank to keep existing password
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fromEmail">From Email *</Label>
-                  <Input
-                    id="fromEmail"
-                    type="email"
-                    value={emailConfig.fromEmail}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, fromEmail: e.target.value })}
-                    placeholder="noreply@yourfirm.com"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Email address shown as sender
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="fromName">From Name *</Label>
-                  <Input
-                    id="fromName"
-                    value={emailConfig.fromName}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, fromName: e.target.value })}
-                    placeholder="Your Firm Name"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Name shown as sender
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="replyToEmail">Reply-To Email</Label>
-                <Input
-                  id="replyToEmail"
-                  type="email"
-                  value={emailConfig.replyToEmail}
-                  onChange={(e) => setEmailConfig({ ...emailConfig, replyToEmail: e.target.value })}
-                  placeholder="reply@yourfirm.com"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Email address for replies (optional)
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Use Secure Connection</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Enable encrypted connection (recommended)
-                    </p>
-                  </div>
-                  <Switch
-                    checked={emailConfig.smtpSecure}
-                    onCheckedChange={(checked) => setEmailConfig({ ...emailConfig, smtpSecure: checked })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="encryption">Encryption Type</Label>
-                  <Select
-                    value={emailConfig.encryption}
-                    onValueChange={(value: 'tls' | 'ssl' | 'none') => setEmailConfig({ ...emailConfig, encryption: value })}
-                  >
-                    <SelectTrigger id="encryption">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tls">TLS/STARTTLS</SelectItem>
-                      <SelectItem value="ssl">SSL</SelectItem>
-                      <SelectItem value="none">None (Not Recommended)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    TLS for port 587, SSL for port 465
-                  </p>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-sm font-semibold mb-4">Test Email Configuration</h3>
+              {/* Add New Domain */}
+              {currentUserRole === 0 && (
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="testEmail">Test Email Address</Label>
-                    <Input
-                      id="testEmail"
-                      type="email"
-                      value={emailConfig.testEmail}
-                      onChange={(e) => setEmailConfig({ ...emailConfig, testEmail: e.target.value })}
-                      placeholder="test@example.com"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Enter an email address to receive a test message
-                    </p>
-                  </div>
-
+                  <h3 className="text-sm font-semibold">Add New Domain</h3>
                   <div className="flex gap-2">
-                    <Button
-                      onClick={handleSendTestEmail}
-                      disabled={isSendingTest || !emailConfig.testEmail}
-                      variant="outline"
-                    >
-                      {isSendingTest ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="h-4 w-4 mr-2" />
-                          Send Test Email
-                        </>
-                      )}
+                    <Input
+                      placeholder="yourdomain.com"
+                      value={newDomainName}
+                      onChange={(e) => setNewDomainName(e.target.value)}
+                      className="max-w-sm"
+                    />
+                    <Button onClick={handleAddDomain} disabled={isAddingDomain || !newDomainName.trim()}>
+                      {isAddingDomain ? 'Adding...' : 'Add Domain'}
                     </Button>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enter your domain to send emails from (e.g., notifications@yourdomain.com)
+                  </p>
                 </div>
-              </div>
+              )}
 
-              <Separator />
+              {/* Domain List */}
+              {emailDomains.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold">Your Domains</h3>
+                  <div className="grid gap-2">
+                    {emailDomains.map((domain) => (
+                      <div
+                        key={domain.id}
+                        onClick={() => handleSelectDomain(domain)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          selectedDomain?.id === domain.id
+                            ? 'border-primary bg-primary/5'
+                            : 'hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{domain.domainName}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              domain.status === 'verified'
+                                ? 'bg-green-100 text-green-700'
+                                : domain.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {domain.status}
+                            </span>
+                          </div>
+                          {domain.fromEmail && (
+                            <span className="text-sm text-muted-foreground">{domain.fromEmail}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-              <div className="flex gap-2">
-                <Button onClick={handleSaveEmailConfig} disabled={isSavingEmail}>
-                  {isSavingEmail ? 'Saving...' : 'Save Email Configuration'}
-                </Button>
-                <Button
-                  onClick={handleSendTestEmail}
-                  disabled={isSendingTest || !emailConfig.testEmail}
-                  variant="outline"
-                >
-                  {isSendingTest ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
-                      Testing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-2" />
-                      Test Configuration
-                    </>
+              {emailDomains.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No email domains configured yet.</p>
+                  {currentUserRole === 0 && (
+                    <p className="text-sm">Add a domain above to get started.</p>
                   )}
-                </Button>
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
+
+          {/* Selected Domain Details */}
+          {selectedDomain && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      {selectedDomain.domainName}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        selectedDomain.status === 'verified'
+                          ? 'bg-green-100 text-green-700'
+                          : selectedDomain.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {selectedDomain.status}
+                      </span>
+                    </CardTitle>
+                    <CardDescription>
+                      {selectedDomain.status === 'verified'
+                        ? 'Domain is verified and ready to send emails'
+                        : 'Add the DNS records below to verify your domain'}
+                    </CardDescription>
+                  </div>
+                  {currentUserRole === 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteDomain}
+                      disabled={isDeletingDomain}
+                    >
+                      {isDeletingDomain ? 'Deleting...' : 'Delete Domain'}
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* DNS Records Section */}
+                {selectedDomain.status !== 'verified' && selectedDomain.dnsRecords && selectedDomain.dnsRecords.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">DNS Records</h3>
+                      <Button
+                        onClick={handleVerifyDomain}
+                        disabled={isVerifyingDomain}
+                        size="sm"
+                      >
+                        {isVerifyingDomain ? 'Verifying...' : 'Verify Domain'}
+                      </Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Add these DNS records to your domain provider (Cloudflare, GoDaddy, etc.):
+                    </p>
+                    <div className="space-y-3">
+                      {selectedDomain.dnsRecords.map((record, index) => (
+                        <div key={index} className="p-3 bg-muted rounded-lg space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold px-2 py-0.5 bg-primary/10 rounded">
+                              {record.type}
+                            </span>
+                            {record.status && (
+                              <span className={`text-xs px-2 py-0.5 rounded ${
+                                record.status === 'verified'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {record.status}
+                              </span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Name: </span>
+                              <code className="bg-background px-1 rounded">{record.name}</code>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 ml-1"
+                                onClick={() => copyToClipboard(record.name)}
+                              >
+                                <span className="text-xs">📋</span>
+                              </Button>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">TTL: </span>
+                              <span>{record.ttl || 'Auto'}</span>
+                            </div>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">Value: </span>
+                            <code className="bg-background px-1 rounded text-xs break-all">{record.value}</code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 ml-1"
+                              onClick={() => copyToClipboard(record.value)}
+                            >
+                              <span className="text-xs">📋</span>
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Email Configuration */}
+                {selectedDomain.status === 'verified' && (
+                  <>
+                    <Separator />
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold">Email Configuration</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="domainFromEmail">From Email *</Label>
+                          <Input
+                            id="domainFromEmail"
+                            type="email"
+                            value={domainEmailConfig.fromEmail}
+                            onChange={(e) => setDomainEmailConfig({ ...domainEmailConfig, fromEmail: e.target.value })}
+                            placeholder={`notifications@${selectedDomain.domainName}`}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Must use @{selectedDomain.domainName}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="domainFromName">From Name</Label>
+                          <Input
+                            id="domainFromName"
+                            value={domainEmailConfig.fromName}
+                            onChange={(e) => setDomainEmailConfig({ ...domainEmailConfig, fromName: e.target.value })}
+                            placeholder="Your Company Name"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="domainReplyTo">Reply-To Email</Label>
+                        <Input
+                          id="domainReplyTo"
+                          type="email"
+                          value={domainEmailConfig.replyToEmail}
+                          onChange={(e) => setDomainEmailConfig({ ...domainEmailConfig, replyToEmail: e.target.value })}
+                          placeholder="support@yourcompany.com"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Where replies will be sent (can be any email)
+                        </p>
+                      </div>
+
+                      <Button
+                        onClick={handleSaveDomainEmailConfig}
+                        disabled={isSavingDomainConfig}
+                      >
+                        {isSavingDomainConfig ? 'Saving...' : 'Save Email Configuration'}
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {/* Test Email Section */}
+                {selectedDomain.status === 'verified' && selectedDomain.fromEmail && (
+                  <>
+                    <Separator />
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold">Test Email</h3>
+                      <div className="flex gap-2">
+                        <Input
+                          type="email"
+                          placeholder="test@example.com"
+                          value={emailConfig.testEmail}
+                          onChange={(e) => setEmailConfig({ ...emailConfig, testEmail: e.target.value })}
+                          className="max-w-sm"
+                        />
+                        <Button
+                          onClick={handleSendTestEmail}
+                          disabled={isSendingTest || !emailConfig.testEmail}
+                          variant="outline"
+                        >
+                          {isSendingTest ? 'Sending...' : 'Send Test'}
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Security Tab */}
