@@ -1855,9 +1855,9 @@ export default function OnboardingPage() {
       toast.success('Structure setup completed successfully!')
       setIsSubmitting(false)
 
-      // Redirect to the structures page or show success screen
+      // Redirect to the edit page of the newly created structure
       setTimeout(() => {
-        window.location.href = '/investment-manager/structures'
+        window.location.href = `/investment-manager/structures/${structureId}/edit`
       }, 2000)
 
     } catch (error) {
