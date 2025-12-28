@@ -49,6 +49,9 @@ export default function LPSettingsPage() {
   // Check if Payment tab should be shown
   const showPaymentTab = process.env.NEXT_PUBLIC_SHOW_PAYMENTS_TAB !== 'false'
 
+  // Check if advanced notification settings should be shown
+  const showAdvancedNotifications = process.env.NEXT_PUBLIC_SHOW_ADVANCED_NOTIFICATIONS !== 'false'
+
   const [activeTab, setActiveTab] = React.useState(showPaymentTab ? "payment" : "notifications")
 
   // Notification settings
@@ -916,7 +919,7 @@ export default function LPSettingsPage() {
           {showPaymentTab && <TabsTrigger value="payment">Payment</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="legal">Legal Info</TabsTrigger>
+          <TabsTrigger value="legal">General Info</TabsTrigger>
         </TabsList>
 
         {/* Payment Methods Tab */}
@@ -1122,9 +1125,10 @@ export default function LPSettingsPage() {
                 )}
               </div>
 
-              <Separator />
+              {showAdvancedNotifications && <Separator />}
 
               {/* SMS Notifications */}
+              {showAdvancedNotifications && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
@@ -1153,10 +1157,12 @@ export default function LPSettingsPage() {
                   </div>
                 )}
               </div>
+              )}
 
-              <Separator />
+              {showAdvancedNotifications && <Separator />}
 
               {/* Portal Notifications */}
+              {showAdvancedNotifications && (
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label className="text-base">Portal Notifications</Label>
@@ -1166,10 +1172,12 @@ export default function LPSettingsPage() {
                 </div>
                 <Switch checked={portalNotifications} onCheckedChange={setPortalNotifications} />
               </div>
+              )}
 
-              <Separator />
+              {showAdvancedNotifications && <Separator />}
 
               {/* Communication Preferences */}
+              {showAdvancedNotifications && (
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Communication Preferences</h3>
 
@@ -1217,6 +1225,7 @@ export default function LPSettingsPage() {
                   </div>
                 </div>
               </div>
+              )}
 
               <Button onClick={handleUpdateNotifications}>Save Notification Preferences</Button>
             </CardContent>
