@@ -114,6 +114,28 @@ export const API_CONFIG = {
     registerUserOnBlockchain: '/api/blockchain/contract/register-user',
     mintTokensOnBlockchain: '/api/blockchain/contract/mint-tokens',
 
+    // Blockchain Contract Management
+    checkContractOwnership: (contractAddress: string) => `/api/blockchain/contract/${contractAddress}/ownership`,
+    transferContractOwnership: '/api/blockchain/contract/transfer-ownership',
+    checkAgent: (contractAddress: string, agentAddress: string) => `/api/blockchain/contract/${contractAddress}/check-agent/${agentAddress}`,
+    registerAgent: '/api/blockchain/contract/register-agent',
+    removeAgent: '/api/blockchain/contract/remove-agent',
+    checkUser: (identityAddress: string, userAddress: string) => `/api/blockchain/contract/${identityAddress}/check-user/${userAddress}`,
+    registerUser: '/api/blockchain/contract/register-user',
+    removeUser: '/api/blockchain/contract/remove-user',
+    checkCountry: (complianceAddress: string, country: string) => `/api/blockchain/contract/${complianceAddress}/check-country/${country}`,
+    addCountry: '/api/blockchain/contract/add-country',
+    removeCountry: '/api/blockchain/contract/remove-country',
+    getTokenBalance: (contractAddress: string, userAddress: string) => `/api/blockchain/contract/${contractAddress}/balance/${userAddress}`,
+    transferTokens: '/api/blockchain/contract/transfer-tokens',
+    checkAllowance: (contractAddress: string, owner: string, spender: string) => `/api/blockchain/contract/allowance?contractAddress=${contractAddress}&owner=${owner}&spender=${spender}`,
+    setAllowance: '/api/blockchain/contract/set-allowance',
+    getContractOwner: '/api/blockchain/contract/owner',
+    getTokenHolders: '/api/blockchain/contract/token-holders',
+    batchTransferTokens: '/api/blockchain/contract/batch-transfer-tokens',
+    forceTransferTokens: '/api/blockchain/contract/force-transfer-tokens',
+    getTotalSupply: '/api/blockchain/contract/total-supply',
+
     // Wallet API
     getWalletBalances: '/api/custom/wallet/balances',
 

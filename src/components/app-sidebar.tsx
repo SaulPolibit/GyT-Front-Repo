@@ -146,6 +146,10 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
             title: t.nav.distributions,
             url: "/investment-manager/operations/distributions",
           },
+          {
+            title: "Contracts Management",
+            url: "/investment-manager/operations/contracts-management",
+          },
         ],
       },
     ],
