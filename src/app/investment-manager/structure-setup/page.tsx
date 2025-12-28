@@ -710,6 +710,13 @@ export default function OnboardingPage() {
     }
   }, [usePlatformWallet, userWalletAddress])
 
+  // Auto-populate crypto payment wallet address from wallet owner address
+  useEffect(() => {
+    if (formData.paymentCryptoEnabled && formData.walletOwnerAddress) {
+      updateFormData('paymentCryptoWalletAddress', formData.walletOwnerAddress)
+    }
+  }, [formData.paymentCryptoEnabled, formData.walletOwnerAddress])
+
   // Handle operating agreement hash default value
   useEffect(() => {
     const defaultHash = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -3040,7 +3047,7 @@ export default function OnboardingPage() {
                     userWalletAddress ? (
                       // User has wallet - show read-only
                       <div className="space-y-2">
-                        <Label htmlFor="walletOwnerAddress">Wallet Owner Address *</Label>
+                        <Label htmlFor="walletOwnerAddress">Wallet Owner Address (polygon address) *</Label>
                         <Input
                           id="walletOwnerAddress"
                           value={formData.walletOwnerAddress}
@@ -3070,7 +3077,7 @@ export default function OnboardingPage() {
                   ) : (
                     // Manual Wallet Mode
                     <div className="space-y-2">
-                      <Label htmlFor="walletOwnerAddress">Wallet Owner Address *</Label>
+                      <Label htmlFor="walletOwnerAddress">Wallet Owner Address (polygon address) *</Label>
                       <Input
                         id="walletOwnerAddress"
                         value={formData.walletOwnerAddress}
@@ -3340,7 +3347,8 @@ export default function OnboardingPage() {
                       </p>
                     </div>
 
-                    <div className="space-y-2">
+                    {/* Fund Type section commented out */}
+                    {/* <div className="space-y-2">
                       <Label>Fund Type</Label>
                       <RadioGroup
                         value={formData.fundType}
@@ -3355,7 +3363,7 @@ export default function OnboardingPage() {
                           <Label htmlFor="open-end">Open-End</Label>
                         </div>
                       </RadioGroup>
-                    </div>
+                    </div> */}
                   </>
                 )}
               </div>
@@ -3919,7 +3927,7 @@ export default function OnboardingPage() {
                       onCheckedChange={(checked) => updateFormData('paymentCryptoEnabled', checked)}
                     />
                     <Label htmlFor="paymentCrypto" className="cursor-pointer font-medium">
-                      Payments with Crypto
+                      Payments with Stablecoins
                     </Label>
                   </div>
 
@@ -3956,27 +3964,10 @@ export default function OnboardingPage() {
                         <Input
                           id="paymentCryptoWallet"
                           value={formData.paymentCryptoWalletAddress}
-                          onChange={(e) => {
-                            const address = e.target.value
-                            updateFormData('paymentCryptoWalletAddress', address)
-                          }}
-                          placeholder="0x..."
-                          className={
-                            formData.paymentCryptoWalletAddress &&
-                            !/^0x[a-fA-F0-9]{40}$/.test(formData.paymentCryptoWalletAddress)
-                              ? 'border-red-500'
-                              : ''
-                          }
+                          disabled
+                          className="bg-gray-100 cursor-not-allowed"
                         />
-                        {formData.paymentCryptoWalletAddress &&
-                          !/^0x[a-fA-F0-9]{40}$/.test(formData.paymentCryptoWalletAddress) && (
-                            <p className="text-xs text-red-600">
-                              Please enter a valid EVM wallet address (0x followed by 40 hexadecimal characters)
-                            </p>
-                          )}
-                        <p className="text-xs text-gray-500">
-                          Enter the wallet address where investors will send their USDC contributions
-                        </p>
+                        <p className="text-xs text-gray-500">Using the wallet address from Step 1</p>
                       </div>
                     </div>
                   )}
