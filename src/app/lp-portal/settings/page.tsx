@@ -45,7 +45,11 @@ export default function LPSettingsPage() {
   const router = useRouter()
   const [investor, setInvestor] = React.useState<any>(null)
   const [loading, setLoading] = React.useState(true)
-  const [activeTab, setActiveTab] = React.useState("payment")
+
+  // Check if Payment tab should be shown
+  const showPaymentTab = process.env.NEXT_PUBLIC_SHOW_PAYMENTS_TAB !== 'false'
+
+  const [activeTab, setActiveTab] = React.useState(showPaymentTab ? "payment" : "notifications")
 
   // Notification settings
   const [emailNotifications, setEmailNotifications] = React.useState(true)
@@ -908,14 +912,15 @@ export default function LPSettingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="payment">Payment</TabsTrigger>
+        <TabsList className={`grid w-full ${showPaymentTab ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          {showPaymentTab && <TabsTrigger value="payment">Payment</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="legal">Legal Info</TabsTrigger>
         </TabsList>
 
         {/* Payment Methods Tab */}
+        {showPaymentTab && (
         <TabsContent value="payment" className="space-y-4">
           <Card>
             <CardHeader>
@@ -1060,6 +1065,7 @@ export default function LPSettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
         {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-4">
