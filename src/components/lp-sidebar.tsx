@@ -44,6 +44,10 @@ interface LPSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
   const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
 
+  // Check environment variables for navigation visibility
+  const showDashboardReports = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_REPORTS !== 'false'
+  const showManagementSection = process.env.NEXT_PUBLIC_SHOW_MANAGEMENT_SECTION !== 'false'
+
   React.useEffect(() => {
     async function fetchFirmLogo() {
       try {
@@ -64,39 +68,47 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
     fetchFirmLogo()
   }, [])
 
+  // Build navigation arrays based on environment variables
+  const allNavMain = [
+    {
+      title: "Dashboard",
+      url: "/lp-portal/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Marketplace",
+      url: "/lp-portal/marketplace",
+      icon: Store,
+    },
+    {
+      title: "Portfolio",
+      url: "/lp-portal/portfolio",
+      icon: Home,
+    },
+    {
+      title: "Reports",
+      url: "/lp-portal/reports",
+      icon: TrendingUp,
+    },
+    {
+      title: "Documents",
+      url: "/lp-portal/documents",
+      icon: FileText,
+    },
+    {
+      title: "Chat",
+      url: "/lp-portal/chat",
+      icon: MessageSquare,
+    },
+  ]
+
+  // Filter out Dashboard and Reports if environment variable is set to false
+  const navMain = showDashboardReports
+    ? allNavMain
+    : allNavMain.filter(item => item.title !== "Dashboard" && item.title !== "Reports")
+
   const data = {
-    navMain: [
-      {
-        title: "Dashboard",
-        url: "/lp-portal/dashboard",
-        icon: LayoutDashboard,
-      },
-      {
-        title: "Marketplace",
-        url: "/lp-portal/marketplace",
-        icon: Store,
-      },
-      {
-        title: "Portfolio",
-        url: "/lp-portal/portfolio",
-        icon: Home,
-      },
-      {
-        title: "Reports",
-        url: "/lp-portal/reports",
-        icon: TrendingUp,
-      },
-      {
-        title: "Documents",
-        url: "/lp-portal/documents",
-        icon: FileText,
-      },
-      {
-        title: "Chat",
-        url: "/lp-portal/chat",
-        icon: MessageSquare,
-      },
-    ],
+    navMain,
     navManagement: [
       {
         title: "Capital",
@@ -175,7 +187,7 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
       </SidebarHeader>
       <SidebarContent className="flex-1 overflow-y-auto">
         <NavMain items={data.navMain} />
-        <NavManagement items={data.navManagement} />
+        {showManagementSection && <NavManagement items={data.navManagement} />}
         <NavSecondary items={data.navSecondary} className="mt-auto" onSearchClick={onSearchClick} />
       </SidebarContent>
       <SidebarFooter className="shrink-0">
