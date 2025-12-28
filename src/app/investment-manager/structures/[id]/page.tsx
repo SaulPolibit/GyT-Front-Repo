@@ -125,6 +125,38 @@ export default function StructureDetailPage({ params }: PageProps) {
           currency: apiStructure.baseCurrency || apiStructure.currency || 'USD',
           // Map carriedInterest to performanceFee
           performanceFee: apiStructure.carriedInterest || apiStructure.performanceFee,
+          // Group legal terms fields into legalTerms object
+          legalTerms: {
+            managementControl: apiStructure.managementControl,
+            capitalContributions: apiStructure.capitalContributions,
+            allocationsDistributions: apiStructure.allocationsDistributions,
+            limitedPartnerRights: apiStructure.limitedPartnerRights,
+            limitedPartnerObligations: apiStructure.limitedPartnerObligations,
+            votingThreshold: apiStructure.votingThreshold,
+            mattersRequiringConsent: apiStructure.mattersRequiringConsent,
+            lockUpPeriod: apiStructure.lockUpPeriod,
+            withdrawalConditions: apiStructure.withdrawalConditions,
+            withdrawalProcess: apiStructure.withdrawalProcess,
+            transferProhibition: apiStructure.generalProhibition,
+            permittedTransfers: apiStructure.permittedTransfers,
+            transferRequirements: apiStructure.transferRequirements,
+            quarterlyReports: apiStructure.quarterlyReports,
+            annualReports: apiStructure.annualReports,
+            taxForms: apiStructure.taxForms,
+            capitalNotices: apiStructure.capitalCallDistributionsNotices,
+            additionalCommunications: apiStructure.additionalCommunications,
+            liabilityProtection: apiStructure.limitedLiability,
+            liabilityExceptions: apiStructure.exceptionsLiability,
+            maximumExposure: apiStructure.maximumExposure,
+            partnershipIndemnifiesLP: apiStructure.indemnifiesPartnership,
+            lpIndemnifiesPartnership: apiStructure.lpIndemnifiesPartnership,
+            indemnificationProcedures: apiStructure.indemnifiesProcedures,
+            amendments: apiStructure.amendments,
+            dissolution: apiStructure.dissolution,
+            disputeResolution: apiStructure.disputesResolution,
+            governingLaw: apiStructure.governingLaw,
+            additionalProvisions: apiStructure.additionalProvisions,
+          },
         }
 
         setStructure(loadedStructure)

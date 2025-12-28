@@ -130,6 +130,38 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           fundTerm: data.data.finalDate,
           // Explicitly preserve smartContract object if it exists
           smartContract: data.data.smartContract || null,
+          // Group legal terms fields into legalTerms object
+          legalTerms: {
+            managementControl: data.data.managementControl,
+            capitalContributions: data.data.capitalContributions,
+            allocationsDistributions: data.data.allocationsDistributions,
+            limitedPartnerRights: data.data.limitedPartnerRights,
+            limitedPartnerObligations: data.data.limitedPartnerObligations,
+            votingThreshold: data.data.votingThreshold,
+            mattersRequiringConsent: data.data.mattersRequiringConsent,
+            lockUpPeriod: data.data.lockUpPeriod,
+            withdrawalConditions: data.data.withdrawalConditions,
+            withdrawalProcess: data.data.withdrawalProcess,
+            transferProhibition: data.data.generalProhibition,
+            permittedTransfers: data.data.permittedTransfers,
+            transferRequirements: data.data.transferRequirements,
+            quarterlyReports: data.data.quarterlyReports,
+            annualReports: data.data.annualReports,
+            taxForms: data.data.taxForms,
+            capitalNotices: data.data.capitalCallDistributionsNotices,
+            additionalCommunications: data.data.additionalCommunications,
+            liabilityProtection: data.data.limitedLiability,
+            liabilityExceptions: data.data.exceptionsLiability,
+            maximumExposure: data.data.maximumExposure,
+            partnershipIndemnifiesLP: data.data.indemnifiesPartnership,
+            lpIndemnifiesPartnership: data.data.lpIndemnifiesPartnership,
+            indemnificationProcedures: data.data.indemnifiesProcedures,
+            amendments: data.data.amendments,
+            dissolution: data.data.dissolution,
+            disputeResolution: data.data.disputesResolution,
+            governingLaw: data.data.governingLaw,
+            additionalProvisions: data.data.additionalProvisions,
+          },
         }
 
         console.log('[Structure Detail] Mapped Structure with smartContract:', mappedStructure)
