@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useTranslation } from "@/hooks/useTranslation"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { getCurrentUser } from "@/lib/auth-storage"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
@@ -47,6 +48,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
   const { t } = useTranslation()
   const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
+  const currentUser = getCurrentUser()
 
   React.useEffect(() => {
     async function fetchFirmLogo() {
@@ -146,10 +148,10 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
             title: t.nav.distributions,
             url: "/investment-manager/operations/distributions",
           },
-          {
+          ...(currentUser?.role === 0 ? [{
             title: "Contracts Management",
             url: "/investment-manager/operations/contracts-management",
-          },
+          }] : []),
         ],
       },
     ],
