@@ -69,6 +69,7 @@ export const API_CONFIG = {
     uploadProfileImage: '/api/users/profile-image',
     getUsersByRole: (roles: string) => `/api/users/filter?role=${roles}`,
     getAllUsers: '/api/users',
+    createUser: '/api/users/register',
     getUserById: (userId: string) => `/api/users/${userId}`,
     deleteUser: (userId: string) => `/api/users/${userId}`,
     createInvestor: '/api/investors',
