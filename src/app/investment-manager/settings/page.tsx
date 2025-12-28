@@ -1954,7 +1954,7 @@ export default function InvestmentManagerSettingsPage() {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Enter your domain to send emails from (e.g., notifications@yourdomain.com)
+                    Enter your domain to send emails from (e.g., yourdomain.com)
                   </p>
                 </div>
               )}
