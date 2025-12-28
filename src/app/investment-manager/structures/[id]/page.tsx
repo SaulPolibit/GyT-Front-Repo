@@ -1222,19 +1222,21 @@ export default function StructureDetailPage({ params }: PageProps) {
           )}
 
           {/* Voting Rights */}
-          {structure.legalTerms?.votingRights && (
+          {(structure.legalTerms?.votingThreshold || structure.legalTerms?.mattersRequiringConsent?.length) && (
             <>
               <Separator className="my-6" />
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Voting Rights</h3>
-                <p className="text-sm text-muted-foreground">
-                  Voting threshold: <strong>{structure.legalTerms.votingRights.votingThreshold}%</strong> of Partnership Interests
-                </p>
-                {structure.legalTerms.votingRights.mattersRequiringConsent && structure.legalTerms.votingRights.mattersRequiringConsent.length > 0 && (
+                {structure.legalTerms.votingThreshold && (
+                  <p className="text-sm text-muted-foreground">
+                    Voting threshold: <strong>{structure.legalTerms.votingThreshold}%</strong> of Partnership Interests
+                  </p>
+                )}
+                {structure.legalTerms.mattersRequiringConsent && structure.legalTerms.mattersRequiringConsent.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Matters Requiring Consent</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.votingRights.mattersRequiringConsent.map((matter, idx) => (
+                      {structure.legalTerms.mattersRequiringConsent.map((matter, idx) => (
                         <li key={idx}>{matter}</li>
                       ))}
                     </ul>
@@ -1245,32 +1247,32 @@ export default function StructureDetailPage({ params }: PageProps) {
           )}
 
           {/* Redemption Terms */}
-          {structure.legalTerms?.redemptionTerms && (
+          {(structure.legalTerms?.lockUpPeriod || structure.legalTerms?.withdrawalConditions?.length || structure.legalTerms?.withdrawalProcess?.length) && (
             <>
               <Separator className="my-6" />
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Redemption & Withdrawal Terms</h3>
-                {structure.legalTerms.redemptionTerms.lockUpPeriod && (
+                {structure.legalTerms.lockUpPeriod && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Lock-Up Period</h4>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{structure.legalTerms.redemptionTerms.lockUpPeriod}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{structure.legalTerms.lockUpPeriod}</p>
                   </div>
                 )}
-                {structure.legalTerms.redemptionTerms.withdrawalConditions && structure.legalTerms.redemptionTerms.withdrawalConditions.length > 0 && (
+                {structure.legalTerms.withdrawalConditions && structure.legalTerms.withdrawalConditions.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Withdrawal Conditions</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.redemptionTerms.withdrawalConditions.map((condition, idx) => (
+                      {structure.legalTerms.withdrawalConditions.map((condition, idx) => (
                         <li key={idx}>{condition}</li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.redemptionTerms.withdrawalProcess && structure.legalTerms.redemptionTerms.withdrawalProcess.length > 0 && (
+                {structure.legalTerms.withdrawalProcess && structure.legalTerms.withdrawalProcess.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Withdrawal Process</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.redemptionTerms.withdrawalProcess.map((step, idx) => (
+                      {structure.legalTerms.withdrawalProcess.map((step, idx) => (
                         <li key={idx}>{step}</li>
                       ))}
                     </ul>
@@ -1281,32 +1283,32 @@ export default function StructureDetailPage({ params }: PageProps) {
           )}
 
           {/* Transfer Restrictions */}
-          {structure.legalTerms?.transferRestrictions && (
+          {(structure.legalTerms?.transferProhibition || structure.legalTerms?.permittedTransfers?.length || structure.legalTerms?.transferRequirements?.length) && (
             <>
               <Separator className="my-6" />
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Transfer Restrictions</h3>
-                {structure.legalTerms.transferRestrictions.generalProhibition && (
+                {structure.legalTerms.transferProhibition && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">General Prohibition</h4>
-                    <p className="text-sm text-muted-foreground">{structure.legalTerms.transferRestrictions.generalProhibition}</p>
+                    <p className="text-sm text-muted-foreground">{structure.legalTerms.transferProhibition}</p>
                   </div>
                 )}
-                {structure.legalTerms.transferRestrictions.permittedTransfers && structure.legalTerms.transferRestrictions.permittedTransfers.length > 0 && (
+                {structure.legalTerms.permittedTransfers && structure.legalTerms.permittedTransfers.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Permitted Transfers</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.transferRestrictions.permittedTransfers.map((transfer, idx) => (
+                      {structure.legalTerms.permittedTransfers.map((transfer, idx) => (
                         <li key={idx}>{transfer}</li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.transferRestrictions.transferRequirements && structure.legalTerms.transferRestrictions.transferRequirements.length > 0 && (
+                {structure.legalTerms.transferRequirements && structure.legalTerms.transferRequirements.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Transfer Requirements</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.transferRestrictions.transferRequirements.map((req, idx) => (
+                      {structure.legalTerms.transferRequirements.map((req, idx) => (
                         <li key={idx}>{req}</li>
                       ))}
                     </ul>
@@ -1317,42 +1319,42 @@ export default function StructureDetailPage({ params }: PageProps) {
           )}
 
           {/* Reporting Commitments */}
-          {structure.legalTerms?.reportingCommitments && (
+          {(structure.legalTerms?.quarterlyReports || structure.legalTerms?.annualReports || structure.legalTerms?.taxForms || structure.legalTerms?.capitalNotices || structure.legalTerms?.additionalCommunications?.length) && (
             <>
               <Separator className="my-6" />
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Reporting Commitments</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {structure.legalTerms.reportingCommitments.quarterlyReports && (
+                  {structure.legalTerms.quarterlyReports && (
                     <div className="p-3 bg-muted rounded-md">
                       <p className="text-sm font-semibold mb-1">Quarterly Reports</p>
-                      <p className="text-xs text-muted-foreground">{structure.legalTerms.reportingCommitments.quarterlyReports}</p>
+                      <p className="text-xs text-muted-foreground">{structure.legalTerms.quarterlyReports}</p>
                     </div>
                   )}
-                  {structure.legalTerms.reportingCommitments.annualReports && (
+                  {structure.legalTerms.annualReports && (
                     <div className="p-3 bg-muted rounded-md">
                       <p className="text-sm font-semibold mb-1">Annual Reports</p>
-                      <p className="text-xs text-muted-foreground">{structure.legalTerms.reportingCommitments.annualReports}</p>
+                      <p className="text-xs text-muted-foreground">{structure.legalTerms.annualReports}</p>
                     </div>
                   )}
-                  {structure.legalTerms.reportingCommitments.taxForms && (
+                  {structure.legalTerms.taxForms && (
                     <div className="p-3 bg-muted rounded-md">
                       <p className="text-sm font-semibold mb-1">Tax Forms (K-1)</p>
-                      <p className="text-xs text-muted-foreground">{structure.legalTerms.reportingCommitments.taxForms}</p>
+                      <p className="text-xs text-muted-foreground">{structure.legalTerms.taxForms}</p>
                     </div>
                   )}
-                  {structure.legalTerms.reportingCommitments.capitalNotices && (
+                  {structure.legalTerms.capitalNotices && (
                     <div className="p-3 bg-muted rounded-md">
                       <p className="text-sm font-semibold mb-1">Capital Notices</p>
-                      <p className="text-xs text-muted-foreground">{structure.legalTerms.reportingCommitments.capitalNotices}</p>
+                      <p className="text-xs text-muted-foreground">{structure.legalTerms.capitalNotices}</p>
                     </div>
                   )}
                 </div>
-                {structure.legalTerms.reportingCommitments.additionalCommunications && structure.legalTerms.reportingCommitments.additionalCommunications.length > 0 && (
+                {structure.legalTerms.additionalCommunications && structure.legalTerms.additionalCommunications.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Additional Communications</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.reportingCommitments.additionalCommunications.map((comm, idx) => (
+                      {structure.legalTerms.additionalCommunications.map((comm, idx) => (
                         <li key={idx}>{comm}</li>
                       ))}
                     </ul>
@@ -1363,25 +1365,31 @@ export default function StructureDetailPage({ params }: PageProps) {
           )}
 
           {/* Liability Limitations */}
-          {structure.legalTerms?.liabilityLimitations && (
+          {(structure.legalTerms?.liabilityProtection || structure.legalTerms?.liabilityExceptions?.length || structure.legalTerms?.maximumExposure) && (
             <>
               <Separator className="my-6" />
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Liability Limitations</h3>
-                {structure.legalTerms.liabilityLimitations.limitedLiabilityProtection && (
+                {structure.legalTerms.liabilityProtection && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Limited Liability Protection</h4>
-                    <p className="text-sm text-muted-foreground">{structure.legalTerms.liabilityLimitations.limitedLiabilityProtection}</p>
+                    <p className="text-sm text-muted-foreground">{structure.legalTerms.liabilityProtection}</p>
                   </div>
                 )}
-                {structure.legalTerms.liabilityLimitations.exceptionsToLimitedLiability && structure.legalTerms.liabilityLimitations.exceptionsToLimitedLiability.length > 0 && (
+                {structure.legalTerms.liabilityExceptions && structure.legalTerms.liabilityExceptions.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Exceptions</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.liabilityLimitations.exceptionsToLimitedLiability.map((exception, idx) => (
+                      {structure.legalTerms.liabilityExceptions.map((exception, idx) => (
                         <li key={idx}>{exception}</li>
                       ))}
                     </ul>
+                  </div>
+                )}
+                {structure.legalTerms.maximumExposure && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-semibold">Maximum Exposure</h4>
+                    <p className="text-sm text-muted-foreground">{structure.legalTerms.maximumExposure}</p>
                   </div>
                 )}
               </div>
@@ -1389,35 +1397,35 @@ export default function StructureDetailPage({ params }: PageProps) {
           )}
 
           {/* Indemnification */}
-          {structure.legalTerms?.indemnification && (
+          {(structure.legalTerms?.partnershipIndemnifiesLP?.length || structure.legalTerms?.lpIndemnifiesPartnership?.length || structure.legalTerms?.indemnificationProcedures) && (
             <>
               <Separator className="my-6" />
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Indemnification</h3>
-                {structure.legalTerms.indemnification.partnershipIndemnifiesLPFor && structure.legalTerms.indemnification.partnershipIndemnifiesLPFor.length > 0 && (
+                {structure.legalTerms.partnershipIndemnifiesLP && structure.legalTerms.partnershipIndemnifiesLP.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Partnership Indemnifies LP For</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.indemnification.partnershipIndemnifiesLPFor.map((item, idx) => (
+                      {structure.legalTerms.partnershipIndemnifiesLP.map((item, idx) => (
                         <li key={idx}>{item}</li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.indemnification.lpIndemnifiesPartnershipFor && structure.legalTerms.indemnification.lpIndemnifiesPartnershipFor.length > 0 && (
+                {structure.legalTerms.lpIndemnifiesPartnership && structure.legalTerms.lpIndemnifiesPartnership.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">LP Indemnifies Partnership For</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
-                      {structure.legalTerms.indemnification.lpIndemnifiesPartnershipFor.map((item, idx) => (
+                      {structure.legalTerms.lpIndemnifiesPartnership.map((item, idx) => (
                         <li key={idx}>{item}</li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.indemnification.indemnificationProcedures && (
+                {structure.legalTerms.indemnificationProcedures && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Procedures</h4>
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{structure.legalTerms.indemnification.indemnificationProcedures}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{structure.legalTerms.indemnificationProcedures}</p>
                   </div>
                 )}
               </div>
@@ -1487,8 +1495,12 @@ export default function StructureDetailPage({ params }: PageProps) {
           {/* Empty state */}
           {!structure.legalTerms?.managementControl && !structure.legalTerms?.capitalContributions && !structure.legalTerms?.allocationsDistributions &&
            !structure.legalTerms?.limitedPartnerRights?.length && !structure.legalTerms?.limitedPartnerObligations?.length &&
-           !structure.legalTerms?.votingRights && !structure.legalTerms?.redemptionTerms && !structure.legalTerms?.transferRestrictions &&
-           !structure.legalTerms?.reportingCommitments && !structure.legalTerms?.liabilityLimitations && !structure.legalTerms?.indemnification &&
+           !structure.legalTerms?.votingThreshold && !structure.legalTerms?.mattersRequiringConsent?.length &&
+           !structure.legalTerms?.lockUpPeriod && !structure.legalTerms?.withdrawalConditions?.length && !structure.legalTerms?.withdrawalProcess?.length &&
+           !structure.legalTerms?.transferProhibition && !structure.legalTerms?.permittedTransfers?.length && !structure.legalTerms?.transferRequirements?.length &&
+           !structure.legalTerms?.quarterlyReports && !structure.legalTerms?.annualReports && !structure.legalTerms?.taxForms && !structure.legalTerms?.capitalNotices && !structure.legalTerms?.additionalCommunications?.length &&
+           !structure.legalTerms?.liabilityProtection && !structure.legalTerms?.liabilityExceptions?.length && !structure.legalTerms?.maximumExposure &&
+           !structure.legalTerms?.partnershipIndemnifiesLP?.length && !structure.legalTerms?.lpIndemnifiesPartnership?.length && !structure.legalTerms?.indemnificationProcedures &&
            !structure.legalTerms?.amendments && !structure.legalTerms?.dissolution && !structure.legalTerms?.disputes &&
            !structure.legalTerms?.governingLaw && !structure.legalTerms?.additionalProvisions && (
             <p className="text-sm text-muted-foreground">

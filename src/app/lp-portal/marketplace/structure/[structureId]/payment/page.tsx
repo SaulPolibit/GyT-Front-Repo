@@ -1293,7 +1293,7 @@ export default function PaymentPage({ params }: Props) {
                     ) : (
                       <>
                         <Wallet className="h-4 w-4 mr-2" />
-                        Connect MetaMask
+                        Connect MetaMask / Rabby
                       </>
                     )}
                   </Button>
