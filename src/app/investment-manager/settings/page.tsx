@@ -2046,11 +2046,11 @@ export default function InvestmentManagerSettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* DNS Records Section */}
-                {selectedDomain.status !== 'verified' && selectedDomain.dnsRecords && selectedDomain.dnsRecords.length > 0 && (
+                {/* Verify Domain Section - visible until verified */}
+                {selectedDomain.status !== 'verified' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">DNS Records</h3>
+                      <h3 className="text-sm font-semibold">Domain Verification</h3>
                       <Button
                         onClick={handleVerifyDomain}
                         disabled={isVerifyingDomain}
@@ -2059,59 +2059,69 @@ export default function InvestmentManagerSettingsPage() {
                         {isVerifyingDomain ? 'Verifying...' : 'Verify Domain'}
                       </Button>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Add these DNS records to your domain provider (Cloudflare, GoDaddy, etc.):
-                    </p>
-                    <div className="space-y-3">
-                      {selectedDomain.dnsRecords.map((record, index) => (
-                        <div key={index} className="p-3 bg-muted rounded-lg space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold px-2 py-0.5 bg-primary/10 rounded">
-                              {record.type}
-                            </span>
-                            {record.status && (
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                record.status === 'verified'
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                              }`}>
-                                {record.status}
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Name: </span>
-                              <code className="bg-background px-1 rounded">{record.name}</code>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 ml-1"
-                                onClick={() => copyToClipboard(record.name)}
-                              >
-                                <span className="text-xs">📋</span>
-                              </Button>
+
+                    {/* DNS Records - only show if records exist */}
+                    {selectedDomain.dnsRecords && selectedDomain.dnsRecords.length > 0 ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          Add these DNS records to your domain provider (Cloudflare, GoDaddy, etc.):
+                        </p>
+                        <div className="space-y-3">
+                          {selectedDomain.dnsRecords.map((record, index) => (
+                            <div key={index} className="p-3 bg-muted rounded-lg space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold px-2 py-0.5 bg-primary/10 rounded">
+                                  {record.type}
+                                </span>
+                                {record.status && (
+                                  <span className={`text-xs px-2 py-0.5 rounded ${
+                                    record.status === 'verified'
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-yellow-100 text-yellow-700'
+                                  }`}>
+                                    {record.status}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Name: </span>
+                                  <code className="bg-background px-1 rounded">{record.name}</code>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0 ml-1"
+                                    onClick={() => copyToClipboard(record.name)}
+                                  >
+                                    <span className="text-xs">📋</span>
+                                  </Button>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">TTL: </span>
+                                  <span>{record.ttl || 'Auto'}</span>
+                                </div>
+                              </div>
+                              <div className="text-sm">
+                                <span className="text-muted-foreground">Value: </span>
+                                <code className="bg-background px-1 rounded text-xs break-all">{record.value}</code>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 ml-1"
+                                  onClick={() => copyToClipboard(record.value)}
+                                >
+                                  <span className="text-xs">📋</span>
+                                </Button>
+                              </div>
                             </div>
-                            <div>
-                              <span className="text-muted-foreground">TTL: </span>
-                              <span>{record.ttl || 'Auto'}</span>
-                            </div>
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-muted-foreground">Value: </span>
-                            <code className="bg-background px-1 rounded text-xs break-all">{record.value}</code>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 ml-1"
-                              onClick={() => copyToClipboard(record.value)}
-                            >
-                              <span className="text-xs">📋</span>
-                            </Button>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Click &quot;Verify Domain&quot; to check DNS verification status.
+                      </p>
+                    )}
                   </div>
                 )}
 
