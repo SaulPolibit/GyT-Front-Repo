@@ -52,6 +52,9 @@ export default function LPSettingsPage() {
   // Check if advanced notification settings should be shown
   const showAdvancedNotifications = process.env.NEXT_PUBLIC_SHOW_ADVANCED_NOTIFICATIONS !== 'false'
 
+  // Check if compliance/tax information should be shown in General Info tab
+  const showComplianceInfo = process.env.NEXT_PUBLIC_SHOW_COMPLIANCE_INFO !== 'false'
+
   const [activeTab, setActiveTab] = React.useState(showPaymentTab ? "payment" : "notifications")
 
   // Notification settings
@@ -1418,6 +1421,7 @@ export default function LPSettingsPage() {
           </Card>
 
           {/* Tax Information */}
+          {showComplianceInfo && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1508,8 +1512,10 @@ export default function LPSettingsPage() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* KYC/AML Status */}
+          {showComplianceInfo && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1583,8 +1589,10 @@ export default function LPSettingsPage() {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Accreditation Status */}
+          {showComplianceInfo && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1649,6 +1657,7 @@ export default function LPSettingsPage() {
               </div>
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
       </Tabs>
