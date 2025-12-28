@@ -223,15 +223,11 @@ const helpSections: HelpSection[] = [
       },
       {
         question: 'How do I manage my notification preferences?',
-        answer: 'Go to Settings > Notifications to customize which alerts you receive and how (email, SMS, or portal only). You can set preferences for each notification type.'
-      },
-      {
-        question: 'Can I get urgent alerts via text message?',
-        answer: 'Yes! Enable SMS notifications in your settings for urgent capital calls, payment due reminders, and security alerts. Regular updates will still come via email.'
+        answer: 'Go to Settings > Notifications to customize which alerts you receive via email and how frequently. You can set preferences for each notification type.'
       },
       {
         question: 'How do I ensure I don\'t miss important deadlines?',
-        answer: 'Enable all capital call notifications and set up SMS alerts for urgent items. Portal notifications also appear in real-time when you\'re logged in.'
+        answer: 'Enable all capital call notifications in your settings. Portal notifications also appear in real-time when you\'re logged in, and email alerts will keep you informed of important dates.'
       }
     ]
   },
@@ -269,7 +265,7 @@ const helpSections: HelpSection[] = [
       },
       {
         question: 'How do I update my legal entity information?',
-        answer: 'Navigate to Settings > Legal Info to update your entity name, type, tax ID, and address. Some changes may require uploading supporting documentation.'
+        answer: 'Navigate to Settings > General Info to update your entity name, type, and address. Some changes may require uploading supporting documentation.'
       },
       {
         question: 'Can I change my display preferences?',
@@ -277,7 +273,7 @@ const helpSections: HelpSection[] = [
       },
       {
         question: 'How do I manage my KYC/AML documentation?',
-        answer: 'In Settings > Legal Info, you can view your KYC/AML verification status and upload required documents like passports, proof of address, and accreditation certificates.'
+        answer: 'In Settings > General Info, you can view your KYC/AML verification status and upload required documents like passports, proof of address, and accreditation certificates.'
       }
     ]
   },
@@ -314,6 +310,13 @@ export default function LPHelpPage() {
   const [searchQuery, setSearchQuery] = React.useState('')
   const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(['dashboard']))
 
+  // Check environment variables for feature visibility
+  const showDashboardReports = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_REPORTS !== 'false'
+  const showManagementSection = process.env.NEXT_PUBLIC_SHOW_MANAGEMENT_SECTION !== 'false'
+  const showPaymentTab = process.env.NEXT_PUBLIC_SHOW_PAYMENTS_TAB !== 'false'
+  const showAdvancedNotifications = process.env.NEXT_PUBLIC_SHOW_ADVANCED_NOTIFICATIONS !== 'false'
+  const showComplianceInfo = process.env.NEXT_PUBLIC_SHOW_COMPLIANCE_INFO !== 'false'
+
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => {
       const next = new Set(prev)
@@ -334,12 +337,26 @@ export default function LPHelpPage() {
     setExpandedSections(new Set())
   }
 
-  // Filter sections based on search query
+  // Filter sections based on feature visibility and search query
   const filteredSections = React.useMemo(() => {
-    if (!searchQuery.trim()) return helpSections
+    // First filter by feature visibility
+    let visibleSections = helpSections.filter(section => {
+      // Hide Dashboard and Reports sections if disabled
+      if (!showDashboardReports && (section.id === 'dashboard' || section.id === 'reports')) {
+        return false
+      }
+      // Hide Capital Calls and Distributions if Management section is disabled
+      if (!showManagementSection && (section.id === 'capital-calls' || section.id === 'distributions')) {
+        return false
+      }
+      return true
+    })
+
+    // Then filter by search query if present
+    if (!searchQuery.trim()) return visibleSections
 
     const query = searchQuery.toLowerCase()
-    return helpSections
+    return visibleSections
       .map(section => ({
         ...section,
         content: section.content.filter(
@@ -349,7 +366,7 @@ export default function LPHelpPage() {
         )
       }))
       .filter(section => section.content.length > 0)
-  }, [searchQuery])
+  }, [searchQuery, showDashboardReports, showManagementSection])
 
   return (
     <div className="space-y-6 p-4 md:p-6">
