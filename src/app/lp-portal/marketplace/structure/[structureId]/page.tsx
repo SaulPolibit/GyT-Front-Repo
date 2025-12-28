@@ -619,7 +619,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                 <CardDescription>Limited partner rights and responsibilities</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {structure.legalTerms.limitedPartnerRights?.length > 0 && (
+                {Array.isArray(structure.legalTerms.limitedPartnerRights) && structure.legalTerms.limitedPartnerRights.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Your Rights as a Limited Partner</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -629,7 +629,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.limitedPartnerObligations?.length > 0 && (
+                {Array.isArray(structure.legalTerms.limitedPartnerObligations) && structure.legalTerms.limitedPartnerObligations.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Your Obligations as a Limited Partner</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -657,7 +657,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                     <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.lockUpPeriod}</p>
                   </div>
                 )}
-                {structure.legalTerms.withdrawalConditions?.length > 0 && (
+                {Array.isArray(structure.legalTerms.withdrawalConditions) && structure.legalTerms.withdrawalConditions.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Withdrawal Conditions</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -667,7 +667,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.withdrawalProcess?.length > 0 && (
+                {Array.isArray(structure.legalTerms.withdrawalProcess) && structure.legalTerms.withdrawalProcess.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Withdrawal Process</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -695,7 +695,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                     <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.transferProhibition}</p>
                   </div>
                 )}
-                {structure.legalTerms.permittedTransfers?.length > 0 && (
+                {Array.isArray(structure.legalTerms.permittedTransfers) && structure.legalTerms.permittedTransfers.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Permitted Transfers</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -705,7 +705,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.transferRequirements?.length > 0 && (
+                {Array.isArray(structure.legalTerms.transferRequirements) && structure.legalTerms.transferRequirements.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Transfer Requirements</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -751,7 +751,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                     <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.capitalNotices}</p>
                   </div>
                 )}
-                {structure.legalTerms.additionalCommunications?.length > 0 && (
+                {Array.isArray(structure.legalTerms.additionalCommunications) && structure.legalTerms.additionalCommunications.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Additional Communications</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -779,7 +779,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                     <p className="text-sm text-muted-foreground whitespace-pre-line">{structure.legalTerms.liabilityProtection}</p>
                   </div>
                 )}
-                {structure.legalTerms.liabilityExceptions?.length > 0 && (
+                {Array.isArray(structure.legalTerms.liabilityExceptions) && structure.legalTerms.liabilityExceptions.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Exceptions to Limited Liability</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -800,14 +800,18 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           )}
 
           {/* Indemnification */}
-          {structure.legalTerms && (structure.legalTerms.partnershipIndemnifiesLP?.length > 0 || structure.legalTerms.lpIndemnifiesPartnership?.length > 0 || structure.legalTerms.indemnificationProcedures) && (
+          {structure.legalTerms && (
+            (Array.isArray(structure.legalTerms.partnershipIndemnifiesLP) && structure.legalTerms.partnershipIndemnifiesLP.length > 0) ||
+            (Array.isArray(structure.legalTerms.lpIndemnifiesPartnership) && structure.legalTerms.lpIndemnifiesPartnership.length > 0) ||
+            structure.legalTerms.indemnificationProcedures
+          ) && (
             <Card>
               <CardHeader>
                 <CardTitle>Indemnification</CardTitle>
                 <CardDescription>Mutual indemnification provisions</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {structure.legalTerms.partnershipIndemnifiesLP?.length > 0 && (
+                {Array.isArray(structure.legalTerms.partnershipIndemnifiesLP) && structure.legalTerms.partnershipIndemnifiesLP.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">Partnership Indemnifies You For</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
@@ -817,7 +821,7 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.lpIndemnifiesPartnership?.length > 0 && (
+                {Array.isArray(structure.legalTerms.lpIndemnifiesPartnership) && structure.legalTerms.lpIndemnifiesPartnership.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-2">You Indemnify Partnership For</h3>
                     <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
