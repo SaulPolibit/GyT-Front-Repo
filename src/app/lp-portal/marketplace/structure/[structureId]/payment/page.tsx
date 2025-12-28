@@ -1453,8 +1453,8 @@ export default function PaymentPage({ params }: Props) {
             </Card>
           )}
 
-          {/* Submission ID Warning */}
-          {(!submissionId || submissionId.trim() === '') && (
+          {/* Submission ID Warning - Only validate if contract signing is enabled */}
+          {process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNING !== 'false' && (!submissionId || submissionId.trim() === '') && (
             <Card className="border-amber-200 bg-amber-50">
               <CardHeader>
                 <CardTitle className="text-amber-900 flex items-center gap-2">
