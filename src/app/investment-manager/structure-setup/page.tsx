@@ -1763,13 +1763,25 @@ export default function OnboardingPage() {
         operatingAgreementHash: formData.operatingAgreementHash,
       }
 
+      const blockchainApiKey = process.env.NEXT_PUBLIC_BLOCKCHAIN_API_KEY || ''
+      console.log('[Blockchain] API Key loaded:', blockchainApiKey ? 'Yes' : 'No (empty)')
       console.log('[Blockchain] Deploying contract for structure:', structureId)
+
+      // Hash the API key using SHA-256
+      const encoder = new TextEncoder()
+      const data = encoder.encode(blockchainApiKey)
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+      const hashArray = Array.from(new Uint8Array(hashBuffer))
+      const hashedApiKey = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+
+      console.log('[Blockchain] API Key hashed:', hashedApiKey ? 'Yes' : 'No')
 
       const blockchainResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/blockchain/deploy/erc3643`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': `Bearer ${authToken}`,
+          'x-api-key': hashedApiKey
         },
         body: JSON.stringify(blockchainPayload)
       })
