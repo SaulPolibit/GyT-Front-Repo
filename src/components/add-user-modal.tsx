@@ -123,7 +123,7 @@ export function AddUserModal({ open, onOpenChange, onUserAdded, currentUserRole 
       }
 
       const response = await fetch(
-        getApiUrl(API_CONFIG.endpoints.getAllUsers),
+        getApiUrl(API_CONFIG.endpoints.createUser),
         {
           method: 'POST',
           headers: {
