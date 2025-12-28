@@ -1754,7 +1754,7 @@ export default function OnboardingPage() {
         structureId: structureId,
         contractTokenName: formData.tokenName,
         contractTokenSymbol: formData.tokenSymbol,
-        contractTokenValue: totalCapitalCommitment,
+        contractTokenValue: minTicketSize,
         contractMaxTokens: maxTokens,
         company: formData.structureName,
         currency: formData.currency,
@@ -1856,9 +1856,9 @@ export default function OnboardingPage() {
       setIsSubmitting(false)
 
       // Redirect to the edit page of the newly created structure
-      setTimeout(() => {
-        window.location.href = `/investment-manager/structures/${structureId}/edit`
-      }, 2000)
+      // setTimeout(() => {
+      //   window.location.href = `/investment-manager/structures/${structureId}/edit`
+      // }, 2000)
 
     } catch (error) {
       console.error('Error completing setup:', error)
