@@ -22,6 +22,7 @@ import { getInvestorByEmail } from "@/lib/investors-storage"
 import { createInvestmentSubscription } from "@/lib/investment-subscriptions-storage"
 import type { Investment } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { getStructureById, type Structure } from "@/lib/structures-storage"
 
 interface Props {
   params: Promise<{ investmentId: string }>
@@ -31,15 +32,31 @@ export default function InvestmentCheckoutPage({ params }: Props) {
   const { investmentId } = use(params)
   const { toast } = useToast()
   const [investment, setInvestment] = React.useState<Investment | null>(null)
+  const [structure, setStructure] = React.useState<Structure | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [tokenAmount, setTokenAmount] = React.useState<string>('')
-  const [pricePerToken] = React.useState(1000) // $1,000 per token
+  const [pricePerToken, setPricePerToken] = React.useState(1000) // Default $1,000 per token
   const [agreedToTerms, setAgreedToTerms] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   React.useEffect(() => {
     const inv = getInvestmentById(investmentId)
     setInvestment(inv)
+
+    // Fetch the structure to get tokenValue
+    if (inv?.fundId) {
+      const struct = getStructureById(inv.fundId)
+      setStructure(struct)
+
+      // Set price from structure's smartContract.tokenValue if available
+      if (struct?.smartContract?.tokenValue && struct.smartContract.tokenValue > 0) {
+        setPricePerToken(struct.smartContract.tokenValue)
+        console.log('[Investment Checkout] Using structure.smartContract.tokenValue:', struct.smartContract.tokenValue)
+      } else {
+        console.log('[Investment Checkout] structure.smartContract.tokenValue not available, using default: 1000')
+      }
+    }
+
     setLoading(false)
   }, [investmentId])
 

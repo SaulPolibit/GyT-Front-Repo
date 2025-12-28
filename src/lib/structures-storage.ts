@@ -48,6 +48,10 @@ export interface Structure {
     contractAddress?: string  // Deployed token contract address
     identityRegistryAddress?: string  // Identity registry contract address
     deploymentResponse?: any  // Full deployment response from blockchain API
+    tokenName?: string  // Token name
+    tokenSymbol?: string  // Token symbol
+    tokenValue?: number  // Price per token
+    maxTokens?: number  // Maximum token supply
   }
   // Additional fields from onboarding
   inceptionDate?: Date

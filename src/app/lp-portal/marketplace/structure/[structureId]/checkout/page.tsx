@@ -104,12 +104,12 @@ export default function StructureCheckoutPage({ params }: Props) {
           totalCommitment: mappedStructure?.totalCommitment,
         })
 
-        // Set price from structure if available, otherwise use default
-        if (mappedStructure?.tokenValue && mappedStructure.tokenValue > 0) {
-          setPricePerToken(mappedStructure.tokenValue)
-          console.log('[Structure Checkout] Using tokenValue:', mappedStructure.tokenValue)
+        // Set price from structure's smartContract.tokenValue if available, otherwise use default
+        if (mappedStructure?.smartContract?.tokenValue && mappedStructure.smartContract.tokenValue > 0) {
+          setPricePerToken(mappedStructure.smartContract.tokenValue)
+          console.log('[Structure Checkout] Using structure.smartContract.tokenValue:', mappedStructure.smartContract.tokenValue)
         } else {
-          console.log('[Structure Checkout] tokenValue not available, using default: 1000')
+          console.log('[Structure Checkout] structure.smartContract.tokenValue not available, using default: 1000')
         }
       } catch (err) {
         console.error('[Structure Checkout] Error fetching structure:', err)

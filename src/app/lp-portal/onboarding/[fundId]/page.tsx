@@ -248,13 +248,13 @@ export default function OnboardingPage() {
           if (structureDataResponse.success && structureDataResponse.data) {
             const struct = structureDataResponse.data
             console.log('[Onboarding] Structure details:', struct)
-            console.log('[Onboarding] Has tokenValue:', !!struct.tokenValue)
+            console.log('[Onboarding] Has smartContract.tokenValue:', !!struct.smartContract?.tokenValue)
 
-            if (struct.tokenValue) {
+            if (struct.smartContract?.tokenValue) {
               const tokenData = {
-                tokenName: struct.tokenName || 'Tokens',
-                tokenSymbol: struct.tokenSymbol || 'TKN',
-                tokenValue: struct.tokenValue,
+                tokenName: struct.smartContract.tokenName || 'Tokens',
+                tokenSymbol: struct.smartContract.tokenSymbol || 'TKN',
+                tokenValue: struct.smartContract.tokenValue,
                 minTokens: struct.minTokensPerInvestor || 1,
                 maxTokens: struct.maxTokensPerInvestor || 1000,
               }
@@ -262,7 +262,7 @@ export default function OnboardingPage() {
               setStructureData(tokenData)
               setPaymentsData(prev => ({ ...prev, tokensToPurchase: struct.minTokensPerInvestor || 1 }))
             } else {
-              console.warn('[Onboarding] Structure has no tokenValue, using defaults')
+              console.warn('[Onboarding] Structure has no smartContract.tokenValue, using defaults')
               // Set default values if structure doesn't have token information
               setStructureData({
                 tokenName: 'Units',
