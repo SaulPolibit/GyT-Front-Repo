@@ -34,6 +34,10 @@ export function LPSearchCommand({ open, onOpenChange }: LPSearchCommandProps) {
   const [investor, setInvestor] = React.useState<any>(null)
   const [structures, setStructures] = React.useState<any[]>([])
 
+  // Check environment variables for feature visibility
+  const showDashboardReports = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_REPORTS !== 'false'
+  const showManagementSection = process.env.NEXT_PUBLIC_SHOW_MANAGEMENT_SECTION !== 'false'
+
   React.useEffect(() => {
     const email = getCurrentInvestorEmail()
     const inv = getInvestorByEmail(email)
@@ -75,8 +79,8 @@ export function LPSearchCommand({ open, onOpenChange }: LPSearchCommandProps) {
     d.type.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Navigation pages for LP Portal
-  const pages = [
+  // Navigation pages for LP Portal - filtered by feature visibility
+  const allPages = [
     { name: 'Dashboard', url: '/lp-portal/dashboard', icon: IconLayoutDashboard },
     { name: 'Portfolio', url: '/lp-portal/portfolio', icon: IconBriefcase },
     { name: 'Reports', url: '/lp-portal/reports', icon: IconFileDescription },
@@ -90,7 +94,20 @@ export function LPSearchCommand({ open, onOpenChange }: LPSearchCommandProps) {
     { name: 'Get Help', url: '/lp-portal/help', icon: IconHelp },
   ]
 
-  const filteredPages = pages.filter(p =>
+  // Filter pages based on environment variables
+  const visiblePages = allPages.filter(page => {
+    // Hide Dashboard and Reports if disabled
+    if (!showDashboardReports && (page.name === 'Dashboard' || page.name === 'Reports')) {
+      return false
+    }
+    // Hide Management section pages if disabled
+    if (!showManagementSection && ['Commitments', 'Activity', 'Capital Calls', 'Distributions'].includes(page.name)) {
+      return false
+    }
+    return true
+  })
+
+  const filteredPages = visiblePages.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
