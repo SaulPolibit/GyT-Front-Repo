@@ -1763,16 +1763,13 @@ export default function OnboardingPage() {
         operatingAgreementHash: formData.operatingAgreementHash,
       }
 
-      const blockchainApiKey = process.env.NEXT_PUBLIC_BLOCKCHAIN_API_KEY || ''
-      console.log('[Blockchain] API Key loaded:', blockchainApiKey ? 'Yes (' + blockchainApiKey.substring(0, 20) + '...)' : 'No (empty)')
       console.log('[Blockchain] Deploying contract for structure:', structureId)
 
       const blockchainResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/blockchain/deploy/erc3643`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-          'x-api-key': blockchainApiKey
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify(blockchainPayload)
       })
