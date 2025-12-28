@@ -1,10 +1,8 @@
-export type UserRole = 'admin' | 'fund-manager' | 'operations' | 'read-only'
-
 export interface User {
   id: string
   name: string
   email: string
-  role: UserRole
+  role: number // 0=root, 1=admin, 2=operations, 4=read-only
   status: 'active' | 'inactive' | 'pending'
   createdAt: string
   lastLogin?: string
@@ -67,7 +65,7 @@ const DEFAULT_USERS: User[] = [
     id: '1',
     name: 'Tony Cueva',
     email: 'tony@orbis.capital',
-    role: 'admin',
+    role: 1, // Admin
     status: 'active',
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
@@ -76,7 +74,7 @@ const DEFAULT_USERS: User[] = [
     id: '2',
     name: 'Gabriela Mena',
     email: 'gabriela@orbis.capital',
-    role: 'fund-manager',
+    role: 2, // Operations
     status: 'active',
     createdAt: new Date().toISOString(),
     lastLogin: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
@@ -84,9 +82,9 @@ const DEFAULT_USERS: User[] = [
 ]
 
 // Get permissions for a specific role
-export function getPermissionsForRole(role: UserRole): UserPermissions {
+export function getPermissionsForRole(role: number): UserPermissions {
   switch (role) {
-    case 'admin':
+    case 0: // ROOT
       return {
         viewStructures: true,
         createStructure: true,
@@ -117,20 +115,20 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         manageNotifications: true,
       }
 
-    case 'fund-manager':
+    case 1: // Admin
       return {
         viewStructures: true,
         createStructure: true,
         editStructure: true,
-        deleteStructure: false,
+        deleteStructure: true,
         viewInvestors: true,
         addInvestor: true,
         editInvestor: true,
-        deleteInvestor: false,
+        deleteInvestor: true,
         viewInvestments: true,
         addInvestment: true,
         editInvestment: true,
-        deleteInvestment: false,
+        deleteInvestment: true,
         issueCapitalCall: true,
         executeDistribution: true,
         markPayments: true,
@@ -143,12 +141,12 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         viewPerformance: true,
         sendMessages: true,
         viewMessages: true,
-        manageSettings: false,
-        manageUsers: false,
+        manageSettings: true,
+        manageUsers: false, // Only ROOT can manage users
         manageNotifications: true,
       }
 
-    case 'operations':
+    case 2: // Operations
       return {
         viewStructures: true,
         createStructure: false,
@@ -179,7 +177,7 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         manageNotifications: true,
       }
 
-    case 'read-only':
+    case 4: // Read-Only
       return {
         viewStructures: true,
         createStructure: false,
@@ -209,34 +207,74 @@ export function getPermissionsForRole(role: UserRole): UserPermissions {
         manageUsers: false,
         manageNotifications: true,
       }
+
+    default:
+      // Default to most restrictive permissions
+      return {
+        viewStructures: false,
+        createStructure: false,
+        editStructure: false,
+        deleteStructure: false,
+        viewInvestors: false,
+        addInvestor: false,
+        editInvestor: false,
+        deleteInvestor: false,
+        viewInvestments: false,
+        addInvestment: false,
+        editInvestment: false,
+        deleteInvestment: false,
+        issueCapitalCall: false,
+        executeDistribution: false,
+        markPayments: false,
+        generateReports: false,
+        viewReports: false,
+        exportReports: false,
+        viewDocuments: false,
+        uploadDocuments: false,
+        deleteDocuments: false,
+        viewPerformance: false,
+        sendMessages: false,
+        viewMessages: false,
+        manageSettings: false,
+        manageUsers: false,
+        manageNotifications: false,
+      }
   }
 }
 
 // Get role display label
-export function getRoleLabel(role: UserRole): string {
+export function getRoleLabel(role: number): string {
   switch (role) {
-    case 'admin':
+    case 0:
+      return 'Root'
+    case 1:
       return 'Admin'
-    case 'fund-manager':
-      return 'Fund Manager'
-    case 'operations':
+    case 2:
       return 'Operations'
-    case 'read-only':
+    case 3:
+      return 'Investor'
+    case 4:
       return 'Read-Only'
+    default:
+      return 'Unknown'
   }
 }
 
 // Get role description
-export function getRoleDescription(role: UserRole): string {
+export function getRoleDescription(role: number): string {
   switch (role) {
-    case 'admin':
+    case 0:
+      return 'Super administrator with full system access including user management'
+    case 1:
       return 'Full access to entire platform and configurations'
-    case 'fund-manager':
-      return 'Can create structures, investors, investments and view everything'
-    case 'operations':
+    case 2:
       return 'Focused on capital calls and distributions'
-    case 'read-only':
+    case 3:
+      return 'Investor with LP portal access'
+    case 4:
       return 'View only access, perfect for auditors or advisors'
+    default:
+      return 'Unknown role'
   }
 }
 
@@ -326,7 +364,7 @@ export function deleteUser(id: string): boolean {
 }
 
 // Invite user (creates pending user)
-export function inviteUser(email: string, role: UserRole, invitedBy: string): User {
+export function inviteUser(email: string, role: number, invitedBy: string): User {
   return createUser({
     name: email.split('@')[0], // Temporary name from email
     email,

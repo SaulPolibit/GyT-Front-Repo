@@ -39,7 +39,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { IconDotsVertical, IconUserPlus, IconShieldCheck } from '@tabler/icons-react'
 import { getFirmSettings, saveFirmSettings, FirmSettings } from '@/lib/firm-settings-storage'
 import { getUsers, deleteUser, User, getRoleLabel } from '@/lib/user-management-storage'
-import { InviteUserModal } from '@/components/invite-user-modal'
+import { AddUserModal } from '@/components/add-user-modal'
 import { PermissionsMatrixDialog } from '@/components/permissions-matrix-dialog'
 import { getNotificationSettings, saveNotificationSettings } from '@/lib/notification-settings-storage'
 
@@ -55,7 +55,7 @@ export default function InvestmentManagerSettingsPage() {
   // User management
   const [users, setUsers] = React.useState<User[]>([])
   const [currentUserRole, setCurrentUserRole] = React.useState<number | null>(null)
-  const [showInviteModal, setShowInviteModal] = React.useState(false)
+  const [showAddUserModal, setShowAddUserModal] = React.useState(false)
   const [showPermissionsDialog, setShowPermissionsDialog] = React.useState(false)
   const [deleteUserDialogOpen, setDeleteUserDialogOpen] = React.useState(false)
   const [userToDelete, setUserToDelete] = React.useState<string | null>(null)
@@ -941,7 +941,41 @@ export default function InvestmentManagerSettingsPage() {
     setShowMfaConfirmDialog(false)
   }
 
-  const handleUserInvited = () => {
+  const handleUserAdded = async () => {
+    // Reload users from API
+    try {
+      const token = getAuthToken()
+      if (token) {
+        const usersResponse = await fetch(
+          getApiUrl(API_CONFIG.endpoints.getAllUsers),
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          if (usersData.success && usersData.data) {
+            const mappedUsers = usersData.data.map((user: any) => ({
+              ...user,
+              status: user.isActive !== undefined
+                ? (user.isActive ? 'active' : 'inactive')
+                : (user.status || 'active')
+            }))
+            setUsers(mappedUsers)
+            return
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Settings] Error reloading users:', error)
+    }
+
+    // Fallback to localStorage
     const loadedUsers = getUsers()
     setUsers(loadedUsers)
   }
@@ -1041,11 +1075,11 @@ export default function InvestmentManagerSettingsPage() {
       case 1:
         return 'Admin'
       case 2:
-        return 'Staff'
+        return 'Operations'
       case 3:
         return 'Investor'
       case 4:
-        return 'Guest'
+        return 'Read-Only'
       default:
         return 'Unknown'
     }
@@ -1350,9 +1384,9 @@ export default function InvestmentManagerSettingsPage() {
                     <IconShieldCheck className="h-4 w-4 mr-2" />
                     View Permissions
                   </Button>
-                  <Button size="sm" onClick={() => setShowInviteModal(true)}>
+                  <Button size="sm" onClick={() => setShowAddUserModal(true)}>
                     <IconUserPlus className="h-4 w-4 mr-2" />
-                    Invite User
+                    Add User
                   </Button>
                 </div>
               </div>
@@ -1372,7 +1406,16 @@ export default function InvestmentManagerSettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
+                    {users
+                    .filter((user) => {
+                      const userRole = typeof user.role === 'number' ? user.role : -1
+                      // Always hide Investors (role 3)
+                      if (userRole === 3) return false
+                      // If current user is Admin (role 1), also hide Root users (role 0)
+                      if (currentUserRole === 1 && userRole === 0) return false
+                      return true
+                    })
+                    .map((user) => (
                       <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.name}</TableCell>
                         <TableCell>{user.email}</TableCell>
@@ -1892,10 +1935,11 @@ export default function InvestmentManagerSettingsPage() {
       </Tabs>
 
       {/* Modals */}
-      <InviteUserModal
-        open={showInviteModal}
-        onOpenChange={setShowInviteModal}
-        onUserInvited={handleUserInvited}
+      <AddUserModal
+        open={showAddUserModal}
+        onOpenChange={setShowAddUserModal}
+        onUserAdded={handleUserAdded}
+        currentUserRole={currentUserRole ?? 1}
       />
 
       <PermissionsMatrixDialog

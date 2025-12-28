@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken'
 export interface DecodedToken {
   userId: string
   email: string
-  role: number // 0=root, 1=admin, 2=staff, 3=customer
+  role: number // 0=root, 1=admin, 2=operations, 3=investor, 4=read-only
   iat?: number
   exp?: number
 }
@@ -100,7 +100,7 @@ export function verifyAuthToken(request: NextRequest): AuthResult {
 
 /**
  * Check if user has required role
- * @param userRole - User's role number (0-3)
+ * @param userRole - User's role number (0-4)
  * @param allowedRoles - Array of allowed role numbers
  */
 export function hasRequiredRole(userRole: number, allowedRoles: number[]): boolean {
@@ -108,23 +108,23 @@ export function hasRequiredRole(userRole: number, allowedRoles: number[]): boole
 }
 
 /**
- * Check if user is admin/root/staff (roles 0, 1, 2)
+ * Check if user is investment manager user (roles 0, 1, 2, 4)
  */
 export function isStaffUser(role: number): boolean {
-  return role === 0 || role === 1 || role === 2
+  return role === 0 || role === 1 || role === 2 || role === 4
 }
 
 /**
- * Check if user is customer (role 3)
+ * Check if user is investor (role 3)
  */
-export function isCustomer(role: number): boolean {
+export function isInvestor(role: number): boolean {
   return role === 3
 }
 
 /**
  * Verify access to investor resource
- * - Root (0), Admin (1), Staff (2) can access any investor
- * - Customer (3) can only access their own investor record
+ * - Root (0), Admin (1), Operations (2), Read-Only (4) can access any investor
+ * - Investor (3) can only access their own investor record
  *
  * @param user - Decoded user from token
  * @param requestedInvestorId - ID of investor being accessed
@@ -135,19 +135,19 @@ export function canAccessInvestorResource(
   requestedInvestorId: string,
   investorEmail: string
 ): { allowed: boolean; reason?: string } {
-  // Root, Admin, Staff can access any investor
+  // Root, Admin, Operations, Read-Only can access any investor
   if (isStaffUser(user.role)) {
     return { allowed: true }
   }
 
-  // Customer can only access their own data (match by email)
-  if (isCustomer(user.role)) {
+  // Investor can only access their own data (match by email)
+  if (isInvestor(user.role)) {
     if (user.email.toLowerCase() === investorEmail.toLowerCase()) {
       return { allowed: true }
     }
     return {
       allowed: false,
-      reason: 'Customers can only access their own investor data'
+      reason: 'Investors can only access their own investor data'
     }
   }
 

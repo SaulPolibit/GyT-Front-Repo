@@ -8,7 +8,7 @@ export interface ApiUser {
   lastName: string
   appLanguage: string
   profileImage: string | null
-  role: number // 0=root, 1=admin, 2=staff (all → /investment-manager), 3=customer (→ /lp-portal)
+  role: number // 0=root, 1=admin, 2=operations, 3=investor, 4=read-only (0,1,2,4 → /investment-manager, 3 → /lp-portal)
   lastLogin: string
   kycId: string | null
   kycStatus: string | null
@@ -136,8 +136,8 @@ export function getSupabaseAuth(): SupabaseAuth | null {
 
 // Get user role type based on role number
 export function getUserRoleType(role: number): 'investment-manager' | 'lp-portal' {
-  // 0=root, 1=admin, 2=staff → investment-manager
-  // 3=customer → lp-portal
+  // 0=root, 1=admin, 2=operations, 4=read-only → investment-manager
+  // 3=investor → lp-portal
   return role === 3 ? 'lp-portal' : 'investment-manager'
 }
 

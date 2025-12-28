@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { UserRole, getRoleDescription, inviteUser } from '@/lib/user-management-storage'
+import { getRoleDescription, inviteUser } from '@/lib/user-management-storage'
 
 interface InviteUserModalProps {
   open: boolean
@@ -29,7 +29,7 @@ interface InviteUserModalProps {
 
 export function InviteUserModal({ open, onOpenChange, onUserInvited }: InviteUserModalProps) {
   const [email, setEmail] = React.useState('')
-  const [role, setRole] = React.useState<UserRole>('read-only')
+  const [role, setRole] = React.useState<number>(4) // Default to Read-Only
   const [isInviting, setIsInviting] = React.useState(false)
   const [error, setError] = React.useState('')
 
@@ -50,7 +50,7 @@ export function InviteUserModal({ open, onOpenChange, onUserInvited }: InviteUse
 
       // Reset form
       setEmail('')
-      setRole('read-only')
+      setRole(4) // Read-Only
 
       // Close modal
       onOpenChange(false)
@@ -89,15 +89,14 @@ export function InviteUserModal({ open, onOpenChange, onUserInvited }: InviteUse
 
           <div className="space-y-2">
             <Label htmlFor="role">Role</Label>
-            <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
+            <Select value={role.toString()} onValueChange={(value) => setRole(parseInt(value))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="fund-manager">Fund Manager</SelectItem>
-                <SelectItem value="operations">Operations</SelectItem>
-                <SelectItem value="read-only">Read-Only</SelectItem>
+                <SelectItem value="1">Admin</SelectItem>
+                <SelectItem value="2">Operations</SelectItem>
+                <SelectItem value="4">Read-Only</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
