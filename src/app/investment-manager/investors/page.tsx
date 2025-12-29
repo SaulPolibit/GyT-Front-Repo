@@ -506,14 +506,6 @@ export default function InvestorsPage() {
             {filteredInvestors.length} investor{filteredInvestors.length !== 1 ? 's' : ''}
           </p>
         </div>
-        {!isGuest && (
-          <Button asChild>
-            <Link href="/investment-manager/investors/add">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Investor
-            </Link>
-          </Button>
-        )}
       </div>
 
       {/* Summary Cards */}
@@ -733,14 +725,6 @@ export default function InvestorsPage() {
             <p className="text-muted-foreground mb-4">
               {searchQuery ? 'Try adjusting your search' : 'Add your first investor to get started'}
             </p>
-            {!searchQuery && !isGuest && (
-              <Button asChild>
-                <Link href="/investment-manager/investors/add">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Investor
-                </Link>
-              </Button>
-            )}
           </div>
         </Card>
       )}
