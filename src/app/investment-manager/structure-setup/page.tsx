@@ -2742,6 +2742,8 @@ export default function OnboardingPage() {
               <AlertDialogTitle>Complete Setup?</AlertDialogTitle>
               <AlertDialogDescription>
                 Once the setup is complete, <span className="font-semibold text-red-600">no modifications can be made</span> to this structure configuration. Please ensure all details are correct before confirming.
+                <br /><br />
+                <span className="font-semibold text-red-600">Check wallet POL tokens, you should have at least 2 tokens for minting contract.</span>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
