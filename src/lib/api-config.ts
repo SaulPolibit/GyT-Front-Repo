@@ -78,6 +78,7 @@ export const API_CONFIG = {
     updateUserProfile: '/api/users/profile',
     uploadProfileImage: '/api/users/profile-image',
     getUsersByRole: (roles: string) => `/api/users/filter?role=${roles}`,
+    getInvestorUsers: '/api/users/investors',
     getAllUsers: '/api/users',
     createUser: '/api/users/register',
     getUserById: (userId: string) => `/api/users/${userId}`,
