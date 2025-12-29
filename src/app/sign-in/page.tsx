@@ -18,8 +18,30 @@ export default function SignInPage() {
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
+  const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
   const router = useRouter()
   const { login, isLoggedIn, user, refreshAuthState } = useAuth()
+
+  // Fetch firm logo on mount
+  React.useEffect(() => {
+    async function fetchFirmLogo() {
+      try {
+        const url = getApiUrl(API_CONFIG.endpoints.getFirmLogo)
+        const response = await fetch(url)
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && result.data) {
+            setFirmLogo(result.data.firmLogo)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch firm logo:', error)
+      }
+    }
+
+    fetchFirmLogo()
+  }, [])
 
   // If already logged in, redirect
   React.useEffect(() => {
@@ -210,7 +232,16 @@ export default function SignInPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Sign In to Polibit</CardTitle>
+          {firmLogo && (
+            <div className="flex justify-center mb-4">
+              <img
+                src={firmLogo}
+                alt="Firm logo"
+                className="h-16 w-auto object-contain"
+              />
+            </div>
+          )}
+          <CardTitle className="text-2xl">Sign in to Próspera</CardTitle>
           <CardDescription>
             Enter your credentials to access the platform
           </CardDescription>
@@ -248,14 +279,16 @@ export default function SignInPage() {
             {isLoading ? 'Signing in...' : 'Sign In'}
           </Button>
 
-          <div className="text-center text-sm text-muted-foreground">
+          {/* Sign up link - hidden for Próspera OAuth users */}
+          {/* <div className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Link href="/sign-up" className="text-primary hover:underline">
               Sign up
             </Link>
-          </div>
+          </div> */}
 
-          <div className="text-center text-sm text-muted-foreground border-t pt-4">
+          {/* Demo Credentials - hidden for production */}
+          {/* <div className="text-center text-sm text-muted-foreground border-t pt-4">
             <p className="mb-2 font-medium">Demo Credentials:</p>
             <div className="space-y-2">
               <div className="p-2 bg-muted rounded text-left">
@@ -271,7 +304,7 @@ export default function SignInPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>
