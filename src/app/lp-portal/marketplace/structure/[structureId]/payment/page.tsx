@@ -71,6 +71,9 @@ export default function PaymentPage({ params }: Props) {
   const [isMetaMaskConnected, setIsMetaMaskConnected] = React.useState(false)
   const [submissionId, setSubmissionId] = React.useState<string | null>(null)
   const [transactionHash, setTransactionHash] = React.useState<string | null>(null)
+  const [isCountryValid, setIsCountryValid] = React.useState<boolean | null>(null)
+  const [isCheckingCountry, setIsCheckingCountry] = React.useState(false)
+  const [countryCheckError, setCountryCheckError] = React.useState<string | null>(null)
 
   const tokens = searchParams.get("tokens") || "0"
   const email = searchParams.get("email") || "investor@demo.polibit.io"
@@ -91,6 +94,7 @@ export default function PaymentPage({ params }: Props) {
   // Check if token is deployed
   const tokenAddress = structure?.smartContract?.contractAddress
   const identityRegistryAddress = structure?.smartContract?.identityRegistryAddress
+  const complianceAddress = structure?.smartContract?.complianceRegistryAddress
   const isTokenDeployed = tokenAddress && tokenAddress.trim() !== ''
 
   // Check if bank transfer is enabled based on structure bank configuration
@@ -218,6 +222,67 @@ export default function PaymentPage({ params }: Props) {
 
     fetchSubmissionId()
   }, [])
+
+  // Check if user's country is valid in the contract
+  React.useEffect(() => {
+    const checkCountryValidity = async () => {
+      // Only check if we have the necessary data
+      if (!complianceAddress || !user?.country) {
+        console.log('[Payment] Skipping country check - missing data:', { complianceAddress, userCountry: user?.country })
+        return
+      }
+
+      setIsCheckingCountry(true)
+      setCountryCheckError(null)
+
+      try {
+        const token = getAuthToken()
+
+        if (!token) {
+          console.log("[Payment] No auth token found for country check")
+          setIsCheckingCountry(false)
+          return
+        }
+
+        console.log('[Payment] Checking country validity:', {
+          complianceAddress,
+          country: user.country.toLowerCase()
+        })
+
+        const response = await fetch(
+          getApiUrl(API_CONFIG.endpoints.checkCountry(complianceAddress, user.country.toLowerCase())),
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        const data = await response.json()
+        console.log('[Payment] Country check response:', data)
+
+        if (data.success) {
+          setIsCountryValid(data.isValid)
+          if (!data.isValid) {
+            setCountryCheckError(`Your country (${user.country}) is not registered as a valid country for this investment. Please contact the fund administrator.`)
+          }
+        } else {
+          setCountryCheckError(data.message || 'Failed to verify country eligibility')
+          setIsCountryValid(false)
+        }
+      } catch (error) {
+        console.error('[Payment] Error checking country validity:', error)
+        setCountryCheckError('Unable to verify country eligibility. Please try again.')
+        setIsCountryValid(false)
+      } finally {
+        setIsCheckingCountry(false)
+      }
+    }
+
+    checkCountryValidity()
+  }, [complianceAddress, user?.country])
 
   const formatCurrency = (value: string | number) => {
     const num = typeof value === "string" ? parseInt(value) : value
@@ -1453,6 +1518,37 @@ export default function PaymentPage({ params }: Props) {
             </Card>
           )}
 
+          {/* Country Validation Warning */}
+          {isCheckingCountry && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="flex gap-3 py-6">
+                <Loader2 className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5 animate-spin" />
+                <div>
+                  <p className="text-sm font-semibold text-blue-900 mb-1">Checking Country Eligibility</p>
+                  <p className="text-sm text-blue-800">
+                    Verifying if your country is registered for this investment...
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isCheckingCountry && isCountryValid === false && countryCheckError && (
+            <Card className="border-red-200 bg-red-50">
+              <CardHeader>
+                <CardTitle className="text-red-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Country Not Eligible
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-red-800">
+                  {countryCheckError}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Submission ID Warning - Only validate if contract signing is enabled */}
           {process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNING !== 'false' && (!submissionId || submissionId.trim() === '') && (
             <Card className="border-amber-200 bg-amber-50">
@@ -1496,7 +1592,7 @@ export default function PaymentPage({ params }: Props) {
                   <Button
                     className="flex-1"
                     size="lg"
-                    disabled={!isFormValid() || isProcessing || paymentComplete || (process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNING !== 'false' && (!submissionId || submissionId.trim() === ''))}
+                    disabled={!isFormValid() || isProcessing || paymentComplete || isCheckingCountry || isCountryValid === false || (process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNING !== 'false' && (!submissionId || submissionId.trim() === ''))}
                     onClick={handlePayment}
                   >
                     {isProcessing ? (

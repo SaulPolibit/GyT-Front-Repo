@@ -47,6 +47,7 @@ export interface Structure {
   smartContract?: {
     contractAddress?: string  // Deployed token contract address
     identityRegistryAddress?: string  // Identity registry contract address
+    complianceRegistryAddress?: string  // Compliance registry contract address
     deploymentResponse?: any  // Full deployment response from blockchain API
     tokenName?: string  // Token name
     tokenSymbol?: string  // Token symbol
