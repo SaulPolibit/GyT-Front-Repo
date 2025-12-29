@@ -24,6 +24,19 @@ import { useRouter } from 'next/navigation'
 
 export default function Page() {
   const router = useRouter()
+
+  // Redirect to structures page
+  React.useEffect(() => {
+    router.replace('/investment-manager/structures')
+  }, [router])
+
+  // Show nothing while redirecting
+  return null
+}
+
+// Original dashboard code kept for reference (root users only)
+function DashboardPage() {
+  const router = useRouter()
   const [widgets, setWidgets] = React.useState<DashboardWidget[]>([])
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingWidget, setEditingWidget] = React.useState<DashboardWidget | null>(null)
