@@ -749,7 +749,8 @@ export default function PaymentPage({ params }: Props) {
           throw new Error('Authentication token not found. Please log in again.')
         }
 
-        if (!submissionId) {
+        // Only validate submissionId if contract signing is enabled
+        if (process.env.NEXT_PUBLIC_ENABLE_CONTRACT_SIGNING !== 'false' && !submissionId) {
           throw new Error('Submission ID not found. Please refresh the page and try again.')
         }
 
@@ -760,7 +761,7 @@ export default function PaymentPage({ params }: Props) {
         formData.append('structureId', structureId)
         formData.append('email', user?.email || email)
         formData.append('contractId', 'dummy-contract-id') // Dummy data as contract model doesn't exist yet
-        formData.append('submissionId', submissionId)
+        formData.append('submissionId', submissionId ?? '')
         formData.append('tokens', String(tokens))
         formData.append('paymentMethod', paymentMethod)
         formData.append('status', 'pending')
