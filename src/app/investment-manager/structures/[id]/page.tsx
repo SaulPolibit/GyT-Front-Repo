@@ -1434,7 +1434,7 @@ export default function StructureDetailPage({ params }: PageProps) {
               <Separator className="my-6" />
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Indemnification</h3>
-                {structure.legalTerms.partnershipIndemnifiesLP && structure.legalTerms.partnershipIndemnifiesLP.length > 0 && (
+                {structure.legalTerms.partnershipIndemnifiesLP && Array.isArray(structure.legalTerms.partnershipIndemnifiesLP) && structure.legalTerms.partnershipIndemnifiesLP.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Partnership Indemnifies LP For</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
@@ -1444,7 +1444,7 @@ export default function StructureDetailPage({ params }: PageProps) {
                     </ul>
                   </div>
                 )}
-                {structure.legalTerms.lpIndemnifiesPartnership && structure.legalTerms.lpIndemnifiesPartnership.length > 0 && (
+                {structure.legalTerms.lpIndemnifiesPartnership && Array.isArray(structure.legalTerms.lpIndemnifiesPartnership) && structure.legalTerms.lpIndemnifiesPartnership.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">LP Indemnifies Partnership For</h4>
                     <ul className="space-y-1 text-sm text-muted-foreground list-disc list-inside">
