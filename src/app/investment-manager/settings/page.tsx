@@ -1200,7 +1200,7 @@ export default function InvestmentManagerSettingsPage() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email: emailConfig.testEmail,
+            testEmail: emailConfig.testEmail,
           }),
         }
       )
