@@ -1639,7 +1639,11 @@ export default function OnboardingPage() {
             console.log('Error: ', e)
           }
         }
-        throw new Error('Failed to create structure')
+        const errorData = await structureResponse.json().catch(() => ({}))
+        console.error('[Structure Setup] Failed to create structure:', errorData)
+        toast.error('Failed to create structure. Please try again.')
+        setIsSubmitting(false)
+        return
       }
 
       const structureData = await structureResponse.json()
@@ -1686,13 +1690,31 @@ export default function OnboardingPage() {
           }
           const errorData = await waterfallResponse.json().catch(() => ({}))
           console.error('[Waterfall Tiers] Failed to create:', errorData)
-        } else {
-          const responseData = await waterfallResponse.json()
-          console.log('[Waterfall Tiers] Created successfully:', responseData)
+
+          // Rollback: Delete created structure
+          console.log('[Rollback] Deleting structure due to waterfall failure:', structureId)
+          try {
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${authToken}`
+              }
+            })
+          } catch (rollbackError) {
+            console.error('[Rollback] Failed to delete structure:', rollbackError)
+          }
+
+          toast.error('Failed to create waterfall tiers. Structure creation rolled back.')
+          setIsSubmitting(false)
+          return
         }
+
+        const responseData = await waterfallResponse.json()
+        console.log('[Waterfall Tiers] Created successfully:', responseData)
       }
 
       // Step 3: Create capital calls (if enabled)
+      const createdCapitalCallIds: string[] = []
       if (formData.enableCapitalCalls && formData.capitalCalls && formData.capitalCalls.length > 0) {
         console.log('[Capital Calls] Creating capital calls for structure:', structureId)
 
@@ -1735,12 +1757,50 @@ export default function OnboardingPage() {
               }
               const errorData = await capitalCallResponse.json()
               console.error(`[Capital Call ${index + 1}] Failed:`, errorData)
-            } else {
-              const responseData = await capitalCallResponse.json()
-              console.log(`[Capital Call ${index + 1}] Created successfully:`, responseData)
+
+              // Rollback: Delete structure and waterfalls
+              console.log('[Rollback] Deleting structure and waterfalls due to capital call failure')
+              try {
+                // Delete structure (this should cascade delete waterfalls)
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
+                  method: 'DELETE',
+                  headers: {
+                    'Authorization': `Bearer ${authToken}`
+                  }
+                })
+              } catch (rollbackError) {
+                console.error('[Rollback] Failed to delete structure:', rollbackError)
+              }
+
+              toast.error(`Failed to create capital call ${index + 1}. Structure creation rolled back.`)
+              setIsSubmitting(false)
+              return
             }
+
+            const responseData = await capitalCallResponse.json()
+            if (responseData.data?.id) {
+              createdCapitalCallIds.push(responseData.data.id)
+            }
+            console.log(`[Capital Call ${index + 1}] Created successfully:`, responseData)
           } catch (error) {
             console.error(`[Capital Call ${index + 1}] Error:`, error)
+
+            // Rollback: Delete structure and waterfalls
+            console.log('[Rollback] Deleting structure and waterfalls due to capital call error')
+            try {
+              await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${authToken}`
+                }
+              })
+            } catch (rollbackError) {
+              console.error('[Rollback] Failed to delete structure:', rollbackError)
+            }
+
+            toast.error(`Error creating capital call ${index + 1}. Structure creation rolled back.`)
+            setIsSubmitting(false)
+            return
           }
         }
       }
@@ -1804,10 +1864,24 @@ export default function OnboardingPage() {
         }
         const errorData = await blockchainResponse.json().catch(() => ({}))
         console.error('[Blockchain] Error response:', errorData)
-      }
 
-      if (!blockchainResponse.ok) {
-        console.error('Failed to deploy blockchain contract')
+        // Rollback: Delete structure, waterfalls, and capital calls
+        console.log('[Rollback] Deleting structure, waterfalls, and capital calls due to blockchain failure')
+        try {
+          // Delete structure (this should cascade delete waterfalls and capital calls)
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          })
+        } catch (rollbackError) {
+          console.error('[Rollback] Failed to delete structure:', rollbackError)
+        }
+
+        toast.error('Failed to deploy blockchain contract. Structure creation rolled back.')
+        setIsSubmitting(false)
+        return
       }
 
       // Step 4: Upload documents
@@ -1853,9 +1927,13 @@ export default function OnboardingPage() {
                 }
               }
               console.error(`Failed to upload document: ${doc.name}`)
+              toast.warning(`Failed to upload document: ${doc.name}. Structure created successfully, but document upload failed.`)
+            } else {
+              console.log(`[Documents] Successfully uploaded: ${doc.name}`)
             }
           } catch (error) {
             console.error(`Error uploading document ${doc.name}:`, error)
+            toast.warning(`Error uploading document: ${doc.name}. Structure created successfully, but document upload failed.`)
           }
         }
       }
@@ -2743,7 +2821,7 @@ export default function OnboardingPage() {
               <AlertDialogDescription>
                 Once the setup is complete, <span className="font-semibold text-red-600">no modifications can be made</span> to this structure configuration. Please ensure all details are correct before confirming.
                 <br /><br />
-                <span className="font-semibold text-red-600">Check wallet POL tokens, you should have at least 2 tokens for minting contract.</span>
+                <span className="font-semibold text-red-600">Check wallet POL tokens, you should have at least 3 tokens for minting contract.</span>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
