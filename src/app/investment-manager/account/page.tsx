@@ -734,7 +734,7 @@ function AccountPageContent() {
               <CardTitle>Wallet Information</CardTitle>
             </div>
             <CardDescription>
-              Your blockchain wallet linked to Próspera
+              Your Polygon wallet linked to Próspera
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -769,19 +769,6 @@ function AccountPageContent() {
                   <p className="text-xs text-muted-foreground">
                     This is your EVM-compatible smart wallet address on Polygon. Use it to receive digital assets.
                   </p>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Wallet Type</span>
-                    <span className="font-medium">EVM Smart Wallet</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Network</span>
-                    <span className="font-medium">Polygon</span>
-                  </div>
                 </div>
 
                 <Separator />
@@ -903,7 +890,7 @@ function AccountPageContent() {
                     <strong className="font-semibold">No wallet found</strong>
                   </p>
                   <p className="text-xs text-yellow-800 mb-4">
-                    Create a blockchain wallet linked to your Próspera account to receive and manage digital assets.
+                    Create a Polygon wallet linked to your Próspera account to receive and manage digital assets.
                   </p>
                   <Button
                     onClick={handleCreateWallet}

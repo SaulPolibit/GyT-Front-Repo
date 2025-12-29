@@ -727,7 +727,7 @@ export default function AccountPage() {
             <div>
               <CardTitle>Wallet Information</CardTitle>
               <CardDescription>
-                Your Crossmint blockchain wallet address
+                Your Polygon wallet address
               </CardDescription>
             </div>
           </div>
@@ -759,19 +759,6 @@ export default function AccountPage() {
                 <p className="text-xs text-muted-foreground">
                   This is your EVM-compatible smart wallet address on Polygon. Use it to receive digital assets.
                 </p>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Wallet Type</span>
-                  <span className="font-medium">EVM Smart Wallet</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Network</span>
-                  <span className="font-medium">Polygon (Amoy Testnet)</span>
-                </div>
               </div>
 
               <Separator />
