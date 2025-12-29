@@ -70,13 +70,16 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
     fetchFirmLogo()
   }, [])
 
+  const isRootUser = currentUser?.role === 0
+
   const data = {
     navMain: [
-      {
+      // Dashboard - root only
+      ...(isRootUser ? [{
         title: t.nav.dashboard,
         url: "/investment-manager",
         icon: LayoutDashboard,
-      },
+      }] : []),
       {
         title: t.nav.structures,
         url: "/investment-manager/structures",
@@ -97,16 +100,18 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
         url: "/investment-manager/approvals",
         icon: CheckCircle,
       },
-      {
+      // Reports - root only
+      ...(isRootUser ? [{
         title: t.nav.reports,
         url: "/investment-manager/reports",
         icon: Folder,
-      },
-      {
+      }] : []),
+      // Performance - root only
+      ...(isRootUser ? [{
         title: t.nav.performance,
         url: "/investment-manager/reports/performance",
         icon: TrendingUp,
-      },
+      }] : []),
       {
         title: t.nav.documents,
         url: "/investment-manager/documents",
@@ -234,7 +239,7 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
         </SidebarHeader>
         <SidebarContent className="flex-1 overflow-y-auto">
           <NavMain items={data.navMain} />
-          <NavManagement items={data.navManagement} />
+          {isRootUser && <NavManagement items={data.navManagement} />}
           <NavSecondary items={data.navSecondary} className="mt-auto" />
         </SidebarContent>
         <SidebarFooter className="shrink-0">
