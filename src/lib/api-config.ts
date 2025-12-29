@@ -149,6 +149,7 @@ export const API_CONFIG = {
 
     // Wallet API
     getWalletBalances: '/api/custom/wallet/balances',
+    transferTokens: '/api/custom/wallet/transfer',
 
     // Add other endpoints as needed
   }

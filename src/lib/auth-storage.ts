@@ -16,6 +16,9 @@ export interface ApiUser {
   address: string | null
   country: string | null
   walletAddress: string | null
+  phoneNumber?: string
+  mfaEnabled?: boolean
+  mfaFactorId?: string | null
 }
 
 // Supabase object from login response

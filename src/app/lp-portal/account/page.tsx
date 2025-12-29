@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Camera, Save, Wallet, Copy, CheckCircle2 } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Camera, Save, Wallet, Copy, CheckCircle2, Send, AlertTriangle, Loader2, ShieldCheck } from "lucide-react"
 import { getCurrentUser, getAuthToken, updateUserProfile } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
@@ -36,6 +37,18 @@ export default function AccountPage() {
   const [walletBalances, setWalletBalances] = React.useState<any[]>([])
   const [loadingBalances, setLoadingBalances] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  // Transfer modal state
+  const [showTransferModal, setShowTransferModal] = React.useState(false)
+  const [showMfaRequiredModal, setShowMfaRequiredModal] = React.useState(false)
+  const [selectedToken, setSelectedToken] = React.useState<any>(null)
+  const [transferData, setTransferData] = React.useState({
+    recipient: '',
+    amount: '',
+    mfaCode: '',
+  })
+  const [isTransferring, setIsTransferring] = React.useState(false)
+  const [userHasMfa, setUserHasMfa] = React.useState(false)
 
   React.useEffect(() => {
     loadUserData()
@@ -75,6 +88,9 @@ export default function AccountPage() {
         languagePreference: user.appLanguage || 'en',
         walletAddress: user.walletAddress || '',
       })
+
+      // Check if user has MFA enabled (mfaFactorId is set when MFA is enrolled)
+      setUserHasMfa(!!user.mfaEnabled || !!user.mfaFactorId)
     }
 
     setLoading(false)
@@ -375,6 +391,117 @@ export default function AccountPage() {
       toast.error('Failed to load wallet balances')
     } finally {
       setLoadingBalances(false)
+    }
+  }
+
+  const handleSendClick = (token: any) => {
+    // Check if user has MFA enabled
+    if (!userHasMfa) {
+      setShowMfaRequiredModal(true)
+      return
+    }
+
+    // Open transfer modal
+    setSelectedToken(token)
+    setTransferData({ recipient: '', amount: '', mfaCode: '' })
+    setShowTransferModal(true)
+  }
+
+  const handleTransfer = async () => {
+    const token = getAuthToken()
+
+    if (!token) {
+      toast.error('Authentication required. Please log in again.')
+      return
+    }
+
+    if (!transferData.recipient || !transferData.amount || !transferData.mfaCode) {
+      toast.error('Please fill in all fields')
+      return
+    }
+
+    // Validate recipient address
+    const evmAddressRegex = /^0x[a-fA-F0-9]{40}$/
+    if (!evmAddressRegex.test(transferData.recipient)) {
+      toast.error('Invalid wallet address format')
+      return
+    }
+
+    // Validate amount
+    const amount = parseFloat(transferData.amount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    // Check if amount exceeds balance
+    const tokenBalance = parseFloat(selectedToken?.amount || '0')
+    if (amount > tokenBalance) {
+      toast.error('Insufficient balance')
+      return
+    }
+
+    // Validate MFA code (6 digits)
+    if (!/^\d{6}$/.test(transferData.mfaCode)) {
+      toast.error('MFA code must be 6 digits')
+      return
+    }
+
+    setIsTransferring(true)
+
+    try {
+      // Build token locator
+      const chainData = selectedToken?.chains?.['polygon-amoy']
+      let tokenLocator = ''
+
+      if (chainData?.contractAddress) {
+        // Custom token with contract address
+        tokenLocator = `polygon-amoy:${chainData.contractAddress}`
+      } else {
+        // Native token (pol, matic, usdc)
+        tokenLocator = `polygon-amoy:${selectedToken.symbol?.toLowerCase()}`
+      }
+
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.transferTokens), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tokenLocator,
+          recipient: transferData.recipient,
+          amount: transferData.amount,
+          mfaCode: transferData.mfaCode,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Transfer initiated successfully!')
+        setShowTransferModal(false)
+        setTransferData({ recipient: '', amount: '', mfaCode: '' })
+        setSelectedToken(null)
+
+        // Reload balances after a short delay
+        setTimeout(() => {
+          loadWalletBalances()
+        }, 2000)
+      } else {
+        // Check if MFA is required
+        if (data.mfaRequired) {
+          setShowTransferModal(false)
+          setShowMfaRequiredModal(true)
+        } else {
+          toast.error(data.message || 'Transfer failed')
+        }
+      }
+    } catch (error) {
+      console.error('Error transferring tokens:', error)
+      toast.error('Failed to transfer tokens')
+    } finally {
+      setIsTransferring(false)
     }
   }
 
@@ -690,16 +817,27 @@ export default function AccountPage() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <div className="font-medium text-sm">
-                                  {balance.amount || '0'}
-                                </div>
-                                {contractAddress && (
-                                  <div className="text-xs text-muted-foreground font-mono">
-                                    {contractAddress.substring(0, 6)}...
-                                    {contractAddress.substring(contractAddress.length - 4)}
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <div className="font-medium text-sm">
+                                    {balance.amount || '0'}
                                   </div>
-                                )}
+                                  {contractAddress && (
+                                    <div className="text-xs text-muted-foreground font-mono">
+                                      {contractAddress.substring(0, 6)}...
+                                      {contractAddress.substring(contractAddress.length - 4)}
+                                    </div>
+                                  )}
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSendClick(balance)}
+                                  className="h-8"
+                                >
+                                  <Send className="h-3 w-3 mr-1" />
+                                  Send
+                                </Button>
                               </div>
                             </div>
                           )
@@ -741,6 +879,165 @@ export default function AccountPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Transfer Token Modal */}
+      <Dialog open={showTransferModal} onOpenChange={setShowTransferModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Send {selectedToken?.symbol || 'Tokens'}
+            </DialogTitle>
+            <DialogDescription>
+              Transfer tokens to another wallet address. This action requires MFA verification.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Token Info */}
+            <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-xs font-semibold text-primary">
+                    {selectedToken?.symbol?.substring(0, 2)?.toUpperCase() || 'TK'}
+                  </span>
+                </div>
+                <span className="font-medium">{selectedToken?.name || selectedToken?.symbol}</span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                Balance: {selectedToken?.amount || '0'}
+              </span>
+            </div>
+
+            {/* Recipient Address */}
+            <div className="space-y-2">
+              <Label htmlFor="recipient">Recipient Address</Label>
+              <Input
+                id="recipient"
+                placeholder="0x..."
+                value={transferData.recipient}
+                onChange={(e) => setTransferData({ ...transferData, recipient: e.target.value })}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the wallet address you want to send tokens to
+              </p>
+            </div>
+
+            {/* Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="amount"
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder="0.00"
+                  value={transferData.amount}
+                  onChange={(e) => setTransferData({ ...transferData, amount: e.target.value })}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTransferData({ ...transferData, amount: selectedToken?.amount || '0' })}
+                >
+                  Max
+                </Button>
+              </div>
+            </div>
+
+            {/* MFA Code */}
+            <div className="space-y-2">
+              <Label htmlFor="mfaCode" className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                MFA Verification Code
+              </Label>
+              <Input
+                id="mfaCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                placeholder="Enter 6-digit code"
+                value={transferData.mfaCode}
+                onChange={(e) => setTransferData({ ...transferData, mfaCode: e.target.value.replace(/\D/g, '') })}
+                className="text-center text-lg tracking-widest"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the code from your authenticator app
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowTransferModal(false)}
+              disabled={isTransferring}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleTransfer}
+              disabled={isTransferring || !transferData.recipient || !transferData.amount || !transferData.mfaCode}
+            >
+              {isTransferring ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send Tokens
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MFA Required Modal */}
+      <Dialog open={showMfaRequiredModal} onOpenChange={setShowMfaRequiredModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-yellow-600">
+              <AlertTriangle className="h-5 w-5" />
+              MFA Required
+            </DialogTitle>
+            <DialogDescription>
+              Multi-Factor Authentication must be enabled to transfer tokens.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <p className="text-sm text-yellow-900">
+                For your security, token transfers require MFA verification. Please enable MFA in your Security Settings first.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowMfaRequiredModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowMfaRequiredModal(false)
+                router.push('/lp-portal/settings')
+              }}
+            >
+              <ShieldCheck className="mr-2 h-4 w-4" />
+              Go to Security Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
