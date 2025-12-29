@@ -1585,7 +1585,7 @@ export default function PaymentPage({ params }: Props) {
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4">
                   <Button variant="outline" className="flex-1" asChild disabled={isProcessing}>
-                    <a href={`/lp-portal/marketplace/${structureId}/contracts`}>
+                    <a href={`/lp-portal/marketplace`}>
                       Cancel
                     </a>
                   </Button>
