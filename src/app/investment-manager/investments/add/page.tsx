@@ -155,13 +155,13 @@ export default function AddInvestmentPage() {
       return
     }
 
-    if (!name || !totalInvestmentSize || !fundCommitment) {
+    if (!name) {
       toast.error("Please fill in all required fields")
       return
     }
 
-    const totalInvestmentSizeNum = parseFloat(totalInvestmentSize)
-    const fundCommitmentNum = parseFloat(fundCommitment)
+    const totalInvestmentSizeNum = parseFloat(totalInvestmentSize ?? 0)
+    const fundCommitmentNum = parseFloat(fundCommitment ?? 0)
     const equityPositionNum = equityPosition ? parseFloat(equityPosition) : 0
     const debtPositionNum = debtPosition ? parseFloat(debtPosition) : 0
     const interestRateNum = interestRate ? parseFloat(interestRate) : 0
