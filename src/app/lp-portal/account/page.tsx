@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Camera, Save, Wallet, Copy, CheckCircle2, Send, AlertTriangle, Loader2, ShieldCheck } from "lucide-react"
-import { getCurrentUser, getAuthToken, updateUserProfile } from "@/lib/auth-storage"
+import { getCurrentUser, getAuthToken, updateUserProfile, getSupabaseAuth } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -450,6 +450,14 @@ export default function AccountPage() {
     setIsTransferring(true)
 
     try {
+      // Get Supabase access token for MFA verification
+      const supabaseAuth = getSupabaseAuth()
+      if (!supabaseAuth?.accessToken) {
+        toast.error('Session expired. Please log out and log back in.')
+        setIsTransferring(false)
+        return
+      }
+
       // Build token locator
       const chainData = selectedToken?.chains?.['polygon-amoy']
       let tokenLocator = ''
@@ -473,6 +481,7 @@ export default function AccountPage() {
           recipient: transferData.recipient,
           amount: transferData.amount,
           mfaCode: transferData.mfaCode,
+          supabaseAccessToken: supabaseAuth.accessToken,
         }),
       })
 
