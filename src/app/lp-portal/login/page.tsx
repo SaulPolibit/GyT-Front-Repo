@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { getUserRoleType, updateUserKycData, saveLoginResponse, getRedirectPathForRole } from "@/lib/auth-storage"
 import { toast } from "sonner"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { AlertCircle, Share2 } from "lucide-react"
+import { AlertCircle, Share2, Shield } from "lucide-react"
 import { saveNotificationSettings } from "@/lib/notification-settings-storage"
 import { sendInvestorActivityEmail } from "@/lib/email-service"
 
@@ -24,6 +26,21 @@ function LPLoginPageContent() {
   const [termsAccepted, setTermsAccepted] = React.useState(false)
   const [registrationData, setRegistrationData] = React.useState<any>(null)
   const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
+
+  // MFA states
+  const [showMfaDialog, setShowMfaDialog] = React.useState(false)
+  const [mfaCode, setMfaCode] = React.useState('')
+  const [isVerifyingMfa, setIsVerifyingMfa] = React.useState(false)
+  const [mfaData, setMfaData] = React.useState<{
+    userId: string
+    factorId: string
+    prospera: {
+      accessToken: string
+      refreshToken: string
+      expiresAt: number
+    }
+  } | null>(null)
+
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isLoggedIn, user, refreshAuthState} = useAuth()
@@ -174,6 +191,61 @@ function LPLoginPageContent() {
     }
   }
 
+  const handleMfaVerify = async () => {
+    if (!mfaCode || mfaCode.length !== 6 || !mfaData) {
+      setErrorMessage('Please enter a valid 6-digit code')
+      return
+    }
+
+    setIsVerifyingMfa(true)
+    setErrorMessage('')
+
+    try {
+      console.log('[MFA Verify] Verifying MFA code...')
+
+      const response = await fetch(getApiUrl('/api/custom/mfa/login-verify'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: mfaData.userId,
+          code: mfaCode,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'MFA verification failed')
+      }
+
+      console.log('[MFA Verify] MFA verification successful')
+
+      // Close MFA dialog
+      setShowMfaDialog(false)
+      setMfaCode('')
+      setMfaData(null)
+
+      // Add Prospera tokens to the response before saving
+      const loginData = {
+        ...data,
+        prospera: mfaData.prospera,
+      }
+
+      // Save to localStorage
+      saveLoginResponse(loginData)
+
+      toast.success('Welcome! Logged in successfully')
+
+      // Redirect to portfolio (will be handled by useEffect)
+      refreshAuthState()
+    } catch (error) {
+      console.error('[MFA Verify] Error:', error)
+      setErrorMessage(error instanceof Error ? error.message : 'MFA verification failed. Please try again.')
+    } finally {
+      setIsVerifyingMfa(false)
+    }
+  }
+
   const handleProsperapCallback = async (code: string, codeVerifier: string, nonce: string) => {
     setIsProsperapLoading(true)
     setErrorMessage('')
@@ -211,6 +283,30 @@ function LPLoginPageContent() {
         }
 
         throw new Error(data.message || 'Prospera authentication failed')
+      }
+
+      // Check if MFA verification is required
+      if (data.mfaRequired) {
+        console.log('[Prospera Callback] MFA verification required')
+
+        // Store MFA data for verification
+        setMfaData({
+          userId: data.userId,
+          factorId: data.factorId,
+          prospera: data.prospera,
+        })
+
+        // Clear URL parameters
+        window.history.replaceState({}, '', '/lp-portal/login')
+
+        // Clear stored verifier and nonce
+        sessionStorage.removeItem('prospera_code_verifier')
+        sessionStorage.removeItem('prospera_nonce')
+
+        // Show MFA dialog
+        setShowMfaDialog(true)
+        setIsProsperapLoading(false)
+        return
       }
 
       // Check if terms acceptance is required (new user)
@@ -421,6 +517,96 @@ function LPLoginPageContent() {
                 </>
               ) : (
                 'Accept and Continue'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MFA Verification Dialog */}
+      <Dialog open={showMfaDialog} onOpenChange={(open) => {
+        if (!open && !isVerifyingMfa) {
+          setShowMfaDialog(false)
+          setMfaCode('')
+          setMfaData(null)
+          setErrorMessage('')
+        }
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Two-Factor Authentication
+            </DialogTitle>
+            <DialogDescription>
+              Enter the 6-digit code from your authenticator app to continue.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="mfaCode">Authentication Code</Label>
+              <Input
+                id="mfaCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={mfaCode}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '')
+                  setMfaCode(value)
+                  setErrorMessage('')
+                }}
+                placeholder="000000"
+                className="text-center text-2xl tracking-widest font-mono"
+                autoFocus
+                disabled={isVerifyingMfa}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && mfaCode.length === 6) {
+                    handleMfaVerify()
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground text-center">
+                Enter the code shown in your authenticator app (Google Authenticator, Authy, etc.)
+              </p>
+            </div>
+
+            {errorMessage && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowMfaDialog(false)
+                setMfaCode('')
+                setMfaData(null)
+                setErrorMessage('')
+              }}
+              disabled={isVerifyingMfa}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleMfaVerify}
+              disabled={isVerifyingMfa || mfaCode.length !== 6}
+              className="w-full sm:w-auto"
+            >
+              {isVerifyingMfa ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Verifying...
+                </>
+              ) : (
+                'Verify'
               )}
             </Button>
           </DialogFooter>
