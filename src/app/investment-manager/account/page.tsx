@@ -20,6 +20,9 @@ import { API_CONFIG, getApiUrl } from '@/lib/api-config'
 import { getAuthToken, updateUserProfile, getSupabaseAuth, getCurrentUser, logout } from '@/lib/auth-storage'
 import { Suspense } from 'react'
 
+// Determine chain based on Crossmint environment
+const CROSSMINT_CHAIN = process.env.NEXT_PUBLIC_CROSSMINT_ENVIRONMENT === 'production' ? 'polygon' : 'polygon-amoy'
+
 function AccountPageContent() {
   const [showSuccess, setShowSuccess] = useState(false)
   const { userData, updateUserData } = useUser()
@@ -378,17 +381,16 @@ function AccountPageContent() {
         return
       }
 
-      // Build token locator - use the chain from the token data
-      const chainKey = Object.keys(selectedToken?.chains || {})[0] || 'polygon'
-      const chainData = selectedToken?.chains?.[chainKey]
+      // Build token locator using dynamic chain based on environment
+      const chainData = selectedToken?.chains?.[CROSSMINT_CHAIN]
       let tokenLocator = ''
 
       if (chainData?.contractAddress) {
         // Custom token with contract address
-        tokenLocator = `${chainKey}:${chainData.contractAddress}`
+        tokenLocator = `${CROSSMINT_CHAIN}:${chainData.contractAddress}`
       } else {
         // Native token (pol, matic, usdc)
-        tokenLocator = `${chainKey}:${selectedToken.symbol?.toLowerCase()}`
+        tokenLocator = `${CROSSMINT_CHAIN}:${selectedToken.symbol?.toLowerCase()}`
       }
 
       const response = await fetch(getApiUrl(API_CONFIG.endpoints.transferTokens), {
@@ -802,9 +804,8 @@ function AccountPageContent() {
                       return sortedBalances.length > 0 ? (
                         <div className="space-y-2">
                           {sortedBalances.map((balance, index) => {
-                            // Get contract address from chains data
-                            const chainKey = Object.keys(balance.chains || {})[0] || 'polygon'
-                            const chainData = balance.chains?.[chainKey]
+                            // Get contract address from chains data using environment-based chain
+                            const chainData = balance.chains?.[CROSSMINT_CHAIN]
                             const contractAddress = chainData?.contractAddress
 
                             return (

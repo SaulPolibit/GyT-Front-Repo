@@ -16,6 +16,9 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { logout } from "@/lib/auth-storage"
 
+// Determine chain based on Crossmint environment
+const CROSSMINT_CHAIN = process.env.NEXT_PUBLIC_CROSSMINT_ENVIRONMENT === 'production' ? 'polygon' : 'polygon-amoy'
+
 export default function AccountPage() {
   const router = useRouter()
   const [loading, setLoading] = React.useState(true)
@@ -458,16 +461,16 @@ export default function AccountPage() {
         return
       }
 
-      // Build token locator
-      const chainData = selectedToken?.chains?.['polygon-amoy']
+      // Build token locator using dynamic chain
+      const chainData = selectedToken?.chains?.[CROSSMINT_CHAIN]
       let tokenLocator = ''
 
       if (chainData?.contractAddress) {
         // Custom token with contract address
-        tokenLocator = `polygon-amoy:${chainData.contractAddress}`
+        tokenLocator = `${CROSSMINT_CHAIN}:${chainData.contractAddress}`
       } else {
         // Native token (pol, matic, usdc)
-        tokenLocator = `polygon-amoy:${selectedToken.symbol?.toLowerCase()}`
+        tokenLocator = `${CROSSMINT_CHAIN}:${selectedToken.symbol?.toLowerCase()}`
       }
 
       const response = await fetch(getApiUrl(API_CONFIG.endpoints.transferTokens), {
@@ -667,7 +670,8 @@ export default function AccountPage() {
             </CardContent>
           </Card> */}
 
-          <Card>
+          {/* Change Password Card - hidden for Prospera OAuth users */}
+          {/* <Card>
             <CardHeader>
               <CardTitle>Change Password</CardTitle>
               <CardDescription>
@@ -716,7 +720,7 @@ export default function AccountPage() {
                 Change Password
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
 
@@ -792,8 +796,8 @@ export default function AccountPage() {
                     return sortedBalances.length > 0 ? (
                       <div className="space-y-2">
                         {sortedBalances.map((balance, index) => {
-                          // Get contract address from chains data
-                          const chainData = balance.chains?.['polygon-amoy']
+                          // Get contract address from chains data using environment-based chain
+                          const chainData = balance.chains?.[CROSSMINT_CHAIN]
                           const contractAddress = chainData?.contractAddress
 
                           return (
