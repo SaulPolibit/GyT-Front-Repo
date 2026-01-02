@@ -40,6 +40,7 @@ import { toast } from "sonner"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { sendInvestorActivityEmail } from "@/lib/email-service"
 import { getNotificationSettings, saveNotificationSettings } from "@/lib/notification-settings-storage"
+import { getFirmSettings } from "@/lib/firm-settings-storage"
 
 export default function LPSettingsPage() {
   const router = useRouter()
@@ -492,8 +493,8 @@ export default function LPSettingsPage() {
                 activityType: 'Multi-Factor Authentication Disabled',
                 activityDescription: 'Two-factor authentication (2FA) has been disabled on your account. If you did not make this change, please contact support immediately to secure your account.',
                 date: currentDate,
-                fundManagerName: 'Polibit Security Team',
-                fundManagerEmail: 'security@polibit.com',
+                fundManagerName: `${getFirmSettings().firmName || 'Security'} Team`,
+                fundManagerEmail: getFirmSettings().firmEmail || 'security@example.com',
               }
             )
           } catch (emailError) {
@@ -595,8 +596,8 @@ export default function LPSettingsPage() {
                 activityType: 'Multi-Factor Authentication Enabled',
                 activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
                 date: currentDate,
-                fundManagerName: 'Polibit Security Team',
-                fundManagerEmail: 'security@polibit.com',
+                fundManagerName: `${getFirmSettings().firmName || 'Security'} Team`,
+                fundManagerEmail: getFirmSettings().firmEmail || 'security@example.com',
               }
             )
           } catch (emailError) {
@@ -727,8 +728,8 @@ export default function LPSettingsPage() {
                 activityType: 'Multi-Factor Authentication Enabled',
                 activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
                 date: currentDate,
-                fundManagerName: 'Polibit Security Team',
-                fundManagerEmail: 'security@polibit.com',
+                fundManagerName: `${getFirmSettings().firmName || 'Security'} Team`,
+                fundManagerEmail: getFirmSettings().firmEmail || 'security@example.com',
               }
             )
           } catch (emailError) {
@@ -810,8 +811,8 @@ export default function LPSettingsPage() {
               activityType: 'Profile Settings Updated',
               activityDescription: 'Your profile settings have been successfully updated. The following information was modified: contact details and address information.',
               date: currentDate,
-              fundManagerName: 'Polibit Team',
-              fundManagerEmail: 'support@polibit.com',
+              fundManagerName: `${getFirmSettings().firmName || 'Support'} Team`,
+              fundManagerEmail: getFirmSettings().firmEmail || 'support@example.com',
             }
           )
         } catch (emailError) {

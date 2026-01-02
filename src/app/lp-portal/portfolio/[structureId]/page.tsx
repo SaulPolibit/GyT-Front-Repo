@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { getApiUrl } from "@/lib/api-config"
 import { getAuthToken, logout } from "@/lib/auth-storage"
+import { getFirmSettings } from "@/lib/firm-settings-storage"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -711,9 +712,11 @@ export default function StructureDataRoomPage({ params }: Props) {
                   <div className="space-y-2 text-sm">
                     <p>For questions or assistance, please contact:</p>
                     <div className="p-3 bg-muted rounded-md">
-                      <p className="font-medium">Polibit Investment Management</p>
-                      <p className="text-muted-foreground">Email: investors@polibit.io</p>
-                      <p className="text-muted-foreground">Phone: +1 (555) 123-4567</p>
+                      <p className="font-medium">{getFirmSettings().firmName || 'Investment Manager'}</p>
+                      <p className="text-muted-foreground">Email: {getFirmSettings().firmEmail || 'support@example.com'}</p>
+                      {getFirmSettings().firmPhone && (
+                        <p className="text-muted-foreground">Phone: {getFirmSettings().firmPhone}</p>
+                      )}
                     </div>
                   </div>
                 </div>

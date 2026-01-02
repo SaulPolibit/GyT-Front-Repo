@@ -24,6 +24,7 @@ interface CustomReportData {
     totalDistributions: number
     totalUnrealizedGains: number
   }
+  firmName?: string
 }
 
 export async function generateCustomPDF(data: CustomReportData): Promise<Buffer> {
@@ -95,7 +96,7 @@ function addCoverPage(doc: PDFKit.PDFDocument, data: CustomReportData) {
 
   doc.fontSize(10)
      .fillColor('#999999')
-     .text('Polibit Investment Manager', 50, 700, { align: 'center', width: 512 })
+     .text(data.firmName || 'Investment Manager', 50, 700, { align: 'center', width: 512 })
 }
 
 function addPortfolioSummary(doc: PDFKit.PDFDocument, data: CustomReportData) {

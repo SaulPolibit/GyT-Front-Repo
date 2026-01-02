@@ -24,11 +24,12 @@ interface CustomReportData {
     totalDistributions: number
     totalUnrealizedGains: number
   }
+  firmName?: string
 }
 
 export async function generateCustomExcel(data: CustomReportData): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'Polibit Investment Manager'
+  workbook.creator = data.firmName || 'Investment Manager'
   workbook.created = new Date()
 
   // Summary Sheet (always included)

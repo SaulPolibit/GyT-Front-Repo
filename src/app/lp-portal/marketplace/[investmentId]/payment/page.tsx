@@ -33,6 +33,7 @@ import { getCurrentInvestorEmail, getInvestorByEmail } from "@/lib/lp-portal-hel
 import { createInvestmentSubscription, updateInvestmentSubscriptionStatus } from "@/lib/investment-subscriptions-storage"
 import { addFundOwnershipToInvestor } from "@/lib/investors-storage"
 import type { Investment } from "@/lib/types"
+import { getFirmSettings } from "@/lib/firm-settings-storage"
 import { useToast } from "@/hooks/use-toast"
 
 interface Props {
@@ -427,7 +428,7 @@ export default function PaymentPage({ params }: Props) {
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                     <p className="text-sm font-semibold text-amber-900 mb-2">Bank Details</p>
                     <div className="space-y-1 text-sm text-amber-800">
-                      <p><strong>Account Name:</strong> Polibit Investment Fund</p>
+                      <p><strong>Account Name:</strong> {getFirmSettings().firmName || 'Investment Fund'}</p>
                       <p><strong>Account Number:</strong> ••••••••5432</p>
                       <p><strong>Routing Number:</strong> 021000021</p>
                       <p><strong>Amount:</strong> ${amount}</p>

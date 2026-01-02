@@ -43,6 +43,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
 import { getNotificationSettings } from "@/lib/notification-settings-storage"
 import { sendPaymentCreatedNotificationEmail } from "@/lib/email-service"
+import { getFirmSettings } from "@/lib/firm-settings-storage"
 
 interface Props {
   params: Promise<{ structureId: string }>
@@ -706,8 +707,8 @@ export default function PaymentPage({ params }: Props) {
                         paymentDate: currentDate,
                         paymentReference: data.data?.id || `PAY-${Date.now()}`,
                         structureName: structure?.name || 'N/A',
-                        fundManagerName: 'Polibit Team',
-                        fundManagerEmail: 'support@polibit.com',
+                        fundManagerName: `${getFirmSettings().firmName || 'Support'} Team`,
+                        fundManagerEmail: getFirmSettings().firmEmail || 'support@example.com',
                         additionalDetails: `Mint Hash: ${mintTransactionHash}\nPayment Transaction Hash: ${txHash}\nYour payment is being processed and will be reviewed by our team.`
                       }
                     )
