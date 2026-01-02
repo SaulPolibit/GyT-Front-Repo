@@ -7,6 +7,8 @@ Guidance for Claude Code when working with this repository.
 **IMPORTANT - Commit Behavior:**
 - **NEVER create git commits automatically** unless the user explicitly requests it
 - **NEVER push to remote** unless the user explicitly asks for it
+- **NEVER add files to staged area** unless the user explicitly requests it
+- When asked to "commit staged changes", ONLY commit what is already staged - do not stage additional files
 - Only make code changes and leave git operations to the user
 - If the user wants commits, they will explicitly say "create a commit" or "commit these changes"
 - Focus on code changes only - the user manages version control
