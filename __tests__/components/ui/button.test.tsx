@@ -1,6 +1,6 @@
 import { render, screen } from '@/test-utils'
 import userEvent from '@testing-library/user-event'
-import { Button } from '../button'
+import { Button } from '@/components/ui/button'
 
 describe('Button Component', () => {
   it('renders with default variant and size', () => {

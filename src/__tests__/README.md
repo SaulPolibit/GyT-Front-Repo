@@ -1,18 +1,32 @@
 # Testing Guide
 
-This directory contains tests for the Polibit application.
+This directory contains test utilities for the Polibit application.
 
 ## Test Structure
 
+All tests are located in the `__tests__/` directory at the project root:
+
 ```
-src/
-├── __tests__/                    # Integration and page tests
-├── components/
+__tests__/
+├── app/                         # App page tests
+│   ├── page.test.tsx
+│   ├── sign-up/
+│   │   └── page.test.tsx
+│   └── lp-portal/
+│       ├── page.test.tsx
+│       ├── search/
+│       │   └── page.test.tsx
+│       └── support/
+│           └── page.test.tsx
+├── components/                  # Component tests
 │   └── ui/
-│       └── __tests__/           # UI component tests
-├── lib/
-│   └── __tests__/               # Library and utility tests
-└── test-utils/                   # Testing utilities and helpers
+│       └── button.test.tsx
+└── lib/                        # Library and utility tests
+    ├── utils.test.ts
+    └── investment-calculations.test.ts
+
+src/
+└── test-utils/                 # Testing utilities and helpers
 ```
 
 ## Running Tests

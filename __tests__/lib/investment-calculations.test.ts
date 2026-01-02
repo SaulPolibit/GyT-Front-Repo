@@ -8,7 +8,7 @@ import {
   adjustAUMForTransactions,
   calculatePortfolioIRR,
   type Investment,
-} from '../investment-calculations'
+} from '@/lib/investment-calculations'
 
 describe('Investment Calculations', () => {
   const mockInvestment: Investment = {

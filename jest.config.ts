@@ -26,7 +26,6 @@ const config: Config = {
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
     '!src/**/*.stories.{js,jsx,ts,tsx}',
-    '!src/**/__tests__/**',
   ],
   moduleDirectories: ['node_modules', '<rootDir>/'],
   transformIgnorePatterns: [

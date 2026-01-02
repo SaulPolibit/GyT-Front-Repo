@@ -73,7 +73,7 @@ npm run test:coverage
 ## Example Tests Created
 
 ### 1. UI Component Test
-`src/components/ui/__tests__/button.test.tsx`
+`__tests__/components/ui/button.test.tsx`
 
 Tests the Button component:
 - Different variants (default, destructive, outline, etc.)
@@ -85,7 +85,7 @@ Tests the Button component:
 - Type attribute
 
 ### 2. Business Logic Test
-`src/lib/__tests__/investment-calculations.test.ts`
+`__tests__/lib/investment-calculations.test.ts`
 
 Tests investment calculation functions:
 - `calculateValueAtDate()` - IRR-based value calculation
@@ -98,7 +98,7 @@ Tests investment calculation functions:
 - `calculatePortfolioIRR()` - Portfolio-level IRR
 
 ### 3. Utility Test
-`src/lib/__tests__/utils.test.ts`
+`__tests__/lib/utils.test.ts`
 
 Tests the `cn()` className merger utility:
 - Basic class merging
@@ -152,21 +152,20 @@ describe('yourFunction', () => {
 
 ## Test File Naming
 
-Tests should be placed in `__tests__` directories:
+All tests are located in a single `__tests__` directory at the project root, mirroring the source structure:
 
 ```
-src/
+__tests__/
+├── app/
+│   ├── page.test.tsx           # Tests src/app/page.tsx
+│   └── sign-up/
+│       └── page.test.tsx       # Tests src/app/sign-up/page.tsx
 ├── components/
 │   └── ui/
-│       ├── button.tsx
-│       └── __tests__/
-│           └── button.test.tsx
-├── lib/
-│   ├── utils.ts
-│   └── __tests__/
-│       └── utils.test.ts
-└── app/
-    └── page.tsx (create tests in src/__tests__/ for pages)
+│       └── button.test.tsx     # Tests src/components/ui/button.tsx
+└── lib/
+    ├── utils.test.ts           # Tests src/lib/utils.ts
+    └── investment-calculations.test.ts
 ```
 
 ## Testing Best Practices
