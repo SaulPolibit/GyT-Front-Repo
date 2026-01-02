@@ -10,14 +10,15 @@ interface ExcelGeneratorOptions {
   report: Report
   investments: Investment[]
   investors: Investor[]
+  firmName?: string
 }
 
 export async function generateReportExcel(options: ExcelGeneratorOptions): Promise<Buffer> {
-  const { report, investments, investors } = options
+  const { report, investments, investors, firmName = 'Investment Manager' } = options
 
   const workbook = new ExcelJS.Workbook()
 
-  workbook.creator = 'Polibit Investment Manager'
+  workbook.creator = firmName
   workbook.created = new Date()
   workbook.modified = new Date()
   workbook.properties.date1904 = false
@@ -26,7 +27,7 @@ export async function generateReportExcel(options: ExcelGeneratorOptions): Promi
   const fundId = (report as any).fundId || ''
 
   // Create sheets
-  addSummarySheet(workbook, report)
+  addSummarySheet(workbook, report, firmName)
   addInvestmentsSheet(workbook, report, investments)
 
   if (investors.length > 0) {
@@ -41,7 +42,7 @@ export async function generateReportExcel(options: ExcelGeneratorOptions): Promi
   return Buffer.from(buffer)
 }
 
-function addSummarySheet(workbook: ExcelJS.Workbook, report: Report) {
+function addSummarySheet(workbook: ExcelJS.Workbook, report: Report, firmName: string) {
   const sheet = workbook.addWorksheet('Summary', {
     properties: { tabColor: { argb: 'FF6b21a8' } }
   })
@@ -56,7 +57,7 @@ function addSummarySheet(workbook: ExcelJS.Workbook, report: Report) {
   // Header
   sheet.mergeCells('A1:D1')
   const headerCell = sheet.getCell('A1')
-  headerCell.value = 'Polibit Investment Manager'
+  headerCell.value = firmName
   headerCell.font = { size: 18, bold: true, color: { argb: 'FF6b21a8' } }
   headerCell.alignment = { horizontal: 'center', vertical: 'middle' }
   sheet.getRow(1).height = 30

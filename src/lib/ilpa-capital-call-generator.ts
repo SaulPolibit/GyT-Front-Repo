@@ -2,13 +2,13 @@ import ExcelJS from 'exceljs'
 import type { CapitalCall } from './types'
 import { getStructureById } from './structures-storage'
 
-export async function generateILPACapitalCallTemplate(capitalCall: CapitalCall): Promise<Buffer> {
+export async function generateILPACapitalCallTemplate(capitalCall: CapitalCall, firmName: string = 'Investment Manager'): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
 
-  workbook.creator = 'Polibit'
+  workbook.creator = firmName
   workbook.created = new Date()
   workbook.modified = new Date()
-  workbook.lastModifiedBy = 'Polibit'
+  workbook.lastModifiedBy = firmName
 
   const fund = getStructureById(capitalCall.fundId)
   if (!fund) {
