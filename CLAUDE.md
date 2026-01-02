@@ -2,6 +2,15 @@
 
 Guidance for Claude Code when working with this repository.
 
+## Git & Version Control Policy
+
+**IMPORTANT - Commit Behavior:**
+- **NEVER create git commits automatically** unless the user explicitly requests it
+- **NEVER push to remote** unless the user explicitly asks for it
+- Only make code changes and leave git operations to the user
+- If the user wants commits, they will explicitly say "create a commit" or "commit these changes"
+- Focus on code changes only - the user manages version control
+
 ## Project Overview
 
 Polibit: Next.js investment management platform for real estate, private equity, and private debt. Dual-purpose: marketing website + comprehensive fund administration platform.
