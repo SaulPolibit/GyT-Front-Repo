@@ -382,10 +382,6 @@ export default function MarketplaceStructureDetailPage({ params }: Props) {
           </div>
           <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">{structure.name}</h1>
-            <p className="text-muted-foreground flex items-center gap-2 mt-2">
-              <Building2 className="h-4 w-4" />
-              {structure.type} - {structure.jurisdiction}
-            </p>
           </div>
         </div>
         <Badge variant={getStatusBadgeVariant(structure.status)} className="text-base px-3 py-1">
