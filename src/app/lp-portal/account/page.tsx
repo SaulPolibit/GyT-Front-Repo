@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Camera, Save, Wallet, Copy, CheckCircle2, Send, AlertTriangle, Loader2, ShieldCheck } from "lucide-react"
 import { getCurrentUser, getAuthToken, updateUserProfile, getSupabaseAuth } from "@/lib/auth-storage"
+import { getFirmSettings } from "@/lib/firm-settings-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -614,9 +615,12 @@ export default function AccountPage() {
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="john@example.com"
+                readOnly
+                className="bg-muted"
               />
+              <p className="text-xs text-muted-foreground">
+                To change your email, please contact support at {getFirmSettings().firmEmail || 'support'}
+              </p>
             </div>
 
             <div className="space-y-2">
