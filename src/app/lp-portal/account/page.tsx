@@ -619,7 +619,7 @@ export default function AccountPage() {
                 className="bg-muted"
               />
               <p className="text-xs text-muted-foreground">
-                To change your email, please contact support at {getFirmSettings().firmEmail || 'support'}
+                To change your email, please contact support
               </p>
             </div>
 
