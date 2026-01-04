@@ -1006,7 +1006,9 @@ export default function ApprovalsPage() {
                 {selectedPayment.walletAddress && (
                   <div>
                     <Label className="text-xs text-muted-foreground">Wallet Address</Label>
-                    <p className="font-semibold text-xs font-mono">{selectedPayment.walletAddress}</p>
+                    <p className="text-sm font-mono bg-muted p-2 rounded break-all mt-1">
+                      {selectedPayment.walletAddress}
+                    </p>
                   </div>
                 )}
                 <div>
