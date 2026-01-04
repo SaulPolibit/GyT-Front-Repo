@@ -15,7 +15,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { IconPlus } from "@tabler/icons-react"
 import { getDashboardConfig, removeWidget, reorderWidgets, type DashboardWidget } from "@/lib/dashboard-storage"
 import { calculateMetric, type DashboardData } from "@/lib/metric-calculations"
-import { getStructures } from "@/lib/structures-storage"
 import { ComparisonTable } from "@/components/comparison-table"
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
 import { getAuthState, logout } from '@/lib/auth-storage'
@@ -44,22 +43,8 @@ export default function Page() {
         const token = authState.token
 
         if (!token) {
-          console.warn('No auth token found, using localStorage as fallback')
-          // Fallback to localStorage
-          const localStructures = getStructures()
-          setStructures(localStructures)
-          const transformedData = localStructures
-            .filter((s: any) => s.status === 'active')
-            .map((structure: any, index: number) => ({
-              id: index + 1,
-              header: structure.name || `Fund ${index + 1}`,
-              type: structure.type === 'fund' ? 'Fund' : structure.type === 'sa' ? 'SA/LLC' : structure.type === 'trust' ? 'Trust' : 'SPV',
-              status: 'Active',
-              target: `$${(structure.currentNav || structure.totalCommitment || 0).toLocaleString()}`,
-              limit: `$${(structure.totalCommitment || 0).toLocaleString()}`,
-              irr: `${structure.performance?.irr || 0}%`,
-            }))
-          setData(transformedData)
+          console.warn('No auth token found - redirecting to login')
+          router.push('/sign-in')
           return
         }
 
@@ -74,13 +59,15 @@ export default function Page() {
           investmentsRes,
           investorsRes,
           capitalCallsRes,
-          distributionsRes
+          distributionsRes,
+          paymentsRes
         ] = await Promise.all([
           fetch(getApiUrl(API_CONFIG.endpoints.getAllStructures), { headers }),
           fetch(getApiUrl(API_CONFIG.endpoints.getAllInvestments), { headers }),
           fetch(getApiUrl(API_CONFIG.endpoints.getAllInvestors), { headers }),
           fetch(getApiUrl(API_CONFIG.endpoints.getAllCapitalCalls), { headers }),
-          fetch(getApiUrl(API_CONFIG.endpoints.getAllDistributions), { headers })
+          fetch(getApiUrl(API_CONFIG.endpoints.getAllDistributions), { headers }),
+          fetch(getApiUrl(API_CONFIG.endpoints.getAllPayments), { headers })
         ])
 
         // Handle 401 Unauthorized for structures endpoint
@@ -163,11 +150,28 @@ export default function Page() {
           }
         }
 
+        // Handle 401 Unauthorized for payments endpoint
+        if (paymentsRes.status === 401) {
+          // Check if it's an expired token error
+          try {
+            const errorData = await paymentsRes.json()
+            if (errorData.error === "Invalid or expired token") {
+              console.log('[Dashboard] 401 Unauthorized - clearing session and redirecting to login')
+              logout()
+              router.push('/sign-in')
+              return
+            }
+          } catch (e) {
+            console.log('Error: ', e)
+          }
+        }
+
         const structuresData = structuresRes.ok ? (await structuresRes.json()).data || [] : []
         const investmentsData = investmentsRes.ok ? (await investmentsRes.json()).data || [] : []
         const investorsData = investorsRes.ok ? (await investorsRes.json()).data || [] : []
         const capitalCallsData = capitalCallsRes.ok ? (await capitalCallsRes.json()).data || [] : []
         const distributionsData = distributionsRes.ok ? (await distributionsRes.json()).data || [] : []
+        const paymentsData = paymentsRes.ok ? (await paymentsRes.json()).data || [] : []
 
         // Store API data for metric calculations
         setDashboardData({
@@ -175,7 +179,8 @@ export default function Page() {
           investments: investmentsData,
           investors: investorsData,
           capitalCalls: capitalCallsData,
-          distributions: distributionsData
+          distributions: distributionsData,
+          payments: paymentsData
         })
 
         // Store structures for filter dropdown
@@ -196,22 +201,7 @@ export default function Page() {
         setData(transformedData)
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
-        toast.error('Failed to load dashboard data')
-        // Fallback to localStorage
-        const localStructures = getStructures()
-        setStructures(localStructures)
-        const transformedData = localStructures
-          .filter((s: any) => s.status === 'active')
-          .map((structure: any, index: number) => ({
-            id: index + 1,
-            header: structure.name || `Fund ${index + 1}`,
-            type: structure.type === 'fund' ? 'Fund' : structure.type === 'sa' ? 'SA/LLC' : structure.type === 'trust' ? 'Trust' : 'SPV',
-            status: 'Active',
-            target: `$${(structure.currentNav || structure.totalCommitment || 0).toLocaleString()}`,
-            limit: `$${(structure.totalCommitment || 0).toLocaleString()}`,
-            irr: `${structure.performance?.irr || 0}%`,
-          }))
-        setData(transformedData)
+        toast.error('Failed to load dashboard data. Please try again.')
       }
     }
 

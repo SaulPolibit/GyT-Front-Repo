@@ -1,12 +1,12 @@
-import { IconTrendingUp, IconTrendingDown, IconWallet, IconCash, IconChartLine, IconUsers, IconBuilding, IconTable } from '@tabler/icons-react'
+import { IconTrendingUp, IconTrendingDown, IconWallet, IconCash, IconChartLine, IconUsers, IconBuilding, IconTable, IconShoppingCart, IconCoin, IconClock } from '@tabler/icons-react'
 
 export interface MetricTemplate {
   id: string
   title: string
   description: string
   icon: any
-  category: 'portfolio' | 'capital' | 'performance' | 'investors' | 'comparison'
-  dataSource: 'investments' | 'structures' | 'investors' | 'capitalCalls' | 'distributions' | 'nav'
+  category: 'portfolio' | 'capital' | 'performance' | 'investors' | 'comparison' | 'marketplace'
+  dataSource: 'investments' | 'structures' | 'investors' | 'capitalCalls' | 'distributions' | 'nav' | 'payments'
   calculation: string // Description of how the metric is calculated
   isComparison?: boolean // Special flag for comparison widgets
 }
@@ -132,6 +132,43 @@ export const metricTemplates: MetricTemplate[] = [
     calculation: 'COMPARE_ALL(structures)',
     isComparison: true,
   },
+  // Marketplace Metrics
+  {
+    id: 'total-marketplace-investments',
+    title: 'Total Marketplace Investments',
+    description: 'Sum of all approved marketplace payments',
+    icon: IconShoppingCart,
+    category: 'marketplace',
+    dataSource: 'payments',
+    calculation: 'SUM(payments.amount WHERE status = "approved")',
+  },
+  {
+    id: 'pending-investments',
+    title: 'Pending Investments',
+    description: 'Sum of pending marketplace payments awaiting approval',
+    icon: IconClock,
+    category: 'marketplace',
+    dataSource: 'payments',
+    calculation: 'SUM(payments.amount WHERE status = "pending")',
+  },
+  {
+    id: 'marketplace-investors',
+    title: 'Marketplace Investors',
+    description: 'Unique investors from marketplace purchases',
+    icon: IconUsers,
+    category: 'marketplace',
+    dataSource: 'payments',
+    calculation: 'COUNT(DISTINCT payments.userId WHERE status = "approved")',
+  },
+  {
+    id: 'tokens-issued',
+    title: 'Tokens Issued',
+    description: 'Total tokens minted from approved payments',
+    icon: IconCoin,
+    category: 'marketplace',
+    dataSource: 'payments',
+    calculation: 'SUM(payments.tokens WHERE status = "approved")',
+  },
 ]
 
 export const metricCategories = [
@@ -140,6 +177,7 @@ export const metricCategories = [
   { id: 'capital', name: 'Capital', count: metricTemplates.filter(m => m.category === 'capital').length },
   { id: 'performance', name: 'Performance', count: metricTemplates.filter(m => m.category === 'performance').length },
   { id: 'investors', name: 'Investors', count: metricTemplates.filter(m => m.category === 'investors').length },
+  { id: 'marketplace', name: 'Marketplace', count: metricTemplates.filter(m => m.category === 'marketplace').length },
   { id: 'comparison', name: 'Comparison', count: metricTemplates.filter(m => m.category === 'comparison').length },
 ]
 

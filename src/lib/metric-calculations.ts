@@ -1,9 +1,3 @@
-import { getStructures } from './structures-storage'
-import { getInvestments } from './investments-storage'
-import { getInvestors } from './investors-storage'
-import { getCapitalCalls } from './capital-calls-storage'
-import { getDistributions } from './distributions-storage'
-
 export interface CalculatedMetric {
   value: string
   badge?: string
@@ -17,6 +11,7 @@ export interface DashboardData {
   investors?: any[]
   capitalCalls?: any[]
   distributions?: any[]
+  payments?: any[]
 }
 
 // Helper to format currency
@@ -39,12 +34,13 @@ function formatPercentage(value: number): string {
 }
 
 export function calculateMetric(metricId: string, structureId?: string, dashboardData?: DashboardData): CalculatedMetric {
-  // Use provided data if available, otherwise fallback to localStorage
-  const structures = dashboardData?.structures ?? getStructures()
-  const allInvestments = dashboardData?.investments ?? getInvestments()
-  const allInvestors = dashboardData?.investors ?? getInvestors()
-  const allCapitalCalls = dashboardData?.capitalCalls ?? getCapitalCalls()
-  const allDistributions = dashboardData?.distributions ?? getDistributions()
+  // Use provided data from API - no localStorage fallback
+  const structures = dashboardData?.structures ?? []
+  const allInvestments = dashboardData?.investments ?? []
+  const allInvestors = dashboardData?.investors ?? []
+  const allCapitalCalls = dashboardData?.capitalCalls ?? []
+  const allDistributions = dashboardData?.distributions ?? []
+  const allPayments = dashboardData?.payments ?? []
 
   // Filter by structure if specified
   const investments = structureId && structureId !== 'all'
@@ -64,6 +60,10 @@ export function calculateMetric(metricId: string, structureId?: string, dashboar
   const distributions = structureId && structureId !== 'all'
     ? allDistributions.filter(dist => dist.fundId === structureId)
     : allDistributions
+
+  const payments = structureId && structureId !== 'all'
+    ? allPayments.filter(payment => payment.structureId === structureId)
+    : allPayments
 
   switch (metricId) {
     case 'total-investment-value': {
@@ -295,6 +295,56 @@ export function calculateMetric(metricId: string, structureId?: string, dashboar
         badge: `${uncalledPercent.toFixed(0)}%`,
         trend: 'neutral',
         description: 'Remaining commitment',
+      }
+    }
+
+    // Marketplace Metrics
+    case 'total-marketplace-investments': {
+      const approvedPayments = payments.filter(p => p.status === 'approved')
+      const total = approvedPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+      const count = approvedPayments.length
+
+      return {
+        value: formatCurrency(total),
+        badge: `${count} txns`,
+        trend: 'up',
+        description: 'Approved marketplace investments',
+      }
+    }
+
+    case 'pending-investments': {
+      const pendingPayments = payments.filter(p => p.status === 'pending')
+      const total = pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+      const count = pendingPayments.length
+
+      return {
+        value: formatCurrency(total),
+        badge: `${count} pending`,
+        trend: count > 0 ? 'neutral' : 'up',
+        description: 'Awaiting approval',
+      }
+    }
+
+    case 'marketplace-investors': {
+      const approvedPayments = payments.filter(p => p.status === 'approved')
+      const uniqueInvestors = new Set(approvedPayments.map(p => p.userId).filter(Boolean))
+      const count = uniqueInvestors.size
+
+      return {
+        value: count.toString(),
+        description: 'Unique marketplace investors',
+      }
+    }
+
+    case 'tokens-issued': {
+      const approvedPayments = payments.filter(p => p.status === 'approved')
+      const total = approvedPayments.reduce((sum, p) => sum + (p.tokens || 0), 0)
+
+      return {
+        value: total.toLocaleString(),
+        badge: 'Tokens',
+        trend: 'up',
+        description: 'Total tokens minted',
       }
     }
 
