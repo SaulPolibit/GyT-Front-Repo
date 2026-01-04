@@ -71,11 +71,12 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
   }, [])
 
   const isRootUser = currentUser?.role === 0
+  const isAdminOrRoot = currentUser?.role === 0 || currentUser?.role === 1
 
   const data = {
     navMain: [
-      // Dashboard - root only
-      ...(isRootUser ? [{
+      // Dashboard - root and admin
+      ...(isAdminOrRoot ? [{
         title: t.nav.dashboard,
         url: "/investment-manager",
         icon: LayoutDashboard,
