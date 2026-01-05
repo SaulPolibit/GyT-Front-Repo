@@ -2,6 +2,7 @@
 
 > Modern investment management platform for real estate, private equity, and private debt funds. Built with Next.js 15, TypeScript, and shadcn/ui.
 
+
 ## 🚀 Overview
 
 Polibit is an institutional-grade investment management platform that streamlines real estate, equity, and debt investments with digital workflows. The platform reduces costs, improves transparency, and scales across global markets.
