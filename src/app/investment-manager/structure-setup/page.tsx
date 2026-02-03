@@ -23,7 +23,7 @@ import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useTranslation } from '@/hooks/useTranslation'
-import { saveStructure, getStructures, Structure } from '@/lib/structures-storage'
+import { saveStructure, getStructures, Structure, deleteStructure } from '@/lib/structures-storage'
 import { saveInvestor, getInvestors } from '@/lib/investors-storage'
 import { useRouter } from 'next/navigation'
 import { getVisibilitySettings } from '@/lib/visibility-storage'
@@ -1664,15 +1664,19 @@ export default function OnboardingPage() {
           const errorData = await waterfallResponse.json().catch(() => ({}))
           console.error('[Waterfall Tiers] Failed to create:', errorData)
 
-          // Rollback: Delete created structure
+          // Rollback: Delete created structure from both API and localStorage
           console.log('[Rollback] Deleting structure due to waterfall failure:', structureId)
           try {
+            // Delete from API
             await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
               method: 'DELETE',
               headers: {
                 'Authorization': `Bearer ${authToken}`
               }
             })
+            // Delete from localStorage
+            await deleteStructure(structureId)
+            console.log('[Rollback] Successfully deleted structure from both API and localStorage')
           } catch (rollbackError) {
             console.error('[Rollback] Failed to delete structure:', rollbackError)
           }
@@ -1731,16 +1735,19 @@ export default function OnboardingPage() {
               const errorData = await capitalCallResponse.json()
               console.error(`[Capital Call ${index + 1}] Failed:`, errorData)
 
-              // Rollback: Delete structure and waterfalls
+              // Rollback: Delete structure and waterfalls from both API and localStorage
               console.log('[Rollback] Deleting structure and waterfalls due to capital call failure')
               try {
-                // Delete structure (this should cascade delete waterfalls)
+                // Delete structure from API (this should cascade delete waterfalls)
                 await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
                   method: 'DELETE',
                   headers: {
                     'Authorization': `Bearer ${authToken}`
                   }
                 })
+                // Delete from localStorage
+                await deleteStructure(structureId)
+                console.log('[Rollback] Successfully deleted structure from both API and localStorage')
               } catch (rollbackError) {
                 console.error('[Rollback] Failed to delete structure:', rollbackError)
               }
@@ -1758,15 +1765,19 @@ export default function OnboardingPage() {
           } catch (error) {
             console.error(`[Capital Call ${index + 1}] Error:`, error)
 
-            // Rollback: Delete structure and waterfalls
+            // Rollback: Delete structure and waterfalls from both API and localStorage
             console.log('[Rollback] Deleting structure and waterfalls due to capital call error')
             try {
+              // Delete from API
               await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${authToken}`
                 }
               })
+              // Delete from localStorage
+              await deleteStructure(structureId)
+              console.log('[Rollback] Successfully deleted structure from both API and localStorage')
             } catch (rollbackError) {
               console.error('[Rollback] Failed to delete structure:', rollbackError)
             }
@@ -1838,16 +1849,19 @@ export default function OnboardingPage() {
         const errorData = await blockchainResponse.json().catch(() => ({}))
         console.error('[Blockchain] Error response:', errorData)
 
-        // Rollback: Delete structure, waterfalls, and capital calls
+        // Rollback: Delete structure, waterfalls, and capital calls from both API and localStorage
         console.log('[Rollback] Deleting structure, waterfalls, and capital calls due to blockchain failure')
         try {
-          // Delete structure (this should cascade delete waterfalls and capital calls)
+          // Delete structure from API (this should cascade delete waterfalls and capital calls)
           await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${authToken}`
             }
           })
+          // Delete from localStorage
+          await deleteStructure(structureId)
+          console.log('[Rollback] Successfully deleted structure from both API and localStorage')
         } catch (rollbackError) {
           console.error('[Rollback] Failed to delete structure:', rollbackError)
         }
