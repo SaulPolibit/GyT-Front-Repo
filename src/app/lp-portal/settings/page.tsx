@@ -87,6 +87,8 @@ export default function LPSettingsPage() {
   const [mfaVerifyCode, setMfaVerifyCode] = React.useState('')
   const [isVerifyingMfa, setIsVerifyingMfa] = React.useState(false)
   const [pendingAction, setPendingAction] = React.useState<'unenroll' | 'retry-enroll' | null>(null)
+  const [enrollmentVerifyCode, setEnrollmentVerifyCode] = React.useState('')
+  const [isVerifyingEnrollment, setIsVerifyingEnrollment] = React.useState(false)
 
   // Communication preferences
   const [preferredContactMethod, setPreferredContactMethod] = React.useState('email')
@@ -574,36 +576,9 @@ export default function LPSettingsPage() {
         setMfaQrCode(data.data.qrCode)
         setMfaSecret(data.data.secret)
         setMfaFactorId(data.data.factorId)
-        toast.success("2FA enrollment successful. Scan the QR code with your authenticator app.")
-
-        // Send email notification about MFA enable
-        const notificationSettings = getNotificationSettings()
-        if (investor?.id && investor?.email && investor?.name && notificationSettings.generalAnnouncements) {
-          try {
-            const currentDate = new Date().toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })
-
-            await sendInvestorActivityEmail(
-              investor.id,
-              investor.email,
-              {
-                investorName: investor.name,
-                activityType: 'Multi-Factor Authentication Enabled',
-                activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
-                date: currentDate,
-                fundManagerName: `${getFirmSettings().firmName || 'Security'} Team`,
-                fundManagerEmail: getFirmSettings().firmEmail || 'security@example.com',
-              }
-            )
-          } catch (emailError) {
-            console.error('[Settings] Error sending MFA enable notification:', emailError)
-          }
-        }
+        // Don't show success yet - user needs to verify their first code
+        toast.info("Scan the QR code with your authenticator app, then enter the code to complete setup.")
+        // Email notification will be sent after verification in handleVerifyEnrollment
       } else {
         throw new Error(data.message || 'Failed to enroll in MFA')
       }
@@ -706,36 +681,9 @@ export default function LPSettingsPage() {
         setMfaQrCode(data.data.qrCode)
         setMfaSecret(data.data.secret)
         setMfaFactorId(data.data.factorId)
-        toast.success("2FA enrollment initiated. Scan the QR code with your authenticator app.")
-
-        // Send email notification about MFA enable
-        const notificationSettings = getNotificationSettings()
-        if (investor?.id && investor?.email && investor?.name && notificationSettings.generalAnnouncements) {
-          try {
-            const currentDate = new Date().toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            })
-
-            await sendInvestorActivityEmail(
-              investor.id,
-              investor.email,
-              {
-                investorName: investor.name,
-                activityType: 'Multi-Factor Authentication Enabled',
-                activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
-                date: currentDate,
-                fundManagerName: `${getFirmSettings().firmName || 'Security'} Team`,
-                fundManagerEmail: getFirmSettings().firmEmail || 'security@example.com',
-              }
-            )
-          } catch (emailError) {
-            console.error('[Settings] Error sending MFA enable notification:', emailError)
-          }
-        }
+        // Don't show success yet - user needs to verify their first code
+        toast.info("Scan the QR code with your authenticator app, then enter the code to complete setup.")
+        // Email notification will be sent after verification in handleVerifyEnrollment
       } else {
         throw new Error(data.message || 'Failed to enroll in MFA')
       }
@@ -755,6 +703,151 @@ export default function LPSettingsPage() {
 
   const handleCancelEnable2FA = () => {
     setShowMfaConfirmDialog(false)
+  }
+
+  const handleVerifyEnrollment = async () => {
+    if (!enrollmentVerifyCode || enrollmentVerifyCode.length !== 6) {
+      toast.error('Please enter a valid 6-digit code')
+      return
+    }
+
+    if (!mfaFactorId) {
+      toast.error('No MFA enrollment in progress')
+      return
+    }
+
+    setIsVerifyingEnrollment(true)
+
+    try {
+      const token = getAuthToken()
+      const supabaseAuth = getSupabaseAuth()
+
+      if (!token || !supabaseAuth?.accessToken || !supabaseAuth?.refreshToken) {
+        toast.error('Session expired. Please login again.')
+        router.push('/lp-portal/login')
+        return
+      }
+
+      const response = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaVerifyEnrollment),
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            factorId: mfaFactorId,
+            code: enrollmentVerifyCode,
+            supabaseAccessToken: supabaseAuth.accessToken,
+            supabaseRefreshToken: supabaseAuth.refreshToken,
+          }),
+        }
+      )
+
+      if (response.status === 401) {
+        try {
+          const errorData = await response.json()
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[LP Settings] 401 Unauthorized - clearing session and redirecting to login')
+            localStorage.clear()
+            toast.error('Session expired. Please login again.')
+            router.push('/lp-portal/login')
+            return
+          }
+        } catch (e) {
+          console.log('Error: ', e)
+        }
+      }
+
+      const data = await response.json()
+
+      if (!data.success) {
+        toast.error(data.message || 'Invalid verification code. Please try again.')
+        return
+      }
+
+      // Verification successful - MFA is now fully enabled
+      toast.success('MFA has been successfully enabled on your account!')
+
+      // Clear the QR code display since enrollment is complete
+      setMfaQrCode(null)
+      setMfaSecret(null)
+      setEnrollmentVerifyCode('')
+
+      // Now send the email notification since MFA is verified
+      const notificationSettings = getNotificationSettings()
+      if (investor?.id && investor?.email && investor?.name && notificationSettings.generalAnnouncements) {
+        try {
+          const currentDate = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+
+          await sendInvestorActivityEmail(
+            investor.id,
+            investor.email,
+            {
+              investorName: investor.name,
+              activityType: 'Multi-Factor Authentication Enabled',
+              activityDescription: 'Two-factor authentication (2FA) has been successfully enabled on your account. This adds an extra layer of security to protect your account. If you did not make this change, please contact support immediately.',
+              date: currentDate,
+              fundManagerName: `${getFirmSettings().firmName || 'Security'} Team`,
+              fundManagerEmail: getFirmSettings().firmEmail || 'support@polibit.io',
+            }
+          )
+          console.log('[LP Settings] MFA enable notification email sent')
+        } catch (emailError) {
+          console.error('[LP Settings] Error sending MFA enable notification:', emailError)
+        }
+      }
+    } catch (error) {
+      console.error('[LP Settings] Error verifying enrollment:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to verify enrollment')
+    } finally {
+      setIsVerifyingEnrollment(false)
+    }
+  }
+
+  const handleCancelEnrollment = async () => {
+    // Cancel the pending enrollment
+    try {
+      const token = getAuthToken()
+      const supabaseAuth = getSupabaseAuth()
+
+      if (token && supabaseAuth?.accessToken && supabaseAuth?.refreshToken && mfaFactorId) {
+        // Unenroll the pending factor
+        await fetch(
+          getApiUrl(API_CONFIG.endpoints.mfaUnenroll),
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              supabaseAccessToken: supabaseAuth.accessToken,
+              supabaseRefreshToken: supabaseAuth.refreshToken,
+              factorId: mfaFactorId,
+              factorType: 'totp'
+            }),
+          }
+        )
+      }
+    } catch (error) {
+      console.error('[LP Settings] Error cleaning up enrollment:', error)
+    }
+
+    // Reset state
+    setTwoFactorEnabled(false)
+    setMfaQrCode(null)
+    setMfaSecret(null)
+    setMfaFactorId(null)
+    setEnrollmentVerifyCode('')
+    toast.info('MFA enrollment cancelled')
   }
 
   const handleUpdateLegalInfo = async () => {
@@ -1275,33 +1368,96 @@ export default function LPSettingsPage() {
                 {twoFactorEnabled && mfaQrCode && (
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 space-y-4">
                     <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                      <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                       <div className="text-sm flex-1">
-                        <p className="font-medium text-blue-900 dark:text-blue-100">
-                          Scan the QR code with your authenticator app
+                        <p className="font-medium text-amber-900 dark:text-amber-100">
+                          Complete MFA Setup
                         </p>
-                        <p className="text-blue-700 dark:text-blue-300 mt-1">
-                          Use Google Authenticator, Authy, or any TOTP-compatible app
+                        <p className="text-amber-700 dark:text-amber-300 mt-1">
+                          Follow the steps below to finish enabling MFA on your account
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-4 p-4 bg-white dark:bg-gray-900 rounded-lg">
-                      <img
-                        src={mfaQrCode}
-                        alt="MFA QR Code"
-                        className="w-64 h-64"
-                      />
-                      {mfaSecret && (
-                        <div className="text-center space-y-2">
-                          <p className="text-xs text-muted-foreground">
-                            Or enter this code manually:
-                          </p>
-                          <code className="block text-sm font-mono bg-muted px-3 py-2 rounded border">
-                            {mfaSecret}
-                          </code>
+                    {/* Step 1: Scan QR Code */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">1</div>
+                        <p className="font-medium text-sm">Scan QR code with your authenticator app</p>
+                      </div>
+                      <div className="flex flex-col items-center gap-4 p-4 bg-white dark:bg-gray-900 rounded-lg ml-8">
+                        <img
+                          src={mfaQrCode}
+                          alt="MFA QR Code"
+                          className="w-48 h-48"
+                        />
+                        {mfaSecret && (
+                          <div className="text-center space-y-2">
+                            <p className="text-xs text-muted-foreground">
+                              Or enter this code manually:
+                            </p>
+                            <code className="block text-sm font-mono bg-muted px-3 py-2 rounded border">
+                              {mfaSecret}
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Step 2: Enter Verification Code */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">2</div>
+                        <p className="font-medium text-sm">Enter the code from your authenticator app</p>
+                      </div>
+                      <div className="ml-8 space-y-3">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          value={enrollmentVerifyCode}
+                          onChange={(e) => {
+                            const value = e.target.value.replace(/\D/g, '')
+                            setEnrollmentVerifyCode(value)
+                          }}
+                          placeholder="000000"
+                          className="text-center text-2xl tracking-widest font-mono max-w-[200px]"
+                          disabled={isVerifyingEnrollment}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && enrollmentVerifyCode.length === 6) {
+                              handleVerifyEnrollment()
+                            }
+                          }}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Enter the 6-digit code shown in your authenticator app to complete setup
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleVerifyEnrollment}
+                            disabled={isVerifyingEnrollment || enrollmentVerifyCode.length !== 6}
+                            size="sm"
+                          >
+                            {isVerifyingEnrollment ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                                Verifying...
+                              </>
+                            ) : (
+                              'Complete Setup'
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={handleCancelEnrollment}
+                            disabled={isVerifyingEnrollment}
+                            size="sm"
+                          >
+                            Cancel
+                          </Button>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 )}
