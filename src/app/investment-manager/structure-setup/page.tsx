@@ -1936,6 +1936,17 @@ export default function OnboardingPage() {
 
     } catch (error) {
       console.error('Error completing setup:', error)
+
+      // Rollback: Delete from localStorage if structure was created locally
+      if (createdStructureId) {
+        try {
+          await deleteStructure(createdStructureId)
+          console.log('[Rollback] Deleted orphaned structure from localStorage:', createdStructureId)
+        } catch (rollbackError) {
+          console.error('[Rollback] Failed to delete structure from localStorage:', rollbackError)
+        }
+      }
+
       setIsSubmitting(false)
       toast.error('Failed to complete setup. Please try again.')
     }

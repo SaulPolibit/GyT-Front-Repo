@@ -10,6 +10,8 @@ import { IconBuilding, IconTrendingUp, IconUsers, IconCurrencyDollar, IconArrowR
 import { getStructures, type Structure } from '@/lib/structures-storage'
 import { getInvestors } from '@/lib/investors-storage'
 import { getCapitalCalls } from '@/lib/capital-calls-storage'
+// Load cleanup utility for browser console
+import '@/lib/cleanup-orphaned-structures'
 
 interface StructureCommitmentData extends Structure {
   totalCommitments: number
