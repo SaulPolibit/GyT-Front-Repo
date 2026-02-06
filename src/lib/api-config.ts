@@ -9,6 +9,7 @@ export const API_CONFIG = {
     login: '/api/custom/login',
     mfaLoginVerify: '/api/custom/mfa/login-verify',
     mfaEnroll: '/api/custom/mfa/enroll',
+    mfaVerifyEnrollment: '/api/custom/mfa/verify-enrollment',
     mfaUnenroll: '/api/custom/mfa/unenroll',
     mfaChallenge: '/api/custom/mfa/challenge',
     mfaVerify: '/api/custom/mfa/verify',
