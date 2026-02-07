@@ -147,13 +147,10 @@ function AccountPageContent() {
         throw new Error(data.message || 'Failed to generate auth URL')
       }
 
-      // Store verifier and nonce for callback
-      sessionStorage.setItem('prospera_code_verifier', data.codeVerifier)
-      sessionStorage.setItem('prospera_nonce', data.nonce)
 
-      console.log('[Wallet Link] Redirecting to Próspera OAuth...')
+      console.log('[Wallet Link] Redirecting to OAuth...')
 
-      // Redirect to Próspera OAuth
+      // Redirect to OAuth
       window.location.href = data.authUrl
     } catch (error) {
       console.error('[Wallet Link] Error:', error)
@@ -736,7 +733,7 @@ function AccountPageContent() {
               <CardTitle>Wallet Information</CardTitle>
             </div>
             <CardDescription>
-              Your Polygon wallet linked to Próspera
+              Your Polygon wallet linked to App
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -870,7 +867,7 @@ function AccountPageContent() {
 
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
                   <p className="text-sm text-blue-900">
-                    <strong className="font-semibold">Note:</strong> This wallet was created and linked to your Próspera account. Keep your wallet address safe and only share it with trusted parties.
+                    <strong className="font-semibold">Note:</strong> This wallet was created and linked to your account. Keep your wallet address safe and only share it with trusted parties.
                   </p>
                 </div>
               </>
@@ -891,7 +888,7 @@ function AccountPageContent() {
                     <strong className="font-semibold">No wallet found</strong>
                   </p>
                   <p className="text-xs text-yellow-800 mb-4">
-                    Create a Polygon wallet linked to your Próspera account to receive and manage digital assets.
+                    Create a Polygon wallet linked to your account to receive and manage digital assets.
                   </p>
                   <Button
                     onClick={handleCreateWallet}

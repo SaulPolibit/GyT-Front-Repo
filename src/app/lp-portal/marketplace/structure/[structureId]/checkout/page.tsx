@@ -382,7 +382,7 @@ export default function StructureCheckoutPage({ params }: Props) {
                 />
                 <label htmlFor="terms" className="text-sm cursor-pointer">
                   <p className="text-xs leading-relaxed">
-                    By checking this box and completing my purchase, I acknowledge that I have read, understood, and agree to be bound by the Operating Agreement. I understand that my acquisition of Tokens constitutes the legal equivalent of acquiring Membership Units, that the blockchain ledger is the definitive record of ownership, and that I am subject to all transfer restrictions and other terms set forth therein. I confirm that I hold valid Próspera e-Residency or Physical Residency status, have completed all required KYC procedures, and consent to the exclusive jurisdiction of Próspera ZEDE law and the Próspera Arbitration Center for any disputes arising from this agreement.
+                    By checking this box and completing my purchase, I acknowledge that I have read, understood, and agree to be bound by the Operating Agreement. I understand that my acquisition of Tokens constitutes the legal equivalent of acquiring Membership Units, that the blockchain ledger is the definitive record of ownership, and that I am subject to all transfer restrictions and other terms set forth therein. I confirm that I hold valid e-Residency or Physical Residency status, have completed all required KYC procedures, and consent to the exclusive jurisdiction of ZEDE law and the Arbitration Center for any disputes arising from this agreement.
                   </p>
                 </label>
               </div>

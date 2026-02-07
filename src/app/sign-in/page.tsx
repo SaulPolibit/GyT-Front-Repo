@@ -249,7 +249,7 @@ export default function SignInPage() {
               />
             </div>
           )}
-          <CardTitle className="text-2xl">Sign in to Próspera</CardTitle>
+          <CardTitle className="text-2xl">Sign in</CardTitle>
           <CardDescription>
             Enter your credentials to access the platform
           </CardDescription>
@@ -286,33 +286,6 @@ export default function SignInPage() {
           <Button onClick={handleLogin} className="w-full" disabled={isLoading}>
             {isLoading ? 'Signing in...' : 'Sign In'}
           </Button>
-
-          {/* Sign up link - hidden for Próspera OAuth users */}
-          {/* <div className="text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
-            <Link href="/sign-up" className="text-primary hover:underline">
-              Sign up
-            </Link>
-          </div> */}
-
-          {/* Demo Credentials - hidden for production */}
-          {/* <div className="text-center text-sm text-muted-foreground border-t pt-4">
-            <p className="mb-2 font-medium">Demo Credentials:</p>
-            <div className="space-y-2">
-              <div className="p-2 bg-muted rounded text-left">
-                <button
-                  onClick={() => {
-                    setEmail('saul@polibit.io')
-                    setPassword('saul.polibit123*')
-                  }}
-                  className="text-primary hover:underline w-full text-left"
-                >
-                  <div className="font-medium">Admin Account</div>
-                  <div className="text-xs">saul@polibit.io</div>
-                </button>
-              </div>
-            </div>
-          </div> */}
         </CardContent>
       </Card>
     </div>
