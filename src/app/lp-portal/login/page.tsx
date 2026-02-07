@@ -6,12 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
-import { getUserRoleType, updateUserKycData, saveLoginResponse, getRedirectPathForRole } from "@/lib/auth-storage"
+import { getUserRoleType, updateUserKycData, getRedirectPathForRole } from "@/lib/auth-storage"
 import { toast } from "sonner"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { AlertCircle, Share2, Shield } from "lucide-react"
@@ -19,12 +18,10 @@ import { saveNotificationSettings } from "@/lib/notification-settings-storage"
 import { sendInvestorActivityEmail } from "@/lib/email-service"
 
 function LPLoginPageContent() {
-  const [isProsperapLoading, setIsProsperapLoading] = React.useState(false)
+  const [email, setEmail] = React.useState('')
+  const [password, setPassword] = React.useState('')
+  const [isLoading, setIsLoading] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState('')
-  const [prosperapRedirectUrl, setProsperapRedirectUrl] = React.useState<string | null>(null)
-  const [showTermsDialog, setShowTermsDialog] = React.useState(false)
-  const [termsAccepted, setTermsAccepted] = React.useState(false)
-  const [registrationData, setRegistrationData] = React.useState<any>(null)
   const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
 
   // MFA states
@@ -34,11 +31,6 @@ function LPLoginPageContent() {
   const [mfaData, setMfaData] = React.useState<{
     userId: string
     factorId: string
-    prospera: {
-      accessToken: string
-      refreshToken: string
-      expiresAt: number
-    }
     supabase?: {
       accessToken: string
       refreshToken: string
@@ -48,8 +40,7 @@ function LPLoginPageContent() {
   } | null>(null)
 
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const { isLoggedIn, user, refreshAuthState} = useAuth()
+  const { isLoggedIn, user, login, refreshAuthState } = useAuth()
 
   // Load firm logo
   React.useEffect(() => {
@@ -72,23 +63,9 @@ function LPLoginPageContent() {
     fetchFirmLogo()
   }, [])
 
-  // Handle OAuth callback from Prospera
-  React.useEffect(() => {
-    const code = searchParams.get('code')
-    const storedVerifier = sessionStorage.getItem('prospera_code_verifier')
-    const storedNonce = sessionStorage.getItem('prospera_nonce')
-
-    if (code && storedVerifier && storedNonce) {
-      console.log('[LP Login] OAuth callback detected, processing...')
-      handleProsperapCallback(code, storedVerifier, storedNonce)
-    }
-  }, [searchParams])
-
   // If already logged in, redirect to portfolio
   React.useEffect(() => {
     if (isLoggedIn && user) {
-      // If user is customer (role 3), go to portfolio
-      // Otherwise redirect to their correct dashboard
       const redirectPath = getUserRoleType(user.role) === 'lp-portal'
         ? '/lp-portal/portfolio'
         : getRedirectPathForRole(user.role)
@@ -96,104 +73,158 @@ function LPLoginPageContent() {
     }
   }, [isLoggedIn, user, router])
 
-
-  const handleProsperapLogin = async () => {
-    setIsProsperapLoading(true)
-    setErrorMessage('')
-    setProsperapRedirectUrl(null)
-
-    try {
-      console.log('[Prospera Login] Requesting authorization URL...')
-
-      // Construct the full redirect URI for this page
-      const redirectUri = `${window.location.origin}/lp-portal/login`
-
-      // Get authorization URL from backend
-      const response = await fetch(getApiUrl('/api/custom/prospera/auth-url'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ redirectUri }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || 'Failed to initiate Prospera login')
-      }
-
-      const data = await response.json()
-
-      if (!data.success || !data.authUrl) {
-        throw new Error('Invalid response from Prospera service')
-      }
-
-      console.log('[Prospera Login] Authorization URL received')
-
-      // Store code verifier and nonce for callback
-      sessionStorage.setItem('prospera_code_verifier', data.codeVerifier)
-      sessionStorage.setItem('prospera_nonce', data.nonce)
-
-      // Redirect to Prospera
-      console.log('[Prospera Login] Redirecting to Prospera...')
-      window.location.href = data.authUrl
-    } catch (error) {
-      console.error('[Prospera Login] Error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to connect to Prospera. Please try again.')
-      setIsProsperapLoading(false)
-    }
-  }
-
-  const handleCompleteRegistration = async () => {
-    if (!termsAccepted || !registrationData) {
-      setErrorMessage('Please accept the terms and conditions to continue')
+  const handleLogin = async () => {
+    if (!email) {
+      setErrorMessage('Please enter your email')
       return
     }
 
-    setIsProsperapLoading(true)
+    if (!password) {
+      setErrorMessage('Please enter your password')
+      return
+    }
+
+    setIsLoading(true)
     setErrorMessage('')
 
     try {
-      console.log('[Prospera Registration] Completing registration...')
+      console.log('[LP Login] Attempting login...')
 
-      const response = await fetch(getApiUrl('/api/custom/prospera/complete-registration'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userData: registrationData.userData,
-          sessionData: registrationData.sessionData,
-          termsAccepted: true
-        }),
-      })
+      // Login via useAuth hook
+      const response = await login(email, password)
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || 'Registration failed')
+      console.log('[LP Login] Login response received:', response)
+
+      if (!response) {
+        console.log('[LP Login] Login failed - no response')
+        setIsLoading(false)
+        return
       }
 
-      const data = await response.json()
+      // Check if MFA is required
+      if (response.mfaRequired) {
+        console.log('[LP Login] MFA verification required')
 
-      if (!data.success) {
-        throw new Error(data.message || 'Registration failed')
+        // Store MFA data for verification
+        setMfaData({
+          userId: response.userId,
+          factorId: response.factorId,
+          supabase: response.supabase,
+        })
+
+        // Show MFA dialog
+        setShowMfaDialog(true)
+        setIsLoading(false)
+        return
       }
 
-      console.log('[Prospera Registration] Registration complete')
+      // If not MFA required and login failed, exit
+      if (!response.success) {
+        setErrorMessage(response.message || 'Invalid email or password')
+        setIsLoading(false)
+        return
+      }
 
-      // Save to localStorage (same format as regular login)
-      saveLoginResponse(data)
+      if (response.success && response.user) {
+        console.log('[LP Login] Login successful, user role:', response.user.role)
 
-      // Close terms dialog
-      setShowTermsDialog(false)
-      setRegistrationData(null)
-      setTermsAccepted(false)
+        toast.success('Welcome back!')
 
-      toast.success('Welcome! Account created successfully')
+        // Handle KYC for investors (role 3)
+        if (response.user.role === 3 && response.user.kycStatus !== 'Approved') {
+          console.log('[LP Login] Retrieving DiDit session for user...')
+          try {
+            const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${response.token}`,
+                'Content-Type': 'application/json',
+              },
+            })
 
-      // Redirect to portfolio (will be handled by useEffect)
-      refreshAuthState()
+            if (diditResponse.ok) {
+              const diditData = await diditResponse.json()
+              console.log('[LP Login] DiDit session response:', diditData)
+
+              const sessionId = diditData.data?.session_id || diditData.data?.sessionId
+              const sessionUrl = diditData.data?.url
+              const sessionStatus = diditData.data?.status
+
+              if (sessionId && sessionUrl) {
+                updateUserKycData(sessionId, sessionUrl, sessionStatus)
+                console.log('[LP Login] KYC data updated in localStorage')
+                refreshAuthState()
+              }
+            }
+          } catch (diditError) {
+            console.error('[LP Login] Error creating DiDit session:', diditError)
+          }
+        }
+
+        // Fetch and save notification settings
+        try {
+          console.log('[LP Login] Fetching notification settings...')
+          const notificationResponse = await fetch(getApiUrl(API_CONFIG.endpoints.getNotificationSettings), {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${response.token}`,
+            },
+          })
+
+          if (notificationResponse.ok) {
+            const notificationData = await notificationResponse.json()
+            console.log('[LP Login] Notification settings fetched:', notificationData)
+
+            if (notificationData.success && notificationData.data) {
+              saveNotificationSettings(notificationData.data)
+              console.log('[LP Login] Notification settings saved to localStorage')
+
+              // Send security alert email if enabled
+              if (notificationData.data.securityAlerts && response.user?.id && response.user?.email) {
+                try {
+                  const currentDate = new Date().toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+
+                  const loginLocation = 'Unknown'
+                  const deviceInfo = navigator.userAgent
+
+                  await sendInvestorActivityEmail(
+                    response.user.id,
+                    response.user.email,
+                    {
+                      investorName: response.user.email,
+                      activityType: 'Security Alert: New Login Detected',
+                      activityDescription: `A new login to your account was detected.\n\nLogin Details:\nDate & Time: ${currentDate}\nDevice: ${deviceInfo}\nLocation: ${loginLocation}\n\nIf this was you, no action is needed. If you did not log in, please secure your account immediately by changing your password and enabling two-factor authentication.`,
+                      date: currentDate,
+                      fundManagerName: 'Polibit Security Team',
+                      fundManagerEmail: 'security@polibit.com',
+                    }
+                  )
+                  console.log('[LP Login] Security alert email sent successfully')
+                } catch (emailError) {
+                  console.error('[LP Login] Error sending security alert email:', emailError)
+                }
+              }
+            }
+          }
+        } catch (notificationError) {
+          console.error('[LP Login] Error fetching notification settings:', notificationError)
+        }
+
+        // Wait for state to update
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
     } catch (error) {
-      console.error('[Prospera Registration] Error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'Registration failed. Please try again.')
+      console.error('[LP Login] Login error:', error)
+      setErrorMessage(error instanceof Error ? error.message : 'Login failed. Please try again.')
     } finally {
-      setIsProsperapLoading(false)
+      setIsLoading(false)
     }
   }
 
@@ -206,6 +237,7 @@ function LPLoginPageContent() {
     // Check if Supabase tokens are available
     if (!mfaData.supabase?.accessToken || !mfaData.supabase?.refreshToken) {
       setErrorMessage('Invalid session. Please login again.')
+      setShowMfaDialog(false)
       return
     }
 
@@ -239,18 +271,13 @@ function LPLoginPageContent() {
       setMfaCode('')
       setMfaData(null)
 
-      // Add Prospera tokens to the response before saving
-      const loginData = {
-        ...data,
-        prospera: mfaData.prospera,
-      }
-
-      // Save to localStorage
-      saveLoginResponse(loginData)
+      // Save login response
+      const { saveLoginResponse } = await import('@/lib/auth-storage')
+      saveLoginResponse(data)
 
       toast.success('Welcome! Logged in successfully')
 
-      // Redirect to portfolio (will be handled by useEffect)
+      // Redirect to portfolio
       refreshAuthState()
     } catch (error) {
       console.error('[MFA Verify] Error:', error)
@@ -258,133 +285,6 @@ function LPLoginPageContent() {
     } finally {
       setIsVerifyingMfa(false)
     }
-  }
-
-  const handleProsperapCallback = async (code: string, codeVerifier: string, nonce: string) => {
-    setIsProsperapLoading(true)
-    setErrorMessage('')
-    setProsperapRedirectUrl(null)
-
-    try {
-      console.log('[Prospera Callback] Processing OAuth callback...')
-
-      // Construct the redirect URI (must match what was used in the auth request)
-      const redirectUri = `${window.location.origin}/lp-portal/login`
-
-      const response = await fetch(getApiUrl('/api/custom/prospera/callback'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, codeVerifier, nonce, redirectUri }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-
-        // Store redirect URL if provided (for Próspera residency errors)
-        if (errorData.redirectUrl) {
-          setProsperapRedirectUrl(errorData.redirectUrl)
-        }
-
-        throw new Error(errorData.message || 'Prospera authentication failed')
-      }
-
-      const data = await response.json()
-
-      if (!data.success) {
-        // Store redirect URL if provided (for Próspera residency errors)
-        if (data.redirectUrl) {
-          setProsperapRedirectUrl(data.redirectUrl)
-        }
-
-        throw new Error(data.message || 'Prospera authentication failed')
-      }
-
-      // Check if MFA verification is required
-      if (data.mfaRequired) {
-        console.log('[Prospera Callback] MFA verification required')
-
-        // Store MFA data for verification
-        setMfaData({
-          userId: data.userId,
-          factorId: data.factorId,
-          prospera: data.prospera,
-          supabase: data.supabase, // Include Supabase tokens for MFA challenge
-        })
-
-        // Clear URL parameters
-        window.history.replaceState({}, '', '/lp-portal/login')
-
-        // Clear stored verifier and nonce
-        sessionStorage.removeItem('prospera_code_verifier')
-        sessionStorage.removeItem('prospera_nonce')
-
-        // Show MFA dialog
-        setShowMfaDialog(true)
-        setIsProsperapLoading(false)
-        return
-      }
-
-      // Check if terms acceptance is required (new user)
-      if (data.requiresTermsAcceptance) {
-        console.log('[Prospera Callback] Terms acceptance required for new user')
-
-        // Store registration data for later use
-        setRegistrationData(data)
-
-        // Clear URL parameters
-        window.history.replaceState({}, '', '/lp-portal/login')
-
-        // Show terms dialog
-        setShowTermsDialog(true)
-        setIsProsperapLoading(false)
-        return
-      }
-
-      console.log('[Prospera Callback] Authentication successful')
-
-      // Save to localStorage (same format as regular login)
-      saveLoginResponse(data)
-
-      // Clear stored verifier and nonce
-      sessionStorage.removeItem('prospera_code_verifier')
-      sessionStorage.removeItem('prospera_nonce')
-
-      // Clear URL parameters
-      window.history.replaceState({}, '', '/lp-portal/login')
-
-      toast.success('Welcome! Logged in with Prospera')
-
-      // Redirect to portfolio (will be handled by useEffect)
-      refreshAuthState()
-    } catch (error) {
-      console.error('[Prospera Callback] Error:', error)
-      setErrorMessage(error instanceof Error ? error.message : 'Prospera authentication failed. Please try again.')
-      sessionStorage.removeItem('prospera_code_verifier')
-      sessionStorage.removeItem('prospera_nonce')
-
-      // Clear URL parameters
-      window.history.replaceState({}, '', '/lp-portal/login')
-    } finally {
-      setIsProsperapLoading(false)
-    }
-  }
-
-  // Show loading state during OAuth callback
-  if (isProsperapLoading && searchParams.get('code')) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-            <p className="text-center mt-4 text-muted-foreground">
-              Authenticating with Próspera...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (
@@ -415,128 +315,63 @@ function LPLoginPageContent() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 {errorMessage}
-                {prosperapRedirectUrl && (
-                  <div className="mt-2">
-                    <a
-                      href={prosperapRedirectUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium underline hover:no-underline"
-                    >
-                      Manage your Próspera account →
-                    </a>
-                  </div>
-                )}
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Prospera Login Button */}
+          {/* Email Field */}
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setErrorMessage('')
+              }}
+              placeholder="you@example.com"
+              autoFocus
+              disabled={isLoading}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            />
+          </div>
+
+          {/* Password Field */}
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                setErrorMessage('')
+              }}
+              placeholder="••••••••"
+              disabled={isLoading}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            />
+          </div>
+
+          {/* Login Button */}
           <Button
-            onClick={handleProsperapLogin}
-            disabled={isProsperapLoading}
-            className="w-full h-12 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
+            onClick={handleLogin}
+            disabled={isLoading}
+            className="w-full"
             size="lg"
           >
-            {isProsperapLoading ? (
+            {isLoading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Connecting to Próspera...
+                Signing in...
               </>
             ) : (
-              <>
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" />
-                </svg>
-                Login with Próspera
-              </>
+              'Sign In'
             )}
           </Button>
-
-          {/* Prospera Sign Up Link */}
-          <div className="text-center text-sm text-muted-foreground border-t pt-4">
-            <p className="mb-2">Don't have a Próspera account?</p>
-            <a
-              href="https://staging-portal.eprospera.com/en/login?returnTo=%2F"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline font-medium"
-            >
-              Create one on Próspera →
-            </a>
-          </div>
         </CardContent>
       </Card>
-
-      {/* Terms and Conditions Dialog */}
-      <Dialog open={showTermsDialog} onOpenChange={setShowTermsDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Terms and Conditions</DialogTitle>
-            <DialogDescription>
-              Please review and accept the terms to continue
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="flex items-start space-x-3">
-              <Checkbox
-                id="terms"
-                checked={termsAccepted}
-                onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-                disabled={isProsperapLoading}
-              />
-              <label
-                htmlFor="terms"
-                className="text-sm leading-relaxed cursor-pointer select-none"
-              >
-                I accept the terms and conditions of{' '}
-                <a
-                  href="https://eprospera.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline font-medium"
-                >
-                  Próspera
-                </a>
-                {' '}and{' '}
-                <a
-                  href="https://polibit.io/terms-of-service"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline font-medium"
-                >
-                  the platform
-                </a>
-              </label>
-            </div>
-
-            {errorMessage && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{errorMessage}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              onClick={handleCompleteRegistration}
-              disabled={!termsAccepted || isProsperapLoading}
-              className="w-full"
-            >
-              {isProsperapLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Creating account...
-                </>
-              ) : (
-                'Accept and Continue'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* MFA Verification Dialog */}
       <Dialog open={showMfaDialog} onOpenChange={(open) => {

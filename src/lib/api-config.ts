@@ -148,10 +148,7 @@ export const API_CONFIG = {
     batchTransferTokens: '/api/blockchain/contract/batch-transfer-tokens',
     forceTransferTokens: '/api/blockchain/contract/force-transfer-tokens',
     getTotalSupply: '/api/blockchain/contract/total-supply',
-
-    // Wallet API
-    getWalletBalances: '/api/custom/wallet/balances',
-    transferTokens: '/api/custom/wallet/transfer',
+    
 
     // Add other endpoints as needed
   }
