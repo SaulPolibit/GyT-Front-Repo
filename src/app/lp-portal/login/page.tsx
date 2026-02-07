@@ -39,6 +39,12 @@ function LPLoginPageContent() {
       refreshToken: string
       expiresAt: number
     }
+    supabase?: {
+      accessToken: string
+      refreshToken: string
+      expiresIn: number
+      expiresAt: number
+    }
   } | null>(null)
 
   const router = useRouter()
@@ -197,6 +203,12 @@ function LPLoginPageContent() {
       return
     }
 
+    // Check if Supabase tokens are available
+    if (!mfaData.supabase?.accessToken || !mfaData.supabase?.refreshToken) {
+      setErrorMessage('Invalid session. Please login again.')
+      return
+    }
+
     setIsVerifyingMfa(true)
     setErrorMessage('')
 
@@ -209,6 +221,8 @@ function LPLoginPageContent() {
         body: JSON.stringify({
           userId: mfaData.userId,
           code: mfaCode,
+          supabaseAccessToken: mfaData.supabase.accessToken,
+          supabaseRefreshToken: mfaData.supabase.refreshToken,
         }),
       })
 
@@ -294,6 +308,7 @@ function LPLoginPageContent() {
           userId: data.userId,
           factorId: data.factorId,
           prospera: data.prospera,
+          supabase: data.supabase, // Include Supabase tokens for MFA challenge
         })
 
         // Clear URL parameters

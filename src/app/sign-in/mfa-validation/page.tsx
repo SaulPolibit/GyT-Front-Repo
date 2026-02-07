@@ -43,6 +43,17 @@ function MfaValidationContent() {
       return
     }
 
+    // Retrieve Supabase tokens from sessionStorage
+    const supabaseAccessToken = sessionStorage.getItem('mfa_supabase_access_token')
+    const supabaseRefreshToken = sessionStorage.getItem('mfa_supabase_refresh_token')
+
+    if (!supabaseAccessToken || !supabaseRefreshToken) {
+      console.error('[MFA Validation] Missing Supabase tokens')
+      toast.error('Invalid session. Please login again.')
+      router.replace('/sign-in')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -54,6 +65,8 @@ function MfaValidationContent() {
         body: JSON.stringify({
           userId,
           code,
+          supabaseAccessToken,
+          supabaseRefreshToken,
         }),
       })
 
@@ -67,6 +80,10 @@ function MfaValidationContent() {
 
       console.log('[MFA Validation] Verification successful')
       toast.success('MFA verified successfully!')
+
+      // Clean up sessionStorage tokens
+      sessionStorage.removeItem('mfa_supabase_access_token')
+      sessionStorage.removeItem('mfa_supabase_refresh_token')
 
       // Save auth data
       const { saveLoginResponse } = await import('@/lib/auth-storage')

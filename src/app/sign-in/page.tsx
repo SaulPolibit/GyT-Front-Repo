@@ -87,6 +87,14 @@ export default function SignInPage() {
         console.log('[Sign-In] MFA verification required, redirecting...')
         console.log('[Sign-In] MFA userId:', response.userId)
         console.log('[Sign-In] MFA factorId:', response.factorId)
+
+        // Store Supabase tokens in sessionStorage for MFA verification
+        if (response.supabase?.accessToken && response.supabase?.refreshToken) {
+          sessionStorage.setItem('mfa_supabase_access_token', response.supabase.accessToken)
+          sessionStorage.setItem('mfa_supabase_refresh_token', response.supabase.refreshToken)
+          console.log('[Sign-In] Supabase tokens stored for MFA verification')
+        }
+
         const params = new URLSearchParams()
         if (response.userId) {
           params.append('userId', response.userId)
