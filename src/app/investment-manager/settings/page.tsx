@@ -341,7 +341,44 @@ export default function InvestmentManagerSettingsPage() {
           if (mfaData.data.mfaFactorId) {
             setMfaFactorId(mfaData.data.mfaFactorId)
           }
-          console.log('[Settings] MFA Status:', mfaData.data)
+          console.log('[IM Settings] MFA Status:', mfaData.data)
+
+          // Clean up any pending/inactive factors if MFA is not enabled
+          // This handles the case where user refreshed during enrollment
+          if (!mfaData.data.mfaEnabled && mfaData.data.factors && mfaData.data.factors.length > 0) {
+            console.log('[IM Settings] Found pending factors, cleaning up...')
+            const supabaseAuth = getSupabaseAuth()
+
+            if (supabaseAuth?.accessToken && supabaseAuth?.refreshToken) {
+              // Clean up all inactive factors
+              for (const factor of mfaData.data.factors) {
+                if (!factor.isActive) {
+                  console.log('[IM Settings] Cleaning up pending factor:', factor.id)
+                  try {
+                    await fetch(
+                      getApiUrl(API_CONFIG.endpoints.mfaUnenroll),
+                      {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          supabaseAccessToken: supabaseAuth.accessToken,
+                          supabaseRefreshToken: supabaseAuth.refreshToken,
+                          factorId: factor.factorId,
+                          factorType: 'totp'
+                        }),
+                      }
+                    )
+                    console.log('[IM Settings] ✅ Cleaned up pending factor')
+                  } catch (error) {
+                    console.error('[IM Settings] Error cleaning up pending factor:', error)
+                  }
+                }
+              }
+            }
+          }
         }
       }
     } catch (error) {
@@ -845,6 +882,52 @@ export default function InvestmentManagerSettingsPage() {
     try {
       setIsEnrollingMfa(true)
 
+      // First, clean up any existing pending factors to avoid "already exists" error
+      console.log('[IM Settings] Checking for pending factors before enrollment...')
+      const statusCheckResponse = await fetch(
+        getApiUrl(API_CONFIG.endpoints.mfaStatus),
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (statusCheckResponse.ok) {
+        const statusData = await statusCheckResponse.json()
+        if (statusData.success && statusData.data && statusData.data.factors) {
+          for (const factor of statusData.data.factors) {
+            if (!factor.isActive) {
+              console.log('[IM Settings] Cleaning up pending factor before enrollment:', factor.factorId)
+              try {
+                await fetch(
+                  getApiUrl(API_CONFIG.endpoints.mfaUnenroll),
+                  {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      supabaseAccessToken,
+                      supabaseRefreshToken,
+                      factorId: factor.factorId,
+                      factorType: 'totp'
+                    }),
+                  }
+                )
+                console.log('[IM Settings] ✅ Cleaned up pending factor')
+              } catch (error) {
+                console.error('[IM Settings] Error cleaning up pending factor:', error)
+              }
+            }
+          }
+        }
+      }
+
+      // Now proceed with enrollment
       const response = await fetch(
         getApiUrl(API_CONFIG.endpoints.mfaEnroll),
         {
