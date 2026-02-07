@@ -666,6 +666,8 @@ export default function LPSettingsPage() {
 
       const data = await response.json()
 
+      console.log('[LP Settings] MFA Enroll Response:', JSON.stringify(data, null, 2))
+
       // If enrollment fails because factor already exists, show verification dialog
       if (!data.success && data.error && data.error.includes('already exists')) {
         console.log('[LP Settings] Factor already exists, need to verify MFA first...')
@@ -677,18 +679,28 @@ export default function LPSettingsPage() {
       }
 
       if (data.success && data.data) {
+        console.log('[LP Settings] ✅ Enrollment successful!')
+        console.log('[LP Settings] - QR Code:', data.data.qrCode ? 'present (' + data.data.qrCode.substring(0, 50) + '...)' : '❌ MISSING')
+        console.log('[LP Settings] - Secret:', data.data.secret || '❌ MISSING')
+        console.log('[LP Settings] - Factor ID:', data.data.factorId || '❌ MISSING')
+        console.log('[LP Settings] - Requires Verification:', data.requiresVerification)
+
         setTwoFactorEnabled(true)
         setMfaQrCode(data.data.qrCode)
         setMfaSecret(data.data.secret)
         setMfaFactorId(data.data.factorId)
+
+        console.log('[LP Settings] ✅ States updated. Now showing QR code UI...')
+
         // Don't show success yet - user needs to verify their first code
         toast.info("Scan the QR code with your authenticator app, then enter the code to complete setup.")
         // Email notification will be sent after verification in handleVerifyEnrollment
       } else {
+        console.error('[LP Settings] ❌ Enrollment failed:', data)
         throw new Error(data.message || 'Failed to enroll in MFA')
       }
     } catch (error) {
-      console.error('[LP Settings] Error enrolling in MFA:', error)
+      console.error('[LP Settings] ❌ Error enrolling in MFA:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to enable 2FA')
       setTwoFactorEnabled(false)
     } finally {
@@ -706,13 +718,19 @@ export default function LPSettingsPage() {
   }
 
   const handleVerifyEnrollment = async () => {
+    console.log('[LP Settings] 🔐 Verifying enrollment...')
+    console.log('[LP Settings] - Verification code:', enrollmentVerifyCode)
+    console.log('[LP Settings] - Factor ID:', mfaFactorId)
+
     if (!enrollmentVerifyCode || enrollmentVerifyCode.length !== 6) {
       toast.error('Please enter a valid 6-digit code')
+      console.error('[LP Settings] ❌ Invalid code length:', enrollmentVerifyCode?.length)
       return
     }
 
     if (!mfaFactorId) {
       toast.error('No MFA enrollment in progress')
+      console.error('[LP Settings] ❌ No mfaFactorId found')
       return
     }
 
@@ -1367,6 +1385,7 @@ export default function LPSettingsPage() {
 
                 {twoFactorEnabled && mfaQrCode && (
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 space-y-4">
+                    {console.log('[LP Settings] 📱 Rendering QR Code UI - twoFactorEnabled:', twoFactorEnabled, 'mfaQrCode:', !!mfaQrCode)}
                     <div className="flex items-start gap-3">
                       <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                       <div className="text-sm flex-1">
@@ -1464,6 +1483,7 @@ export default function LPSettingsPage() {
 
                 {twoFactorEnabled && !mfaQrCode && (
                   <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    {console.log('[LP Settings] ✅ Showing "MFA is enabled" message - twoFactorEnabled:', twoFactorEnabled, 'mfaQrCode:', mfaQrCode)}
                     <div className="flex items-start gap-3">
                       <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                       <div className="text-sm">
