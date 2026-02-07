@@ -89,33 +89,57 @@ function MfaValidationContent() {
       const { saveLoginResponse } = await import('@/lib/auth-storage')
       saveLoginResponse(data)
 
-      // Handle KYC for investors
-      if (data.user.role === 3 && data.user.kycStatus !== 'Approved') {
-        console.log('[MFA Validation] Retrieving DiDit session for user...')
-        try {
-          const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${data.token}`,
-              'Content-Type': 'application/json',
-            },
-          })
+      // KYC validation for role 3 (investors/customers)
+      if (data.user.role === 3) {
+        const kycStatus = data.user.kycStatus
+        const kycUrl = data.user.kycUrl
 
-          if (diditResponse.ok) {
-            const diditData = await diditResponse.json()
-            console.log('[MFA Validation] DiDit session created:', diditData)
+        // Case 1: kyc_status is null → create new DiDit session
+        if (kycStatus === null || kycStatus === undefined) {
+          console.log('[MFA Validation] KYC status is null, creating new DiDit session...')
+          try {
+            const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${data.token}`,
+                'Content-Type': 'application/json',
+              },
+            })
 
-            if (diditData.data?.sessionId && diditData.data?.url) {
-              updateUserKycData(
-                diditData.data.sessionId,
-                diditData.data.url,
-                diditData.data.status
-              )
-              console.log('[MFA Validation] KYC data updated in localStorage')
+            if (diditResponse.ok) {
+              const diditData = await diditResponse.json()
+              console.log('[MFA Validation] DiDit session created:', diditData)
+
+              const sessionId = diditData.data?.session_id || diditData.data?.sessionId
+              const sessionUrl = diditData.data?.url
+              const sessionStatus = diditData.data?.status
+
+              if (sessionId && sessionUrl) {
+                updateUserKycData(sessionId, sessionUrl, sessionStatus)
+                console.log('[MFA Validation] KYC data updated in localStorage')
+              }
+            } else {
+              console.error('[MFA Validation] Failed to create DiDit session:', await diditResponse.text())
             }
+          } catch (diditError) {
+            console.error('[MFA Validation] Error creating DiDit session:', diditError)
           }
-        } catch (diditError) {
-          console.error('[MFA Validation] Error creating DiDit session:', diditError)
+        }
+        // Case 2: kyc_status is not null but not 'Completed' → use existing kyc_url
+        else if (kycStatus !== 'Completed') {
+          console.log('[MFA Validation] KYC status is', kycStatus, '- verification required')
+
+          if (kycUrl) {
+            // Update localStorage with existing KYC URL
+            updateUserKycData(data.user.kycId || '', kycUrl, kycStatus)
+            console.log('[MFA Validation] Using existing KYC URL:', kycUrl)
+          } else {
+            console.warn('[MFA Validation] KYC status is not Completed but no kycUrl available')
+          }
+        }
+        // Case 3: kyc_status is 'Completed' → do nothing (no message)
+        else {
+          console.log('[MFA Validation] KYC verification completed')
         }
       }
 

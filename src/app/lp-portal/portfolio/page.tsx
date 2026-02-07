@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { getCurrentUser, getAuthToken, logout } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { KycVerificationBanner } from "@/components/kyc-verification-banner"
 
 interface InvestorStructure {
   id: string
@@ -259,47 +260,6 @@ export default function PortfolioPage() {
     return <Landmark className="h-5 w-5" />
   }
 
-  // Check if user needs to complete KYC
-  const user = getCurrentUser()
-  if (user && user.kycStatus !== 'Approved' && user.kycUrl) {
-    return (
-      <div className="space-y-6 p-4 md:p-6 h-screen flex flex-col">
-        {/* KYC Notice */}
-        <Card className="border-amber-200 bg-amber-50">
-          <CardHeader>
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-              <div className="flex-1">
-                <CardTitle className="text-lg text-amber-900">KYC Verification Required</CardTitle>
-                <CardDescription className="text-amber-800 mt-1">
-                  Please complete your KYC (Know Your Customer) verification to access your portfolio and investment features.
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* KYC iFrame */}
-        <Card className="flex-1 flex flex-col min-h-0">
-          <CardHeader>
-            <CardTitle>Complete Your Verification</CardTitle>
-            <CardDescription>
-              Please fill out the verification form below to gain access to your portfolio
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 min-h-0 p-0">
-            <iframe
-              src={user.kycUrl.startsWith('http') ? user.kycUrl : `https://${user.kycUrl}`}
-              className="w-full h-full border-0"
-              title="KYC Verification"
-              allow="camera; microphone"
-            />
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   // Loading state
   if (isLoading) {
     return (
@@ -352,6 +312,9 @@ export default function PortfolioPage() {
           Overview of your investment structures and performance
         </p>
       </div>
+
+      {/* KYC Verification Banner */}
+      <KycVerificationBanner />
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">

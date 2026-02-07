@@ -122,46 +122,59 @@ export default function SignInPage() {
 
         toast.success(`Welcome back!`)
 
-        // KYC validation only for role 3 (investors/customers) without kycId
-        if (response.user.role === 3 && response.user.kycStatus !== 'Approved') {
-          console.log('[Sign-In] Retrieving DiDit session for user...')
-          try {
-            const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${response.token}`,
-                'Content-Type': 'application/json',
-              },
-            })
+        // KYC validation for role 3 (investors/customers)
+        if (response.user.role === 3) {
+          const kycStatus = response.user.kycStatus
+          const kycUrl = response.user.kycUrl
 
-            if (diditResponse.ok) {
-              const diditData = await diditResponse.json()
-              console.log('[Sign-In] DiDit session response:', diditData)
+          // Case 1: kyc_status is null → create new DiDit session
+          if (kycStatus === null || kycStatus === undefined) {
+            console.log('[Sign-In] KYC status is null, creating new DiDit session...')
+            try {
+              const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${response.token}`,
+                  'Content-Type': 'application/json',
+                },
+              })
 
-              // Check if session was renewed
-              if (diditData.sessionRenewed) {
-                console.log('[Sign-In] KYC session was expired and has been renewed')
+              if (diditResponse.ok) {
+                const diditData = await diditResponse.json()
+                console.log('[Sign-In] DiDit session created:', diditData)
+
+                const sessionId = diditData.data?.session_id || diditData.data?.sessionId
+                const sessionUrl = diditData.data?.url
+                const sessionStatus = diditData.data?.status
+
+                if (sessionId && sessionUrl) {
+                  updateUserKycData(sessionId, sessionUrl, sessionStatus)
+                  console.log('[Sign-In] KYC data updated in localStorage')
+                  refreshAuthState()
+                }
+              } else {
+                console.error('[Sign-In] Failed to create DiDit session:', await diditResponse.text())
               }
-
-              // Update user KYC data in localStorage
-              // API returns session_id and url (snake_case)
-              const sessionId = diditData.data?.session_id || diditData.data?.sessionId
-              const sessionUrl = diditData.data?.url
-              const sessionStatus = diditData.data?.status
-
-              if (sessionId && sessionUrl) {
-                updateUserKycData(sessionId, sessionUrl, sessionStatus)
-                console.log('[Sign-In] KYC data updated in localStorage')
-
-                // Refresh auth state to pick up new KYC data
-                refreshAuthState()
-                console.log('[Sign-In] Auth state refreshed with new KYC data')
-              }
-            } else {
-              console.error('[Sign-In] Failed to create DiDit session:', await diditResponse.text())
+            } catch (diditError) {
+              console.error('[Sign-In] Error creating DiDit session:', diditError)
             }
-          } catch (diditError) {
-            console.error('[Sign-In] Error creating DiDit session:', diditError)
+          }
+          // Case 2: kyc_status is not null but not 'Completed' → use existing kyc_url
+          else if (kycStatus !== 'Completed') {
+            console.log('[Sign-In] KYC status is', kycStatus, '- verification required')
+
+            if (kycUrl) {
+              // Update localStorage with existing KYC URL
+              updateUserKycData(response.user.kycId || '', kycUrl, kycStatus)
+              console.log('[Sign-In] Using existing KYC URL:', kycUrl)
+              refreshAuthState()
+            } else {
+              console.warn('[Sign-In] KYC status is not Completed but no kycUrl available')
+            }
+          }
+          // Case 3: kyc_status is 'Completed' → do nothing (no message)
+          else {
+            console.log('[Sign-In] KYC verification completed')
           }
         }
 

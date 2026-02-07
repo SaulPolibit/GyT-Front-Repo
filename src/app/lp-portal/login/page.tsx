@@ -130,34 +130,59 @@ function LPLoginPageContent() {
 
         toast.success('Welcome back!')
 
-        // Handle KYC for investors (role 3)
-        if (response.user.role === 3 && response.user.kycStatus !== 'Approved') {
-          console.log('[LP Login] Retrieving DiDit session for user...')
-          try {
-            const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${response.token}`,
-                'Content-Type': 'application/json',
-              },
-            })
+        // KYC validation for role 3 (investors/customers)
+        if (response.user.role === 3) {
+          const kycStatus = response.user.kycStatus
+          const kycUrl = response.user.kycUrl
 
-            if (diditResponse.ok) {
-              const diditData = await diditResponse.json()
-              console.log('[LP Login] DiDit session response:', diditData)
+          // Case 1: kyc_status is null → create new DiDit session
+          if (kycStatus === null || kycStatus === undefined) {
+            console.log('[LP Login] KYC status is null, creating new DiDit session...')
+            try {
+              const diditResponse = await fetch(getApiUrl(API_CONFIG.endpoints.diditSession), {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${response.token}`,
+                  'Content-Type': 'application/json',
+                },
+              })
 
-              const sessionId = diditData.data?.session_id || diditData.data?.sessionId
-              const sessionUrl = diditData.data?.url
-              const sessionStatus = diditData.data?.status
+              if (diditResponse.ok) {
+                const diditData = await diditResponse.json()
+                console.log('[LP Login] DiDit session created:', diditData)
 
-              if (sessionId && sessionUrl) {
-                updateUserKycData(sessionId, sessionUrl, sessionStatus)
-                console.log('[LP Login] KYC data updated in localStorage')
-                refreshAuthState()
+                const sessionId = diditData.data?.session_id || diditData.data?.sessionId
+                const sessionUrl = diditData.data?.url
+                const sessionStatus = diditData.data?.status
+
+                if (sessionId && sessionUrl) {
+                  updateUserKycData(sessionId, sessionUrl, sessionStatus)
+                  console.log('[LP Login] KYC data updated in localStorage')
+                  refreshAuthState()
+                }
+              } else {
+                console.error('[LP Login] Failed to create DiDit session:', await diditResponse.text())
               }
+            } catch (diditError) {
+              console.error('[LP Login] Error creating DiDit session:', diditError)
             }
-          } catch (diditError) {
-            console.error('[LP Login] Error creating DiDit session:', diditError)
+          }
+          // Case 2: kyc_status is not null but not 'Completed' → use existing kyc_url
+          else if (kycStatus !== 'Completed') {
+            console.log('[LP Login] KYC status is', kycStatus, '- verification required')
+
+            if (kycUrl) {
+              // Update localStorage with existing KYC URL
+              updateUserKycData(response.user.kycId || '', kycUrl, kycStatus)
+              console.log('[LP Login] Using existing KYC URL:', kycUrl)
+              refreshAuthState()
+            } else {
+              console.warn('[LP Login] KYC status is not Completed but no kycUrl available')
+            }
+          }
+          // Case 3: kyc_status is 'Completed' → do nothing (no message)
+          else {
+            console.log('[LP Login] KYC verification completed')
           }
         }
 

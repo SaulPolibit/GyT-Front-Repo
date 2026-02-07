@@ -20,6 +20,7 @@ import { getApiUrl, API_CONFIG } from '@/lib/api-config'
 import { getAuthState, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { KycVerificationBanner } from '@/components/kyc-verification-banner'
 
 export default function Page() {
   const router = useRouter()
@@ -332,6 +333,11 @@ export default function Page() {
 
       <div className="@container/main flex flex-col gap-2 min-w-0">
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 min-w-0">
+          {/* KYC Verification Banner */}
+          <div className="px-4 lg:px-6">
+            <KycVerificationBanner />
+          </div>
+
           {/* Filter and Add button */}
           <div className="px-4 lg:px-6 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
