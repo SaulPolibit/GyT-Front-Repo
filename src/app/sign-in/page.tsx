@@ -159,8 +159,8 @@ export default function SignInPage() {
               console.error('[Sign-In] Error creating DiDit session:', diditError)
             }
           }
-          // Case 2: kyc_status is not null but not 'Completed' → use existing kyc_url
-          else if (kycStatus !== 'Completed') {
+          // Case 2: kyc_status is not null but not 'Approved' → use existing kyc_url
+          else if (kycStatus !== 'Approved') {
             console.log('[Sign-In] KYC status is', kycStatus, '- verification required')
 
             if (kycUrl) {
@@ -169,12 +169,12 @@ export default function SignInPage() {
               console.log('[Sign-In] Using existing KYC URL:', kycUrl)
               refreshAuthState()
             } else {
-              console.warn('[Sign-In] KYC status is not Completed but no kycUrl available')
+              console.warn('[Sign-In] KYC status is not Approved but no kycUrl available')
             }
           }
-          // Case 3: kyc_status is 'Completed' → do nothing (no message)
+          // Case 3: kyc_status is 'Approved' → do nothing (no message)
           else {
-            console.log('[Sign-In] KYC verification completed')
+            console.log('[Sign-In] KYC verification approved')
           }
         }
 

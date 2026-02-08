@@ -167,8 +167,8 @@ function LPLoginPageContent() {
               console.error('[LP Login] Error creating DiDit session:', diditError)
             }
           }
-          // Case 2: kyc_status is not null but not 'Completed' → use existing kyc_url
-          else if (kycStatus !== 'Completed') {
+          // Case 2: kyc_status is not null but not 'Approved' → use existing kyc_url
+          else if (kycStatus !== 'Approved') {
             console.log('[LP Login] KYC status is', kycStatus, '- verification required')
 
             if (kycUrl) {
@@ -177,12 +177,12 @@ function LPLoginPageContent() {
               console.log('[LP Login] Using existing KYC URL:', kycUrl)
               refreshAuthState()
             } else {
-              console.warn('[LP Login] KYC status is not Completed but no kycUrl available')
+              console.warn('[LP Login] KYC status is not Approved but no kycUrl available')
             }
           }
-          // Case 3: kyc_status is 'Completed' → do nothing (no message)
+          // Case 3: kyc_status is 'Approved' → do nothing (no message)
           else {
-            console.log('[LP Login] KYC verification completed')
+            console.log('[LP Login] KYC verification approved')
           }
         }
 

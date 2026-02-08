@@ -125,8 +125,8 @@ function MfaValidationContent() {
             console.error('[MFA Validation] Error creating DiDit session:', diditError)
           }
         }
-        // Case 2: kyc_status is not null but not 'Completed' → use existing kyc_url
-        else if (kycStatus !== 'Completed') {
+        // Case 2: kyc_status is not null but not 'Approved' → use existing kyc_url
+        else if (kycStatus !== 'Approved') {
           console.log('[MFA Validation] KYC status is', kycStatus, '- verification required')
 
           if (kycUrl) {
@@ -134,12 +134,12 @@ function MfaValidationContent() {
             updateUserKycData(data.user.kycId || '', kycUrl, kycStatus)
             console.log('[MFA Validation] Using existing KYC URL:', kycUrl)
           } else {
-            console.warn('[MFA Validation] KYC status is not Completed but no kycUrl available')
+            console.warn('[MFA Validation] KYC status is not Approved but no kycUrl available')
           }
         }
-        // Case 3: kyc_status is 'Completed' → do nothing (no message)
+        // Case 3: kyc_status is 'Approved' → do nothing (no message)
         else {
-          console.log('[MFA Validation] KYC verification completed')
+          console.log('[MFA Validation] KYC verification approved')
         }
       }
 

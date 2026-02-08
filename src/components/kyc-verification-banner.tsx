@@ -22,7 +22,7 @@ export function KycVerificationBanner() {
   // Only show for role 3 (investors) with incomplete KYC
   const needsKyc = user &&
     user.role === 3 &&
-    user.kycStatus !== 'Completed' &&
+    user.kycStatus !== 'Approved' &&
     user.kycUrl
 
   // Don't show if dismissed or not needed
