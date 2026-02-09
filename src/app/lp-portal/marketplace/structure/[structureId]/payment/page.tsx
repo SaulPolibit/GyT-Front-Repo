@@ -294,20 +294,35 @@ export default function PaymentPage({ params }: Props) {
   }
 
   const isFormValid = () => {
-    // Check if user has walletAddress for blockchain operations
-    if (!user?.walletAddress) {
+    // No payment method selected
+    if (!paymentMethod) {
       return false
     }
 
+    // Credit/Debit Card validation
     if (paymentMethod === "credit-card") {
       return cardNumber.length >= 13 && cardName.length > 0 && cardExpiry.length === 5 && cardCVC.length === 3
     }
+
+    // USDC payment validation
     if (paymentMethod === "usdc") {
+      // Check structure has blockchain configuration
+      if (!isMetamaskPaymentEnabled) {
+        return false
+      }
+      // Check MetaMask is connected
+      if (!isMetaMaskConnected) {
+        return false
+      }
+      // Check wallet address exists
       return usdcWalletAddress.length > 0
     }
+
+    // Bank transfer validation
     if (paymentMethod === "bank-transfer") {
       return bankTransferReceipt !== null
     }
+
     return false
   }
 
@@ -1503,18 +1518,71 @@ export default function PaymentPage({ params }: Props) {
             </Card>
           )}
 
-          {/* Wallet Address Warning */}
-          {!user?.walletAddress && (
+          {/* USDC Payment Warnings */}
+          {paymentMethod === "usdc" && !isMetamaskPaymentEnabled && (
             <Card className="border-red-200 bg-red-50">
               <CardHeader>
                 <CardTitle className="text-red-900 flex items-center gap-2">
                   <AlertCircle className="h-5 w-5" />
-                  Wallet Address Required
+                  USDC Payment Not Available
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-red-800">
-                  Wallet address payment disabled. Your account does not have a wallet address configured. A wallet address is required to complete blockchain transactions and receive tokens. Please contact support to add a wallet address to your account.
+                  {!structure?.blockchainNetwork || structure.blockchainNetwork.trim() === '' || !structure?.walletAddress || structure.walletAddress.trim() === ''
+                    ? 'This structure does not have blockchain configuration (network and wallet address). USDC payment is not available.'
+                    : 'Your account does not have a wallet address configured. A wallet address is required to complete blockchain transactions and receive tokens. Please contact support to add a wallet address to your account.'
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {paymentMethod === "usdc" && isMetamaskPaymentEnabled && !isMetaMaskConnected && (
+            <Card className="border-amber-200 bg-amber-50">
+              <CardHeader>
+                <CardTitle className="text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  MetaMask Connection Required
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-amber-800">
+                  Please connect your MetaMask wallet to proceed with USDC payment. Click the "Connect MetaMask / Rabby" button above.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No Payment Method Selected Warning */}
+          {!paymentMethod && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="text-blue-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Select Payment Method
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-blue-800">
+                  Please select a payment method above to continue. Choose from the available payment options based on your preference.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Bank Transfer Warning */}
+          {paymentMethod === "bank-transfer" && !bankTransferReceipt && (
+            <Card className="border-amber-200 bg-amber-50">
+              <CardHeader>
+                <CardTitle className="text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Receipt Required
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-amber-800">
+                  Please upload your bank transfer receipt to proceed with the payment. The receipt can be a screenshot or PDF of your bank transfer confirmation.
                 </p>
               </CardContent>
             </Card>
