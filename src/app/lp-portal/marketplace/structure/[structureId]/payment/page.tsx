@@ -648,7 +648,7 @@ export default function PaymentPage({ params }: Props) {
               formData.append('tokens', String(tokens))
               formData.append('structureId', structureId)
               formData.append('email', user?.email || email)
-              formData.append('contractId', 'dummy-contract-id')
+              // contractId is optional - not sending as contract model doesn't exist yet
               formData.append('submissionId', submissionId ?? '')
               formData.append('paymentMethod', paymentMethod)
               formData.append('paymentTransactionHash', txHash)
@@ -776,7 +776,7 @@ export default function PaymentPage({ params }: Props) {
         formData.append('amount', String(amount))
         formData.append('structureId', structureId)
         formData.append('email', user?.email || email)
-        formData.append('contractId', 'dummy-contract-id') // Dummy data as contract model doesn't exist yet
+        // contractId is optional - not sending as contract model doesn't exist yet
         formData.append('submissionId', submissionId ?? '')
         formData.append('tokens', String(tokens))
         formData.append('paymentMethod', paymentMethod)
