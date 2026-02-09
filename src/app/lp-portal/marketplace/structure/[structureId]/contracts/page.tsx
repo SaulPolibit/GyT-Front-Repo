@@ -408,9 +408,11 @@ export default function ContractsSigningPage({ params }: Props) {
               {!hasTemplateError ? (
                 <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
                   {/* @ts-expect-error - DocuSeal is a custom web component */}
+
                   <docuseal-form
                     data-src={contractTemplateUrl}
                     data-email={email}
+                    data-role="Client"
                     data-language="es"
                     data-values={JSON.stringify({
                       Nombre2: userFullName,
@@ -423,6 +425,7 @@ export default function ContractsSigningPage({ params }: Props) {
                       Cantidad2: tokens,
                     })}
                     data-read-only-fields={JSON.stringify(["Nombre2", "Email", "Email2", "Nombre", "Nombre4", "Nombre3", "Cantidad2", "Cantidad"])}
+                    data-external-id={`user_${user?.id || 'unknown'}`}
                     className="w-full h-full"
                   />
                 </div>
