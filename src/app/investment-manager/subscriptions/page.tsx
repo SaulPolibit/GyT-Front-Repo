@@ -21,7 +21,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { API_CONFIG, getApiUrl } from '@/lib/api-config';
-import { getAuthToken } from '@/lib/auth-storage';
 import { toast } from 'sonner';
 import { Elements } from '@stripe/react-stripe-js';
 import { getStripe } from '@/lib/stripe';
@@ -44,11 +43,6 @@ export default function FirmSubscriptionPage() {
     try {
       setLoading(true);
       setError(null);
-
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
 
       const result = await StripeAPI.getSubscription();
       setSubscription(result.subscription);
@@ -157,9 +151,9 @@ export default function FirmSubscriptionPage() {
   };
 
   const calculateTotal = () => {
-    let total = 20;
+    let total = 999;
     if (includeAdditionalService) {
-      total += 10;
+      total += 49;
     }
     return total;
   };
@@ -446,7 +440,7 @@ export default function FirmSubscriptionPage() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold">$20</p>
+                <p className="text-3xl font-bold">$999.00</p>
                 <p className="text-sm text-muted-foreground">/month</p>
               </div>
             </div>
@@ -485,7 +479,7 @@ export default function FirmSubscriptionPage() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold">$10</p>
+                <p className="text-2xl font-bold">$49.00</p>
                 <p className="text-sm text-muted-foreground">/month</p>
               </div>
             </div>

@@ -3,6 +3,7 @@
  * Handles all API calls to the Stripe backend
  */
 import { getApiUrl, API_CONFIG } from './api-config';
+import { getAuthToken } from './auth-storage';
 
 export interface SubscriptionData {
   success: boolean;
@@ -30,7 +31,7 @@ export class StripeAPI {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<any> {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
 
     if (!token) {
       throw new Error('No authentication token found. Please login.');
