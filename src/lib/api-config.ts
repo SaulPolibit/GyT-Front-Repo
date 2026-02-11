@@ -148,7 +148,20 @@ export const API_CONFIG = {
     batchTransferTokens: '/api/blockchain/contract/batch-transfer-tokens',
     forceTransferTokens: '/api/blockchain/contract/force-transfer-tokens',
     getTotalSupply: '/api/blockchain/contract/total-supply',
-    
+
+    // Stripe Subscription API
+    stripeGetConfig: '/api/stripe/config',
+    stripeCreateCustomer: '/api/stripe/create-customer',
+    stripeCreateSubscription: '/api/stripe/create-subscription',
+    stripeGetSubscription: '/api/stripe/subscription',
+    stripeAddAdditionalService: '/api/stripe/add-additional-service',
+    stripeRemoveService: '/api/stripe/remove-service',
+    stripeCancelSubscription: '/api/stripe/cancel-subscription',
+    stripeReactivateSubscription: '/api/stripe/reactivate-subscription',
+    stripeGetInvoices: '/api/stripe/invoices',
+    stripeGetUpcomingInvoice: '/api/stripe/upcoming-invoice',
+    stripeCreateSetupIntent: '/api/stripe/create-setup-intent',
+    stripeGetPaymentMethods: '/api/stripe/payment-methods',
 
     // Add other endpoints as needed
   }

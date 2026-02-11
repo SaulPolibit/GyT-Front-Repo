@@ -22,6 +22,7 @@ import {
   DollarSign,
   TrendingUp,
   CheckCircle,
+  CreditCard,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -101,6 +102,12 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
         url: "/investment-manager/approvals",
         icon: CheckCircle,
       },
+      // Subscriptions - root and admin
+      ...(isAdminOrRoot ? [{
+        title: "Subscriptions",
+        url: "/investment-manager/subscriptions",
+        icon: CreditCard,
+      }] : []),
       // Reports - root only
       ...(isRootUser ? [{
         title: t.nav.reports,

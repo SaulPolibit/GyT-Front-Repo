@@ -33,6 +33,10 @@ import {
   Mail,
   Phone,
   Globe,
+  Loader2,
+  Calendar,
+  DollarSign,
+  XCircle,
 } from "lucide-react"
 import { getCurrentUser, getAuthToken, getSupabaseAuth } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
@@ -41,6 +45,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { sendInvestorActivityEmail } from "@/lib/email-service"
 import { getNotificationSettings, saveNotificationSettings } from "@/lib/notification-settings-storage"
 import { getFirmSettings } from "@/lib/firm-settings-storage"
+import { Elements } from '@stripe/react-stripe-js'
+import { getStripe } from '@/lib/stripe'
+import { StripeAPI } from '@/lib/stripe-api'
+import { CheckoutForm } from '@/components/subscription/checkout-form'
 
 export default function LPSettingsPage() {
   const router = useRouter()
@@ -56,7 +64,7 @@ export default function LPSettingsPage() {
   // Check if compliance/tax information should be shown in General Info tab
   const showComplianceInfo = process.env.NEXT_PUBLIC_SHOW_COMPLIANCE_INFO !== 'false'
 
-  const [activeTab, setActiveTab] = React.useState(showPaymentTab ? "payment" : "notifications")
+  const [activeTab, setActiveTab] = React.useState("subscription")
 
   // Notification settings
   const [emailNotifications, setEmailNotifications] = React.useState(true)
@@ -108,10 +116,25 @@ export default function LPSettingsPage() {
   const [isUploadingW9, setIsUploadingW9] = React.useState(false)
   const w9InputRef = React.useRef<HTMLInputElement>(null)
 
+  // Subscription state
+  const [subscription, setSubscription] = React.useState<any>(null)
+  const [loadingSubscription, setLoadingSubscription] = React.useState(false)
+  const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null)
+  const [clientSecret, setClientSecret] = React.useState('')
+  const [includeAdditionalService, setIncludeAdditionalService] = React.useState(false)
+  const [processingSubscription, setProcessingSubscription] = React.useState(false)
+
   React.useEffect(() => {
     loadInvestorData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  React.useEffect(() => {
+    if (activeTab === 'subscription') {
+      loadSubscription()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
   const loadInvestorData = async () => {
     setLoading(true)
@@ -1089,6 +1112,134 @@ export default function LPSettingsPage() {
     w9InputRef.current?.click()
   }
 
+  // Subscription handlers
+  const loadSubscription = async () => {
+    try {
+      setLoadingSubscription(true)
+      setSubscriptionError(null)
+      const result = await StripeAPI.getSubscription()
+      setSubscription(result.subscription)
+    } catch (err: any) {
+      console.error('Failed to load subscription:', err)
+      setSubscriptionError(err.message || 'Failed to load subscription')
+    } finally {
+      setLoadingSubscription(false)
+    }
+  }
+
+  const handleSubscribe = async () => {
+    setProcessingSubscription(true)
+    setSubscriptionError(null)
+
+    try {
+      await StripeAPI.createCustomer()
+      const result = await StripeAPI.createSubscription(includeAdditionalService)
+
+      if (result.clientSecret) {
+        setClientSecret(result.clientSecret)
+      } else {
+        setSubscriptionError('Failed to create subscription')
+      }
+    } catch (err: any) {
+      setSubscriptionError(err.message || 'Failed to create subscription')
+    } finally {
+      setProcessingSubscription(false)
+    }
+  }
+
+  const handleCancelSubscription = async (immediately: boolean) => {
+    if (!confirm(`Are you sure you want to cancel your subscription ${immediately ? 'immediately' : 'at the end of the billing period'}?`)) {
+      return
+    }
+
+    setProcessingSubscription(true)
+    setSubscriptionError(null)
+
+    try {
+      await StripeAPI.cancelSubscription(immediately)
+      await loadSubscription()
+      toast.success('Subscription canceled successfully')
+    } catch (err: any) {
+      setSubscriptionError(err.message || 'Failed to cancel subscription')
+      toast.error(err.message || 'Failed to cancel subscription')
+    } finally {
+      setProcessingSubscription(false)
+    }
+  }
+
+  const handleReactivate = async () => {
+    setProcessingSubscription(true)
+    setSubscriptionError(null)
+
+    try {
+      await StripeAPI.reactivateSubscription()
+      await loadSubscription()
+      toast.success('Subscription reactivated successfully')
+    } catch (err: any) {
+      setSubscriptionError(err.message || 'Failed to reactivate subscription')
+      toast.error(err.message || 'Failed to reactivate subscription')
+    } finally {
+      setProcessingSubscription(false)
+    }
+  }
+
+  const handleAddAdditionalService = async () => {
+    setProcessingSubscription(true)
+    setSubscriptionError(null)
+
+    try {
+      await StripeAPI.addAdditionalService()
+      await loadSubscription()
+      toast.success('Additional service added successfully')
+    } catch (err: any) {
+      setSubscriptionError(err.message || 'Failed to add additional service')
+      toast.error(err.message || 'Failed to add additional service')
+    } finally {
+      setProcessingSubscription(false)
+    }
+  }
+
+  const handleRemoveService = async (itemId: string) => {
+    if (!confirm('Are you sure you want to remove this service? You will receive a prorated credit.')) {
+      return
+    }
+
+    setProcessingSubscription(true)
+    setSubscriptionError(null)
+
+    try {
+      await StripeAPI.removeService(itemId)
+      await loadSubscription()
+      toast.success('Service removed successfully')
+    } catch (err: any) {
+      setSubscriptionError(err.message || 'Failed to remove service')
+      toast.error(err.message || 'Failed to remove service')
+    } finally {
+      setProcessingSubscription(false)
+    }
+  }
+
+  const calculateTotal = () => {
+    let total = 20
+    if (includeAdditionalService) {
+      total += 10
+    }
+    return total
+  }
+
+  const hasAdditionalService = () => {
+    if (!subscription?.items?.data) return false
+    return subscription.items.data.some((item: any) =>
+      item.price.product.name === 'Additional Service Base Cost'
+    )
+  }
+
+  const handleSubscriptionSuccess = async () => {
+    setClientSecret('')
+    await loadSubscription()
+    toast.success('Payment completed successfully')
+  }
+
   if (loading || !investor) {
     return (
       <div className="space-y-6 p-4 md:p-6">
@@ -1107,14 +1258,15 @@ export default function LPSettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage your payment methods, notifications, security, and legal information
+          Manage your subscription, payment methods, notifications, security, and legal information
         </p>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={`grid w-full ${showPaymentTab ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${showPaymentTab ? 'grid-cols-5' : 'grid-cols-4'}`}>
           {showPaymentTab && <TabsTrigger value="payment">Payment</TabsTrigger>}
+          <TabsTrigger value="subscription">Subscription</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="legal">General Info</TabsTrigger>
@@ -1267,6 +1419,329 @@ export default function LPSettingsPage() {
           </Card>
         </TabsContent>
         )}
+
+        {/* Subscription Tab */}
+        <TabsContent value="subscription" className="space-y-4">
+          {loadingSubscription ? (
+            <Card>
+              <CardContent className="flex items-center justify-center min-h-[200px]">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : clientSecret ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Complete Payment</CardTitle>
+                <CardDescription>
+                  Enter your payment details to complete your subscription
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Elements stripe={getStripe()} options={{ clientSecret }}>
+                  <CheckoutForm onSuccess={handleSubscriptionSuccess} />
+                </Elements>
+                <Button
+                  variant="ghost"
+                  onClick={() => setClientSecret('')}
+                  className="mt-4 w-full"
+                >
+                  Cancel
+                </Button>
+              </CardContent>
+            </Card>
+          ) : subscription && (subscription.status === 'active' || subscription.status === 'trialing') ? (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Platform Subscription</CardTitle>
+                    <CardDescription>Manage your subscription and billing</CardDescription>
+                  </div>
+                  <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
+                    {subscription.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {subscriptionError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{subscriptionError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {subscription.cancel_at_period_end && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Your subscription will cancel at the end of the current billing period.
+                      {subscription.current_period_end && (
+                        <> Ends on {new Date(subscription.current_period_end * 1000).toLocaleDateString()}.</>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Active Services */}
+                <div>
+                  <h3 className="font-semibold mb-4">Active Services</h3>
+                  <div className="space-y-3">
+                    {subscription.items.data.map((item: any) => (
+                      <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                          <div>
+                            <p className="font-medium">{item.price.product.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {item.price.product.description}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="font-semibold">
+                              ${(item.price.unit_amount / 100).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">/month</p>
+                          </div>
+                          {item.price.product.name === 'Additional Service Base Cost' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveService(item.id)}
+                              disabled={processingSubscription}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Add Additional Service */}
+                {!hasAdditionalService() && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h3 className="font-semibold mb-4">Available Add-ons</h3>
+                      <div className="flex items-center justify-between p-4 border rounded-lg border-dashed">
+                        <div className="flex items-center gap-3">
+                          <div className="h-5 w-5" />
+                          <div>
+                            <p className="font-medium">Additional Service Base Cost</p>
+                            <p className="text-sm text-muted-foreground">
+                              Additional service features and capabilities
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="font-semibold">$10.00</p>
+                            <p className="text-xs text-muted-foreground">/month</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleAddAdditionalService}
+                            disabled={processingSubscription}
+                          >
+                            Add Service
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Billing Info */}
+                <Separator />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Next billing date
+                    </p>
+                    <p className="font-medium">
+                      {subscription.current_period_end
+                        ? new Date(subscription.current_period_end * 1000).toLocaleDateString()
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Amount
+                    </p>
+                    <p className="font-medium">
+                      ${subscription.items.data.reduce((total: number, item: any) =>
+                        total + (item.price.unit_amount / 100), 0
+                      ).toFixed(2)}/month
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <Separator />
+                <div className="flex gap-3">
+                  {subscription.cancel_at_period_end ? (
+                    <Button
+                      onClick={handleReactivate}
+                      disabled={processingSubscription}
+                      className="flex-1"
+                    >
+                      {processingSubscription ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Reactivate Subscription
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCancelSubscription(false)}
+                        disabled={processingSubscription}
+                        className="flex-1"
+                      >
+                        Cancel at Period End
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleCancelSubscription(true)}
+                        disabled={processingSubscription}
+                      >
+                        Cancel Immediately
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscribe to Platform</CardTitle>
+                <CardDescription>
+                  Choose your plan and get started with our platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {subscriptionError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{subscriptionError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Base Service */}
+                <div className="p-6 border rounded-lg bg-primary/5 border-primary">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-primary" />
+                        Service Base Cost
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Required - Base service subscription with core platform features
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold">$20</p>
+                      <p className="text-sm text-muted-foreground">/month</p>
+                    </div>
+                  </div>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      Core platform features
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      Standard support
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      Basic analytics and reporting
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Additional Service */}
+                <div className="p-6 border rounded-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-4 flex-1">
+                      <Switch
+                        id="additional-service"
+                        checked={includeAdditionalService}
+                        onCheckedChange={setIncludeAdditionalService}
+                      />
+                      <div>
+                        <Label htmlFor="additional-service" className="text-lg font-semibold cursor-pointer">
+                          Additional Service Base Cost
+                        </Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Optional - Additional service features and capabilities
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold">$10</p>
+                      <p className="text-sm text-muted-foreground">/month</p>
+                    </div>
+                  </div>
+                  {includeAdditionalService && (
+                    <ul className="space-y-2 text-sm mt-4 pt-4 border-t">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        Advanced analytics
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        Priority support
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        Enhanced features
+                      </li>
+                    </ul>
+                  )}
+                </div>
+
+                {/* Total */}
+                <Separator />
+                <div className="flex justify-between items-center text-lg font-semibold">
+                  <span>Total per month:</span>
+                  <span className="text-2xl">${calculateTotal()}.00</span>
+                </div>
+
+                {/* Subscribe Button */}
+                <Button
+                  onClick={handleSubscribe}
+                  disabled={processingSubscription}
+                  className="w-full"
+                  size="lg"
+                >
+                  {processingSubscription ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Subscribe Now
+                    </>
+                  )}
+                </Button>
+
+                <p className="text-xs text-center text-muted-foreground">
+                  By subscribing, you agree to our terms of service. You can cancel anytime.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
         {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-4">
