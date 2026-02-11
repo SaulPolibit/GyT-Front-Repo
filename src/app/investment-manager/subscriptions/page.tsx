@@ -33,7 +33,7 @@ import {
   Calendar,
   RefreshCcw
 } from 'lucide-react';
-import { getApiUrl } from '@/lib/api-config';
+import { API_CONFIG, getApiUrl } from '@/lib/api-config';
 import { getAuthToken } from '@/lib/auth-storage';
 
 interface UserSubscription {
@@ -84,19 +84,46 @@ export default function SubscriptionsPage() {
       }
 
       // Fetch all users (admin endpoint)
-      const response = await fetch(getApiUrl('/api/users'), {
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAllUsers), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        try {
+          const errorData = await response.json();
+          if (errorData.error === "Invalid or expired token") {
+            console.log('[Subscriptions] 401 Unauthorized - clearing session and redirecting to login');
+            localStorage.clear();
+            window.location.href = '/sign-in';
+            return;
+          }
+        } catch (e) {
+          console.log('Error: ', e);
+        }
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch users');
       }
 
-      const data = await response.json();
-      const users = data.users || data;
+      const result = await response.json();
+
+      // API returns { success: true, data: [...] }
+      if (!result.success || !result.data) {
+        throw new Error('Invalid API response format');
+      }
+
+      const users = result.data;
+
+      // Ensure users is an array
+      if (!Array.isArray(users)) {
+        console.error('Users data is not an array:', users);
+        throw new Error('Invalid users data format');
+      }
 
       // Filter users with Stripe subscriptions
       const usersWithSubscriptions = users.filter((user: any) =>
