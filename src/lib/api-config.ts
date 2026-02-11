@@ -155,6 +155,7 @@ export const API_CONFIG = {
     stripeCreateSubscription: '/api/stripe/create-subscription',
     stripeGetSubscription: '/api/stripe/subscription',
     stripeAddAdditionalService: '/api/stripe/add-additional-service',
+    stripeUpdateServiceQuantity: '/api/stripe/update-service-quantity',
     stripeRemoveService: '/api/stripe/remove-service',
     stripeCancelSubscription: '/api/stripe/cancel-subscription',
     stripeReactivateSubscription: '/api/stripe/reactivate-subscription',

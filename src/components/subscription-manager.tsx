@@ -10,7 +10,6 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
   CheckCircle2,
-  XCircle,
   Loader2,
   CreditCard,
   AlertCircle,
@@ -21,14 +20,13 @@ import {
   Minus,
   Trash2,
 } from 'lucide-react';
-import { API_CONFIG, getApiUrl } from '@/lib/api-config';
 import { toast } from 'sonner';
 import { Elements } from '@stripe/react-stripe-js';
 import { getStripe } from '@/lib/stripe';
 import { StripeAPI } from '@/lib/stripe-api';
 import { CheckoutForm } from '@/components/subscription/checkout-form';
 
-export default function FirmSubscriptionPage() {
+export function SubscriptionManager() {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -206,29 +204,27 @@ export default function FirmSubscriptionPage() {
   // Show payment form if we have a client secret
   if (clientSecret) {
     return (
-      <div className="container mx-auto py-8 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete Payment</CardTitle>
-            <CardDescription>
-              Enter payment details to activate your firm's subscription
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Elements stripe={getStripe()} options={{ clientSecret }}>
-              <CheckoutForm onSuccess={handleSubscriptionSuccess} />
-            </Elements>
+      <Card>
+        <CardHeader>
+          <CardTitle>Complete Payment</CardTitle>
+          <CardDescription>
+            Enter payment details to activate your firm's subscription
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Elements stripe={getStripe()} options={{ clientSecret }}>
+            <CheckoutForm onSuccess={handleSubscriptionSuccess} />
+          </Elements>
 
-            <Button
-              variant="ghost"
-              onClick={() => setClientSecret('')}
-              className="mt-4 w-full"
-            >
-              Cancel
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          <Button
+            variant="ghost"
+            onClick={() => setClientSecret('')}
+            className="mt-4 w-full"
+          >
+            Cancel
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -238,13 +234,6 @@ export default function FirmSubscriptionPage() {
 
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Firm Subscription</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your firm's platform subscription and billing
-          </p>
-        </div>
-
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -402,7 +391,7 @@ export default function FirmSubscriptionPage() {
                 </p>
                 <p className="font-medium">
                   ${subscription.items.data.reduce((total: number, item: any) =>
-                    total + (item.price.unit_amount / 100), 0
+                    total + (item.price.unit_amount * item.quantity / 100), 0
                   ).toFixed(2)}/month
                 </p>
               </div>
@@ -451,13 +440,6 @@ export default function FirmSubscriptionPage() {
   // Show subscription creation form
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Firm Subscription</h1>
-        <p className="text-muted-foreground mt-2">
-          Subscribe to activate your firm's access to the platform
-        </p>
-      </div>
-
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />

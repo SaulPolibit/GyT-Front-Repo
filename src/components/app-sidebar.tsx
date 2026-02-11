@@ -102,11 +102,11 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
         url: "/investment-manager/approvals",
         icon: CheckCircle,
       },
-      // Subscriptions - root and admin
+      // Settings - root and admin have access to subscription tab
       ...(isAdminOrRoot ? [{
-        title: "Subscriptions",
-        url: "/investment-manager/subscriptions",
-        icon: CreditCard,
+        title: "Settings",
+        url: "/investment-manager/settings?tab=subscription",
+        icon: Settings,
       }] : []),
       // Reports - root only
       ...(isRootUser ? [{

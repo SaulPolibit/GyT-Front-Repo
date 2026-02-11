@@ -101,6 +101,18 @@ export class StripeAPI {
   }
 
   /**
+   * Update quantity of a service in subscription
+   * @param subscriptionItemId - The subscription item ID to update
+   * @param quantity - New quantity (must be >= 1)
+   */
+  static async updateServiceQuantity(subscriptionItemId: string, quantity: number): Promise<any> {
+    return this.fetchWithAuth(API_CONFIG.endpoints.stripeUpdateServiceQuantity, {
+      method: 'POST',
+      body: JSON.stringify({ subscriptionItemId, quantity })
+    });
+  }
+
+  /**
    * Remove a service from subscription
    * @param subscriptionItemId - The subscription item ID to remove
    */

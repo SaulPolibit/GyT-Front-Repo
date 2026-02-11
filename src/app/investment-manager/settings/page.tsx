@@ -25,7 +25,6 @@ import {
   CheckCircle,
   Upload,
   Mail,
-  Send,
   AlertCircle,
 } from "lucide-react"
 import { getCurrentUser, getAuthToken, getSupabaseAuth } from "@/lib/auth-storage"
@@ -42,10 +41,20 @@ import { getUsers, deleteUser, User, getRoleLabel } from '@/lib/user-management-
 import { AddUserModal } from '@/components/add-user-modal'
 import { PermissionsMatrixDialog } from '@/components/permissions-matrix-dialog'
 import { getNotificationSettings, saveNotificationSettings } from '@/lib/notification-settings-storage'
+import { SubscriptionManager } from '@/components/subscription-manager'
 
 export default function InvestmentManagerSettingsPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = React.useState("firm")
+
+  // Handle query parameter for tab selection
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const tab = urlParams.get('tab')
+    if (tab && ['firm', 'users', 'notifications', 'email', 'security', 'subscription'].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [])
 
   // Firm settings
   const [settings, setSettings] = React.useState<FirmSettings | null>(null)
@@ -1693,12 +1702,13 @@ export default function InvestmentManagerSettingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={`grid w-full ${currentUserRole === 0 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        <TabsList className={`grid w-full ${currentUserRole === 0 ? 'grid-cols-6' : (currentUserRole === 1 ? 'grid-cols-5' : 'grid-cols-4')}`}>
           <TabsTrigger value="firm">Firm</TabsTrigger>
           {currentUserRole === 0 && <TabsTrigger value="users">Users</TabsTrigger>}
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          {(currentUserRole === 0 || currentUserRole === 1) && <TabsTrigger value="subscription">Subscription</TabsTrigger>}
         </TabsList>
 
         {/* Firm Settings Tab */}
@@ -2555,6 +2565,13 @@ export default function InvestmentManagerSettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Subscription Tab */}
+        {(currentUserRole === 0 || currentUserRole === 1) && (
+          <TabsContent value="subscription" className="space-y-4">
+            <SubscriptionManager />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Modals */}
