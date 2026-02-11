@@ -4,76 +4,43 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Search,
-  DollarSign,
-  Users,
-  TrendingUp,
+  CreditCard,
   AlertCircle,
   Calendar,
-  RefreshCcw
+  DollarSign,
+  Building2,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import { API_CONFIG, getApiUrl } from '@/lib/api-config';
 import { getAuthToken } from '@/lib/auth-storage';
+import { toast } from 'sonner';
+import { Elements } from '@stripe/react-stripe-js';
+import { getStripe } from '@/lib/stripe';
+import { StripeAPI } from '@/lib/stripe-api';
+import { CheckoutForm } from '@/components/subscription/checkout-form';
 
-interface UserSubscription {
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  stripeCustomerId: string;
-  stripeSubscriptionId: string;
-  subscriptionStatus: string;
-  role: number;
-  lastLogin: string;
-  subscriptionDetails?: any;
-}
-
-export default function SubscriptionsPage() {
-  const [subscriptions, setSubscriptions] = useState<UserSubscription[]>([]);
-  const [filteredSubscriptions, setFilteredSubscriptions] = useState<UserSubscription[]>([]);
+export default function FirmSubscriptionPage() {
+  const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    canceled: 0,
-    trialing: 0,
-    pastDue: 0,
-    mrr: 0
-  });
+  const [clientSecret, setClientSecret] = useState('');
+  const [includeAdditionalService, setIncludeAdditionalService] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    loadSubscriptions();
+    loadSubscription();
   }, []);
 
-  useEffect(() => {
-    filterSubscriptions();
-  }, [searchTerm, statusFilter, subscriptions]);
-
-  const loadSubscriptions = async () => {
+  const loadSubscription = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -83,127 +50,131 @@ export default function SubscriptionsPage() {
         throw new Error('No authentication token found');
       }
 
-      // Fetch all users (admin endpoint)
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getAllUsers), {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      // Handle 401 Unauthorized
-      if (response.status === 401) {
-        try {
-          const errorData = await response.json();
-          if (errorData.error === "Invalid or expired token") {
-            console.log('[Subscriptions] 401 Unauthorized - clearing session and redirecting to login');
-            localStorage.clear();
-            window.location.href = '/sign-in';
-            return;
-          }
-        } catch (e) {
-          console.log('Error: ', e);
-        }
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
-
-      const result = await response.json();
-
-      // API returns { success: true, data: [...] }
-      if (!result.success || !result.data) {
-        throw new Error('Invalid API response format');
-      }
-
-      const users = result.data;
-
-      // Ensure users is an array
-      if (!Array.isArray(users)) {
-        console.error('Users data is not an array:', users);
-        throw new Error('Invalid users data format');
-      }
-
-      // Filter users with Stripe subscriptions
-      const usersWithSubscriptions = users.filter((user: any) =>
-        user.stripeCustomerId || user.stripeSubscriptionId
-      );
-
-      setSubscriptions(usersWithSubscriptions);
-      calculateStats(usersWithSubscriptions);
+      const result = await StripeAPI.getSubscription();
+      setSubscription(result.subscription);
     } catch (err: any) {
-      console.error('Failed to load subscriptions:', err);
-      setError(err.message || 'Failed to load subscriptions');
+      console.error('Failed to load subscription:', err);
+      // Don't set error for "no subscription" case
+      if (!err.message?.includes('No subscription')) {
+        setError(err.message || 'Failed to load subscription');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (subs: UserSubscription[]) => {
-    const total = subs.length;
-    const active = subs.filter(s => s.subscriptionStatus === 'active').length;
-    const canceled = subs.filter(s => s.subscriptionStatus === 'canceled').length;
-    const trialing = subs.filter(s => s.subscriptionStatus === 'trialing').length;
-    const pastDue = subs.filter(s => s.subscriptionStatus === 'past_due').length;
+  const handleSubscribe = async () => {
+    setProcessing(true);
+    setError(null);
 
-    // Estimate MRR (assuming $20 base for active subscriptions)
-    const mrr = active * 20; // This is a rough estimate
+    try {
+      await StripeAPI.createCustomer();
+      const result = await StripeAPI.createSubscription(includeAdditionalService);
 
-    setStats({ total, active, canceled, trialing, pastDue, mrr });
+      if (result.clientSecret) {
+        setClientSecret(result.clientSecret);
+      } else {
+        setError('Failed to create subscription');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create subscription');
+      toast.error(err.message || 'Failed to create subscription');
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const filterSubscriptions = () => {
-    let filtered = subscriptions;
-
-    // Filter by search term
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(sub =>
-        sub.email.toLowerCase().includes(term) ||
-        sub.firstName?.toLowerCase().includes(term) ||
-        sub.lastName?.toLowerCase().includes(term) ||
-        sub.stripeCustomerId?.toLowerCase().includes(term)
-      );
+  const handleCancelSubscription = async (immediately: boolean) => {
+    if (!confirm(`Are you sure you want to cancel your firm's subscription ${immediately ? 'immediately' : 'at the end of the billing period'}?`)) {
+      return;
     }
 
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(sub => sub.subscriptionStatus === statusFilter);
-    }
+    setProcessing(true);
+    setError(null);
 
-    setFilteredSubscriptions(filtered);
+    try {
+      await StripeAPI.cancelSubscription(immediately);
+      await loadSubscription();
+      toast.success('Subscription canceled successfully');
+    } catch (err: any) {
+      setError(err.message || 'Failed to cancel subscription');
+      toast.error(err.message || 'Failed to cancel subscription');
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: any; icon: any }> = {
-      active: { variant: 'default', icon: CheckCircle2 },
-      trialing: { variant: 'secondary', icon: Calendar },
-      canceled: { variant: 'destructive', icon: XCircle },
-      past_due: { variant: 'destructive', icon: AlertCircle },
-      incomplete: { variant: 'outline', icon: AlertCircle },
-    };
+  const handleReactivate = async () => {
+    setProcessing(true);
+    setError(null);
 
-    const config = variants[status] || { variant: 'outline', icon: AlertCircle };
-    const Icon = config.icon;
+    try {
+      await StripeAPI.reactivateSubscription();
+      await loadSubscription();
+      toast.success('Subscription reactivated successfully');
+    } catch (err: any) {
+      setError(err.message || 'Failed to reactivate subscription');
+      toast.error(err.message || 'Failed to reactivate subscription');
+    } finally {
+      setProcessing(false);
+    }
+  };
 
-    return (
-      <Badge variant={config.variant} className="flex items-center gap-1 w-fit">
-        <Icon className="h-3 w-3" />
-        {status || 'No subscription'}
-      </Badge>
+  const handleAddAdditionalService = async () => {
+    setProcessing(true);
+    setError(null);
+
+    try {
+      await StripeAPI.addAdditionalService();
+      await loadSubscription();
+      toast.success('Additional service added successfully');
+    } catch (err: any) {
+      setError(err.message || 'Failed to add additional service');
+      toast.error(err.message || 'Failed to add additional service');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleRemoveService = async (itemId: string) => {
+    if (!confirm('Are you sure you want to remove this service? You will receive a prorated credit.')) {
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      await StripeAPI.removeService(itemId);
+      await loadSubscription();
+      toast.success('Service removed successfully');
+    } catch (err: any) {
+      setError(err.message || 'Failed to remove service');
+      toast.error(err.message || 'Failed to remove service');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const calculateTotal = () => {
+    let total = 20;
+    if (includeAdditionalService) {
+      total += 10;
+    }
+    return total;
+  };
+
+  const hasAdditionalService = () => {
+    if (!subscription?.items?.data) return false;
+    return subscription.items.data.some((item: any) =>
+      item.price.product.name === 'Additional Service Base Cost'
     );
   };
 
-  const getRoleName = (role: number) => {
-    const roles: Record<number, string> = {
-      0: 'Root',
-      1: 'Admin',
-      2: 'Support',
-      3: 'Investor',
-      4: 'Guest'
-    };
-    return roles[role] || 'Unknown';
+  const handleSubscriptionSuccess = async () => {
+    setClientSecret('');
+    await loadSubscription();
+    toast.success('Payment completed successfully');
   };
 
   if (loading) {
@@ -214,12 +185,231 @@ export default function SubscriptionsPage() {
     );
   }
 
+  // Show payment form if we have a client secret
+  if (clientSecret) {
+    return (
+      <div className="container mx-auto py-8 max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Complete Payment</CardTitle>
+            <CardDescription>
+              Enter payment details to activate your firm's subscription
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Elements stripe={getStripe()} options={{ clientSecret }}>
+              <CheckoutForm onSuccess={handleSubscriptionSuccess} />
+            </Elements>
+
+            <Button
+              variant="ghost"
+              onClick={() => setClientSecret('')}
+              className="mt-4 w-full"
+            >
+              Cancel
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show active subscription
+  if (subscription && (subscription.status === 'active' || subscription.status === 'trialing')) {
+    const isCanceling = subscription.cancel_at_period_end;
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Firm Subscription</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your firm's platform subscription and billing
+          </p>
+        </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {isCanceling && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your subscription will cancel at the end of the current billing period.
+              {subscription.current_period_end && (
+                <> Ends on {new Date(subscription.current_period_end * 1000).toLocaleDateString()}.</>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Building2 className="h-8 w-8 text-primary" />
+                <div>
+                  <CardTitle>Platform Subscription</CardTitle>
+                  <CardDescription>Active services and billing information</CardDescription>
+                </div>
+              </div>
+              <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'} className="text-sm">
+                {subscription.status}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Active Services */}
+            <div>
+              <h3 className="font-semibold mb-4">Active Services</h3>
+              <div className="space-y-3">
+                {subscription.items.data.map((item: any) => (
+                  <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="font-medium">{item.price.product.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {item.price.product.description}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-semibold">
+                          ${(item.price.unit_amount / 100).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">/month</p>
+                      </div>
+                      {item.price.product.name === 'Additional Service Base Cost' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveService(item.id)}
+                          disabled={processing}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Add Additional Service */}
+            {!hasAdditionalService() && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold mb-4">Available Add-ons</h3>
+                  <div className="flex items-center justify-between p-4 border rounded-lg border-dashed">
+                    <div className="flex items-center gap-3">
+                      <Plus className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Additional Service Base Cost</p>
+                        <p className="text-sm text-muted-foreground">
+                          Additional service features and capabilities
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-semibold">$10.00</p>
+                        <p className="text-xs text-muted-foreground">/month</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddAdditionalService}
+                        disabled={processing}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Service
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Billing Info */}
+            <Separator />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Next billing date
+                </p>
+                <p className="font-medium">
+                  {subscription.current_period_end
+                    ? new Date(subscription.current_period_end * 1000).toLocaleDateString()
+                    : 'N/A'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Amount
+                </p>
+                <p className="font-medium">
+                  ${subscription.items.data.reduce((total: number, item: any) =>
+                    total + (item.price.unit_amount / 100), 0
+                  ).toFixed(2)}/month
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <Separator />
+            <div className="flex gap-3">
+              {isCanceling ? (
+                <Button
+                  onClick={handleReactivate}
+                  disabled={processing}
+                  className="flex-1"
+                >
+                  {processing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Reactivate Subscription
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleCancelSubscription(false)}
+                    disabled={processing}
+                    className="flex-1"
+                  >
+                    Cancel at Period End
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleCancelSubscription(true)}
+                    disabled={processing}
+                  >
+                    Cancel Immediately
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show subscription creation form
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Subscription Management</h1>
+        <h1 className="text-3xl font-bold">Firm Subscription</h1>
         <p className="text-muted-foreground mt-2">
-          View and manage all user subscriptions
+          Subscribe to activate your firm's access to the platform
         </p>
       </div>
 
@@ -230,170 +420,123 @@ export default function SubscriptionsPage() {
         </Alert>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Subscriptions</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              Active customers with subscriptions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.active}</div>
-            <p className="text-xs text-muted-foreground">
-              Currently active subscriptions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Canceled</CardTitle>
-            <XCircle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.canceled}</div>
-            <p className="text-xs text-muted-foreground">
-              Canceled subscriptions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estimated MRR</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.mrr}</div>
-            <p className="text-xs text-muted-foreground">
-              Monthly Recurring Revenue
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>All Subscriptions</CardTitle>
-          <CardDescription>
-            Search and filter user subscriptions
-          </CardDescription>
+          <div className="flex items-center gap-3">
+            <Building2 className="h-8 w-8 text-primary" />
+            <div>
+              <CardTitle>Select Your Services</CardTitle>
+              <CardDescription>
+                Start with the base service and optionally add additional features
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by email, name, or customer ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <CardContent className="space-y-6">
+          {/* Base Service */}
+          <div className="p-6 border rounded-lg bg-primary/5 border-primary">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  Service Base Cost
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Required - Base service subscription with core platform features
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold">$20</p>
+                <p className="text-sm text-muted-foreground">/month</p>
+              </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="trialing">Trialing</SelectItem>
-                <SelectItem value="canceled">Canceled</SelectItem>
-                <SelectItem value="past_due">Past Due</SelectItem>
-                <SelectItem value="incomplete">Incomplete</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" onClick={loadSubscriptions}>
-              <RefreshCcw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            <ul className="space-y-2 text-sm">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                Core platform features
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                Standard support
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                Basic analytics and reporting
+              </li>
+            </ul>
           </div>
 
-          {/* Table */}
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Customer ID</TableHead>
-                  <TableHead>Subscription ID</TableHead>
-                  <TableHead>Last Login</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSubscriptions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      {searchTerm || statusFilter !== 'all'
-                        ? 'No subscriptions match your filters'
-                        : 'No subscriptions found'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSubscriptions.map((sub) => (
-                    <TableRow key={sub.userId}>
-                      <TableCell className="font-medium">
-                        {sub.firstName} {sub.lastName}
-                      </TableCell>
-                      <TableCell>{sub.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{getRoleName(sub.role)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(sub.subscriptionStatus)}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {sub.stripeCustomerId ? (
-                          <span className="text-muted-foreground">
-                            {sub.stripeCustomerId.substring(0, 20)}...
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground italic">None</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {sub.stripeSubscriptionId ? (
-                          <span className="text-muted-foreground">
-                            {sub.stripeSubscriptionId.substring(0, 20)}...
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground italic">None</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {sub.lastLogin
-                          ? new Date(sub.lastLogin).toLocaleDateString()
-                          : 'Never'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          {/* Additional Service */}
+          <div className="p-6 border rounded-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4 flex-1">
+                <Switch
+                  id="additional-service"
+                  checked={includeAdditionalService}
+                  onCheckedChange={setIncludeAdditionalService}
+                />
+                <div>
+                  <Label htmlFor="additional-service" className="text-lg font-semibold cursor-pointer">
+                    Additional Service Base Cost
+                  </Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Optional - Additional service features and capabilities
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold">$10</p>
+                <p className="text-sm text-muted-foreground">/month</p>
+              </div>
+            </div>
+            {includeAdditionalService && (
+              <ul className="space-y-2 text-sm mt-4 pt-4 border-t">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  Advanced analytics
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  Priority support
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  Enhanced features
+                </li>
+              </ul>
+            )}
           </div>
 
-          {filteredSubscriptions.length > 0 && (
-            <div className="mt-4 text-sm text-muted-foreground">
-              Showing {filteredSubscriptions.length} of {subscriptions.length} subscriptions
-            </div>
-          )}
+          {/* Total */}
+          <Separator />
+          <div className="flex justify-between items-center text-lg font-semibold">
+            <span>Total per month:</span>
+            <span className="text-2xl">${calculateTotal()}.00</span>
+          </div>
+
+          {/* Subscribe Button */}
+          <Button
+            onClick={handleSubscribe}
+            disabled={processing}
+            className="w-full"
+            size="lg"
+          >
+            {processing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <CreditCard className="mr-2 h-4 w-4" />
+                Subscribe Now
+              </>
+            )}
+          </Button>
+
+          <p className="text-xs text-center text-muted-foreground">
+            By subscribing, you agree to our terms of service. You can cancel anytime.
+          </p>
         </CardContent>
       </Card>
     </div>
