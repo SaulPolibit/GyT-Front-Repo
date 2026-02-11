@@ -34,6 +34,7 @@ import {
   RefreshCcw
 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api-config';
+import { getAuthToken } from '@/lib/auth-storage';
 
 interface UserSubscription {
   userId: string;
@@ -77,7 +78,7 @@ export default function SubscriptionsPage() {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) {
         throw new Error('No authentication token found');
       }
