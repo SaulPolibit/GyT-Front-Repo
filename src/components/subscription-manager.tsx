@@ -24,13 +24,13 @@ import { toast } from 'sonner';
 import { Elements } from '@stripe/react-stripe-js';
 import { getStripe } from '@/lib/stripe';
 import { StripeAPI } from '@/lib/stripe-api';
-import { CheckoutForm } from '@/components/subscription/checkout-form';
+import { SetupForm } from '@/components/subscription/setup-form';
 
 export function SubscriptionManager() {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState('');
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [additionalServiceQuantity, setAdditionalServiceQuantity] = useState(0);
   const [processing, setProcessing] = useState(false);
 
@@ -57,26 +57,48 @@ export function SubscriptionManager() {
   };
 
   const handleSubscribe = async () => {
+    setError(null);
+
+    try {
+      // Create customer first
+      await StripeAPI.createCustomer();
+      // Show payment form
+      setShowPaymentForm(true);
+    } catch (err: any) {
+      console.error('[Subscription] Error creating customer:', err);
+      setError(err.message || 'Failed to create customer');
+      toast.error(err.message || 'Failed to create customer');
+    }
+  };
+
+  const handlePaymentSuccess = async (cardToken: string) => {
     setProcessing(true);
     setError(null);
 
     try {
-      await StripeAPI.createCustomer();
-      const result = await StripeAPI.createSubscription(additionalServiceQuantity);
+      console.log('[Subscription] Creating subscription with card token:', cardToken);
 
-      console.log('[Subscription] Create subscription result:', result);
+      const result = await StripeAPI.createSubscription(
+        cardToken,
+        additionalServiceQuantity
+      );
 
-      if (result.clientSecret) {
-        // Payment required - show payment form
-        console.log('[Subscription] Client secret received, showing payment form');
-        setClientSecret(result.clientSecret);
-      } else if (result.success && result.subscriptionId) {
-        // Subscription created but no payment required (e.g., trial, already has payment method)
-        console.log('[Subscription] No payment required, reloading subscription');
-        toast.success('Subscription created successfully!');
+      console.log('[Subscription] Subscription created:', result);
+
+      if (result.success && result.subscriptionId) {
+        if (result.status === 'active') {
+          toast.success('Subscription created and payment successful!');
+        } else if (result.status === 'incomplete') {
+          toast.error('Subscription created but payment failed. Please try again.');
+        } else {
+          toast.success('Subscription created successfully!');
+        }
+
+        setShowPaymentForm(false);
         await loadSubscription();
       } else {
-        setError('Failed to create subscription - no subscription ID returned');
+        setError('Failed to create subscription');
+        toast.error('Failed to create subscription');
       }
     } catch (err: any) {
       console.error('[Subscription] Error creating subscription:', err);
@@ -124,6 +146,10 @@ export function SubscriptionManager() {
   };
 
   const handleAddAdditionalService = async () => {
+    if (!confirm('Add Additional Service Base Cost to your subscription? You will be charged a prorated amount for the current billing period.')) {
+      return;
+    }
+
     setProcessing(true);
     setError(null);
 
@@ -144,6 +170,16 @@ export function SubscriptionManager() {
 
     if (newQuantity < 1) {
       toast.error('Quantity must be at least 1. Use the trash icon to remove the service.');
+      return;
+    }
+
+    // Confirmation message based on whether adding or subtracting
+    const action = change > 0 ? 'increase' : 'decrease';
+    const chargeMessage = change > 0
+      ? 'You will be charged a prorated amount for the current billing period.'
+      : 'You will receive a prorated credit for the current billing period.';
+
+    if (!confirm(`${action === 'increase' ? 'Increase' : 'Decrease'} Additional Service quantity from ${currentQuantity} to ${newQuantity}? ${chargeMessage}`)) {
       return;
     }
 
@@ -196,12 +232,6 @@ export function SubscriptionManager() {
     );
   };
 
-  const handleSubscriptionSuccess = async () => {
-    setClientSecret('');
-    await loadSubscription();
-    toast.success('Payment completed successfully');
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -210,28 +240,23 @@ export function SubscriptionManager() {
     );
   }
 
-  // Show payment form if we have a client secret
-  if (clientSecret) {
+  // Show payment form when creating subscription
+  if (showPaymentForm) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Complete Payment</CardTitle>
+          <CardTitle>Enter Payment Details</CardTitle>
           <CardDescription>
-            Enter payment details to activate your firm's subscription
+            Enter your card details to activate your firm's subscription
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Elements stripe={getStripe()} options={{ clientSecret }}>
-            <CheckoutForm onSuccess={handleSubscriptionSuccess} />
+          <Elements stripe={getStripe()}>
+            <SetupForm
+              onSuccess={handlePaymentSuccess}
+              onCancel={() => setShowPaymentForm(false)}
+            />
           </Elements>
-
-          <Button
-            variant="ghost"
-            onClick={() => setClientSecret('')}
-            className="mt-4 w-full"
-          >
-            Cancel
-          </Button>
         </CardContent>
       </Card>
     );

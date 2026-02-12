@@ -68,16 +68,19 @@ export class StripeAPI {
 
   /**
    * Create a new subscription
+   * @param cardToken - Stripe card token (required) - Backend will create payment method
    * @param additionalServiceQuantity - Quantity of Additional Service Base Cost (0 to n)
    * @param trialDays - Optional trial period in days
    */
   static async createSubscription(
+    cardToken: string,
     additionalServiceQuantity: number = 0,
     trialDays?: number
   ): Promise<SubscriptionData> {
     return this.fetchWithAuth(API_CONFIG.endpoints.stripeCreateSubscription, {
       method: 'POST',
       body: JSON.stringify({
+        cardToken,
         additionalServiceQuantity,
         trialDays
       })
