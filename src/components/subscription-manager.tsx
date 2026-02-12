@@ -64,12 +64,22 @@ export function SubscriptionManager() {
       await StripeAPI.createCustomer();
       const result = await StripeAPI.createSubscription(additionalServiceQuantity);
 
+      console.log('[Subscription] Create subscription result:', result);
+
       if (result.clientSecret) {
+        // Payment required - show payment form
+        console.log('[Subscription] Client secret received, showing payment form');
         setClientSecret(result.clientSecret);
+      } else if (result.success && result.subscriptionId) {
+        // Subscription created but no payment required (e.g., trial, already has payment method)
+        console.log('[Subscription] No payment required, reloading subscription');
+        toast.success('Subscription created successfully!');
+        await loadSubscription();
       } else {
-        setError('Failed to create subscription');
+        setError('Failed to create subscription - no subscription ID returned');
       }
     } catch (err: any) {
+      console.error('[Subscription] Error creating subscription:', err);
       setError(err.message || 'Failed to create subscription');
       toast.error(err.message || 'Failed to create subscription');
     } finally {
