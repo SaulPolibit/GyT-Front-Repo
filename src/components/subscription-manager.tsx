@@ -31,7 +31,7 @@ export function SubscriptionManager() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState('');
-  const [includeAdditionalService, setIncludeAdditionalService] = useState(false);
+  const [additionalServiceQuantity, setAdditionalServiceQuantity] = useState(0);
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export function SubscriptionManager() {
 
     try {
       await StripeAPI.createCustomer();
-      const result = await StripeAPI.createSubscription(includeAdditionalService);
+      const result = await StripeAPI.createSubscription(additionalServiceQuantity);
 
       if (result.clientSecret) {
         setClientSecret(result.clientSecret);
@@ -173,10 +173,9 @@ export function SubscriptionManager() {
   };
 
   const calculateTotal = () => {
-    let total = 999;
-    if (includeAdditionalService) {
-      total += 49;
-    }
+    const basePrice = 999;
+    const additionalServicePrice = 49;
+    const total = basePrice + (additionalServicePrice * additionalServiceQuantity);
     return total;
   };
 
@@ -334,7 +333,7 @@ export function SubscriptionManager() {
               </div>
             </div>
 
-            {/* Add Additional Service */}
+            {/* Add Additional Service - only show if none exist */}
             {!hasAdditionalService() && (
               <>
                 <Separator />
@@ -346,13 +345,13 @@ export function SubscriptionManager() {
                       <div>
                         <p className="font-medium">Additional Service Base Cost</p>
                         <p className="text-sm text-muted-foreground">
-                          Additional service features and capabilities
+                          Add additional service features and capabilities ($49/month each)
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="font-semibold">$10.00</p>
+                        <p className="font-semibold">$49.00</p>
                         <p className="text-xs text-muted-foreground">/month</p>
                       </div>
                       <Button
@@ -362,7 +361,7 @@ export function SubscriptionManager() {
                         disabled={processing}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add Service
+                        Add One
                       </Button>
                     </div>
                   </div>
@@ -496,27 +495,57 @@ export function SubscriptionManager() {
           {/* Additional Service */}
           <div className="p-6 border rounded-lg">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4 flex-1">
-                <Switch
-                  id="additional-service"
-                  checked={includeAdditionalService}
-                  onCheckedChange={setIncludeAdditionalService}
-                />
-                <div>
-                  <Label htmlFor="additional-service" className="text-lg font-semibold cursor-pointer">
-                    Additional Service Base Cost
-                  </Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Optional - Additional service features and capabilities
-                  </p>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-lg font-semibold">
+                      Additional Service Base Cost
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Optional - Additional service features and capabilities
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold">$49.00</p>
+                    <p className="text-sm text-muted-foreground">/month each</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 mt-4">
+                  <Label className="text-sm font-medium">Quantity:</Label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setAdditionalServiceQuantity(Math.max(0, additionalServiceQuantity - 1))}
+                      disabled={additionalServiceQuantity === 0}
+                      className="h-9 w-9"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <div className="min-w-[3rem] text-center">
+                      <span className="text-2xl font-bold">{additionalServiceQuantity}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setAdditionalServiceQuantity(additionalServiceQuantity + 1)}
+                      className="h-9 w-9"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {additionalServiceQuantity > 0 && (
+                    <div className="ml-auto text-right">
+                      <p className="text-sm text-muted-foreground">Subtotal</p>
+                      <p className="text-lg font-semibold">${(49 * additionalServiceQuantity).toFixed(2)}/month</p>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold">$49.00</p>
-                <p className="text-sm text-muted-foreground">/month</p>
-              </div>
             </div>
-            {includeAdditionalService && (
+            {additionalServiceQuantity > 0 && (
               <ul className="space-y-2 text-sm mt-4 pt-4 border-t">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -538,8 +567,13 @@ export function SubscriptionManager() {
           <Separator />
           <div className="flex justify-between items-center text-lg font-semibold">
             <span>Total per month:</span>
-            <span className="text-2xl">${calculateTotal()}.00</span>
+            <span className="text-2xl">${calculateTotal().toFixed(2)}</span>
           </div>
+          {additionalServiceQuantity > 0 && (
+            <p className="text-sm text-muted-foreground text-center">
+              Base: $999.00 + Additional Services: ${(49 * additionalServiceQuantity).toFixed(2)}
+            </p>
+          )}
 
           {/* Subscribe Button */}
           <Button

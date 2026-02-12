@@ -68,17 +68,17 @@ export class StripeAPI {
 
   /**
    * Create a new subscription
-   * @param includeAdditionalService - Whether to include Additional Service Base Cost
+   * @param additionalServiceQuantity - Quantity of Additional Service Base Cost (0 to n)
    * @param trialDays - Optional trial period in days
    */
   static async createSubscription(
-    includeAdditionalService: boolean = false,
+    additionalServiceQuantity: number = 0,
     trialDays?: number
   ): Promise<SubscriptionData> {
     return this.fetchWithAuth(API_CONFIG.endpoints.stripeCreateSubscription, {
       method: 'POST',
       body: JSON.stringify({
-        includeAdditionalService,
+        additionalServiceQuantity,
         trialDays
       })
     });
