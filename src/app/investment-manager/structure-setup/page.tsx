@@ -2044,9 +2044,9 @@ export default function OnboardingPage() {
       setIsSubmitting(false)
 
       // Redirect to the edit page of the newly created structure
-      // setTimeout(() => {
-      //   window.location.href = `/investment-manager/structures/${structureId}/edit`
-      // }, 2000)
+      setTimeout(() => {
+        window.location.href = `/investment-manager/structures/${structureId}/edit`
+      }, 2000)
 
     } catch (error) {
       console.error('Error completing setup:', error)
