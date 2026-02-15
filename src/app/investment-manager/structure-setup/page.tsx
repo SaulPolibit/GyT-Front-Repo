@@ -1877,7 +1877,17 @@ export default function OnboardingPage() {
       // Parse blockchain response to get contract address
       const blockchainData = await blockchainResponse.json()
       console.log('[Blockchain] Deploy response:', blockchainData)
-      const deployedContractAddress = blockchainData.data?.contractAddress || blockchainData.contractAddress
+      console.log('[Blockchain] Deploy response data:', blockchainData.data)
+
+      // Extract contract address from nested structure
+      // Response structure: { data: { deployment: { tokenAddress, contractAddress } } }
+      const deployedContractAddress =
+        blockchainData.data?.deployment?.contractAddress ||
+        blockchainData.data?.deployment?.tokenAddress ||
+        blockchainData.data?.contractAddress ||
+        blockchainData.contractAddress
+
+      console.log('[Blockchain] Extracted contract address:', deployedContractAddress)
 
       // Step 3.5: Transfer ownership if walletOwnerAddress is set
       const DEFAULT_POLIBIT_AGENT_ADDRESS = process.env.NEXT_PUBLIC_POLIBIT_AGENT_ADDRESS || '0xa396D3A13038bd0053E08479f3AC6E78Ee6fa381'
@@ -2034,9 +2044,9 @@ export default function OnboardingPage() {
       setIsSubmitting(false)
 
       // Redirect to the edit page of the newly created structure
-      setTimeout(() => {
-        window.location.href = `/investment-manager/structures/${structureId}/edit`
-      }, 2000)
+      // setTimeout(() => {
+      //   window.location.href = `/investment-manager/structures/${structureId}/edit`
+      // }, 2000)
 
     } catch (error) {
       console.error('Error completing setup:', error)
