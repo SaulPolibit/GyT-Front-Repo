@@ -1621,6 +1621,8 @@ export default function OnboardingPage() {
 
       const structureData = await structureResponse.json()
       const structureId = structureData.data?.id
+      console.log('[Structure Setup] Structure created with ID:', structureId)
+      console.log('[Structure Setup] walletOwnerAddress in formData:', formData.walletOwnerAddress)
 
       // Step 2: Create waterfall tiers
       if (formData.waterfallScenarios && formData.waterfallScenarios.length > 0) {
@@ -1810,6 +1812,7 @@ export default function OnboardingPage() {
       const blockchainApiKey = process.env.NEXT_PUBLIC_BLOCKCHAIN_API_KEY || ''
       console.log('[Blockchain] API Key loaded:', blockchainApiKey ? 'Yes' : 'No (empty)')
       console.log('[Blockchain] Deploying contract for structure:', structureId)
+      console.log('[Blockchain] Payload:', blockchainPayload)
 
       // Hash the API key using SHA-256
       const encoder = new TextEncoder()
@@ -1879,7 +1882,18 @@ export default function OnboardingPage() {
       // Step 3.5: Transfer ownership if walletOwnerAddress is set
       const DEFAULT_POLIBIT_AGENT_ADDRESS = process.env.NEXT_PUBLIC_POLIBIT_AGENT_ADDRESS || '0xa396D3A13038bd0053E08479f3AC6E78Ee6fa381'
 
+      // Debug logs to check values before condition
+      console.log('[Ownership Transfer] DEBUG - walletOwnerAddress:', formData.walletOwnerAddress)
+      console.log('[Ownership Transfer] DEBUG - deployedContractAddress:', deployedContractAddress)
+      console.log('[Ownership Transfer] DEBUG - DEFAULT_POLIBIT_AGENT_ADDRESS:', DEFAULT_POLIBIT_AGENT_ADDRESS)
+      console.log('[Ownership Transfer] DEBUG - Condition check:', {
+        hasWalletAddress: !!(formData.walletOwnerAddress && formData.walletOwnerAddress.trim() !== ''),
+        hasContractAddress: !!deployedContractAddress,
+        willExecute: !!(formData.walletOwnerAddress && formData.walletOwnerAddress.trim() !== '' && deployedContractAddress)
+      })
+
       if (formData.walletOwnerAddress && formData.walletOwnerAddress.trim() !== '' && deployedContractAddress) {
+        console.log('[Ownership Transfer] STARTING ownership transfer process...')
         console.log('[Ownership Transfer] walletOwnerAddress is set:', formData.walletOwnerAddress)
         console.log('[Ownership Transfer] Contract address:', deployedContractAddress)
 
@@ -1954,7 +1968,11 @@ export default function OnboardingPage() {
           toast.warning('Smart contract deployed but ownership transfer encountered an error.')
         }
       } else {
-        console.log('[Ownership Transfer] Skipped - walletOwnerAddress not set or contract address not available')
+        console.log('[Ownership Transfer] SKIPPED - Reason:')
+        console.log('  - walletOwnerAddress:', formData.walletOwnerAddress || '(not set)')
+        console.log('  - walletOwnerAddress is valid:', !!(formData.walletOwnerAddress && formData.walletOwnerAddress.trim() !== ''))
+        console.log('  - deployedContractAddress:', deployedContractAddress || '(not available)')
+        console.log('  - deployedContractAddress is valid:', !!deployedContractAddress)
       }
 
       // Step 4: Upload documents
