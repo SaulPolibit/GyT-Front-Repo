@@ -1871,6 +1871,92 @@ export default function OnboardingPage() {
         return
       }
 
+      // Parse blockchain response to get contract address
+      const blockchainData = await blockchainResponse.json()
+      console.log('[Blockchain] Deploy response:', blockchainData)
+      const deployedContractAddress = blockchainData.data?.contractAddress || blockchainData.contractAddress
+
+      // Step 3.5: Transfer ownership if walletOwnerAddress is set
+      const DEFAULT_POLIBIT_AGENT_ADDRESS = process.env.NEXT_PUBLIC_POLIBIT_AGENT_ADDRESS || '0xa396D3A13038bd0053E08479f3AC6E78Ee6fa381'
+
+      if (formData.walletOwnerAddress && formData.walletOwnerAddress.trim() !== '' && deployedContractAddress) {
+        console.log('[Ownership Transfer] walletOwnerAddress is set:', formData.walletOwnerAddress)
+        console.log('[Ownership Transfer] Contract address:', deployedContractAddress)
+
+        try {
+          // Step 3.5.1: Register Polibit agent address on the smart contract
+          console.log('[Ownership Transfer] Registering Polibit agent:', DEFAULT_POLIBIT_AGENT_ADDRESS)
+          const registerAgentResponse = await fetch(getApiUrl(API_CONFIG.endpoints.registerAgent), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              contractAddress: deployedContractAddress,
+              userAddress: DEFAULT_POLIBIT_AGENT_ADDRESS
+            })
+          })
+
+          if (!registerAgentResponse.ok) {
+            const errorData = await registerAgentResponse.json().catch(() => ({}))
+            console.error('[Ownership Transfer] Failed to register agent:', errorData)
+            toast.warning('Smart contract deployed but failed to register agent. Ownership not transferred.')
+          } else {
+            console.log('[Ownership Transfer] Agent registered successfully')
+
+            // Step 3.5.2: Validate that Polibit agent is registered
+            console.log('[Ownership Transfer] Validating agent registration...')
+            const checkAgentResponse = await fetch(getApiUrl(API_CONFIG.endpoints.checkAgent(deployedContractAddress, DEFAULT_POLIBIT_AGENT_ADDRESS)), {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+              }
+            })
+
+            const checkAgentData = await checkAgentResponse.json()
+            console.log('[Ownership Transfer] Agent validation response:', checkAgentData)
+
+            const isValidAgent = checkAgentData.data?.isAgent || checkAgentData.isAgent
+
+            if (isValidAgent) {
+              console.log('[Ownership Transfer] Agent is valid, transferring ownership to:', formData.walletOwnerAddress)
+
+              // Step 3.5.3: Transfer ownership to walletOwnerAddress
+              const transferOwnershipResponse = await fetch(getApiUrl(API_CONFIG.endpoints.transferContractOwnership), {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${authToken}`,
+                },
+                body: JSON.stringify({
+                  contractAddress: deployedContractAddress,
+                  newOwnerAddress: formData.walletOwnerAddress
+                })
+              })
+
+              if (!transferOwnershipResponse.ok) {
+                const errorData = await transferOwnershipResponse.json().catch(() => ({}))
+                console.error('[Ownership Transfer] Failed to transfer ownership:', errorData)
+                toast.warning('Smart contract deployed but ownership transfer failed. Contract remains under default ownership.')
+              } else {
+                console.log('[Ownership Transfer] Ownership transferred successfully to:', formData.walletOwnerAddress)
+                toast.success('Contract ownership transferred to wallet owner address')
+              }
+            } else {
+              console.error('[Ownership Transfer] Agent validation failed - agent is not valid')
+              toast.warning('Smart contract deployed but agent validation failed. Ownership not transferred.')
+            }
+          }
+        } catch (ownershipError) {
+          console.error('[Ownership Transfer] Error during ownership transfer process:', ownershipError)
+          toast.warning('Smart contract deployed but ownership transfer encountered an error.')
+        }
+      } else {
+        console.log('[Ownership Transfer] Skipped - walletOwnerAddress not set or contract address not available')
+      }
+
       // Step 4: Upload documents
       const allDocuments = [
         ...formData.uploadedFundDocuments.map(doc => ({ ...doc, category: 'fund' })),
