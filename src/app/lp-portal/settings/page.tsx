@@ -33,6 +33,7 @@ import {
   Mail,
   Phone,
   Globe,
+  Wallet,
 } from "lucide-react"
 import { getCurrentUser, getAuthToken, getSupabaseAuth } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
@@ -41,6 +42,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { sendInvestorActivityEmail } from "@/lib/email-service"
 import { getNotificationSettings, saveNotificationSettings } from "@/lib/notification-settings-storage"
 import { getFirmSettings } from "@/lib/firm-settings-storage"
+import { StripeConnectManager } from "@/components/stripe-connect-manager"
 
 export default function LPSettingsPage() {
   const router = useRouter()
@@ -1123,6 +1125,9 @@ export default function LPSettingsPage() {
         {/* Payment Methods Tab */}
         {showPaymentTab && (
         <TabsContent value="payment" className="space-y-4">
+          {/* Stripe Connect - Payment Account for Distributions */}
+          <StripeConnectManager />
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

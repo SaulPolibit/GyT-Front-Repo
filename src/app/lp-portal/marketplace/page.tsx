@@ -29,6 +29,7 @@ import { getAuthToken } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
+import { StripeConnectOnboardingAlert } from "@/components/stripe-connect-onboarding-alert"
 
 export default function MarketplacePage() {
   const router = useRouter()
@@ -178,6 +179,9 @@ export default function MarketplacePage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6">
+      {/* Stripe Connect Onboarding Banner */}
+      <StripeConnectOnboardingAlert variant="banner" onDismiss={() => {}} />
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Structure Marketplace</h1>

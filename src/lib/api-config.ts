@@ -164,6 +164,18 @@ export const API_CONFIG = {
     stripeCreateSetupIntent: '/api/stripe/create-setup-intent',
     stripeGetPaymentMethods: '/api/stripe/payment-methods',
 
+    // Stripe Connect API (for Investors)
+    stripeConnectCreateAccount: '/api/stripe/connect/create-account',
+    stripeConnectOnboardingLink: '/api/stripe/connect/onboarding-link',
+    stripeConnectAccountStatus: '/api/stripe/connect/account-status',
+    stripeConnectDashboardLink: '/api/stripe/connect/dashboard-link',
+    stripeConnectBalance: '/api/stripe/connect/balance',
+
+    // Stripe Connect Admin API (for Fund Managers)
+    stripeConnectAdminInvestors: '/api/stripe/connect/admin/investors',
+    stripeConnectAdminStatus: (investorId: string) => `/api/stripe/connect/admin/status/${investorId}`,
+    stripeConnectAdminSendInvite: (investorId: string) => `/api/stripe/connect/admin/send-invite/${investorId}`,
+
     // Add other endpoints as needed
   }
 }

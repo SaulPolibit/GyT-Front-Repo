@@ -209,6 +209,11 @@ export interface Investor {
   investorSince: string
   createdAt: string
   updatedAt: string
+
+  // Stripe Connect (for receiving distributions)
+  stripeAccountId?: string
+  stripeOnboardingComplete?: boolean
+  stripeAccountStatus?: 'not_created' | 'pending' | 'enabled' | 'disabled' | 'rejected'
 }
 
 // Investor Allocation (for Capital Calls and Distributions)

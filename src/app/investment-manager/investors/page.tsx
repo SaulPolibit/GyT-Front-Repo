@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, User, Users, Building, Briefcase, Mail, MapPin, Wallet, Loader2, AlertCircle, CheckCircle, XCircle } from "lucide-react"
+import { Search, User, Users, Building, Briefcase, Mail, MapPin, Wallet, Loader2, AlertCircle, CheckCircle, XCircle, CreditCard, Clock } from "lucide-react"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 
@@ -28,6 +28,10 @@ interface InvestorUser {
   hasPendingPayments: boolean
   paymentsCount: number
   pendingPaymentsCount: number
+  // Stripe Connect fields
+  stripeAccountId?: string | null
+  stripeOnboardingComplete?: boolean
+  stripeAccountStatus?: string | null
 }
 
 // Helper function to handle 401 authentication errors
@@ -393,6 +397,36 @@ export default function InvestorsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Stripe Connect Status */}
+                <div className="pt-2 border-t">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <CreditCard className="h-3 w-3" />
+                      Stripe Connect
+                    </span>
+                    {investor.stripeAccountStatus === 'enabled' ? (
+                      <Badge className="text-xs bg-green-100 text-green-800 hover:bg-green-100">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Active
+                      </Badge>
+                    ) : investor.stripeAccountStatus === 'pending' ? (
+                      <Badge className="text-xs bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Pending
+                      </Badge>
+                    ) : investor.stripeAccountStatus === 'disabled' || investor.stripeAccountStatus === 'rejected' ? (
+                      <Badge variant="destructive" className="text-xs">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        {investor.stripeAccountStatus === 'disabled' ? 'Disabled' : 'Rejected'}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">
+                        Not Setup
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )

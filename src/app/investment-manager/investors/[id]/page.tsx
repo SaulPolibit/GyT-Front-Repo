@@ -44,6 +44,7 @@ import { getDistributions } from "@/lib/distributions-storage"
 import { calculateIRR } from "@/lib/performance-calculations"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken, getAuthState } from "@/lib/auth-storage"
+import { InvestorStripeAdmin } from "@/components/investor-stripe-admin"
 
 // Helper function to handle 401 authentication errors
 const handleAuthError = (response: Response, errorData: any) => {
@@ -1155,6 +1156,16 @@ export default function InvestorDetailPage({ params }: PageProps) {
             </div>
           </CardContent>
         </Card>
+
+        {/* Stripe Connect Account */}
+        <InvestorStripeAdmin
+          investorId={investor.id}
+          investorEmail={investor.email || ''}
+          investorName={investor.name || ''}
+          stripeAccountId={investor.stripeAccountId}
+          stripeOnboardingComplete={investor.stripeOnboardingComplete}
+          stripeAccountStatus={investor.stripeAccountStatus}
+        />
 
         {/* Tax Information */}
         <Card>
