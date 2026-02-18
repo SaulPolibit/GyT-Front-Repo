@@ -9,6 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuBadge,
 } from "@/components/ui/sidebar"
 
 export function NavSecondary({
@@ -21,6 +22,7 @@ export function NavSecondary({
     url: string
     icon: LucideIcon
     onClick?: () => void
+    badge?: number
   }[]
   onSearchClick?: () => void
 } & Omit<React.ComponentPropsWithoutRef<typeof SidebarGroup>, 'onSearchClick'>) {
@@ -34,12 +36,22 @@ export function NavSecondary({
                 <SidebarMenuButton onClick={item.onClick}>
                   <item.icon />
                   <span>{item.title}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <SidebarMenuBadge className="bg-muted-foreground/20 text-muted-foreground">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </SidebarMenuBadge>
+                  )}
                 </SidebarMenuButton>
               ) : (
                 <SidebarMenuButton asChild>
                   <a href={item.url}>
                     <item.icon />
                     <span>{item.title}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <SidebarMenuBadge className="bg-muted-foreground/20 text-muted-foreground">
+                        {item.badge > 99 ? '99+' : item.badge}
+                      </SidebarMenuBadge>
+                    )}
                   </a>
                 </SidebarMenuButton>
               )}

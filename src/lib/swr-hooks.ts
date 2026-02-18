@@ -248,3 +248,79 @@ export function useCapitalCalls() {
     mutate,
   }
 }
+
+/**
+ * Fetch user notifications with short cache
+ */
+export function useNotifications(options?: { limit?: number; unreadOnly?: boolean }) {
+  const token = getAuthToken()
+
+  // Build URL with query params
+  let url = null
+  if (token) {
+    const params = new URLSearchParams()
+    if (options?.limit) params.append('limit', options.limit.toString())
+    if (options?.unreadOnly) params.append('unread', 'true')
+    const queryString = params.toString()
+    url = getApiUrl(API_CONFIG.endpoints.getNotifications) + (queryString ? `?${queryString}` : '')
+  }
+
+  const { data, error, isLoading, mutate } = useSWR(
+    url,
+    authFetcher,
+    shortCacheConfig
+  )
+
+  return {
+    notifications: data?.success ? data.data : [],
+    isLoading,
+    error,
+    mutate,
+  }
+}
+
+/**
+ * Fetch unread notification count with short cache
+ */
+export function useUnreadNotificationCount() {
+  const token = getAuthToken()
+  const url = token ? getApiUrl(API_CONFIG.endpoints.getUnreadNotificationCount) : null
+
+  const { data, error, isLoading, mutate } = useSWR(
+    url,
+    authFetcher,
+    {
+      ...shortCacheConfig,
+      refreshInterval: 30 * 1000, // 30 seconds for count
+    }
+  )
+
+  return {
+    count: data?.success ? data.data?.count || 0 : 0,
+    isLoading,
+    error,
+    mutate,
+  }
+}
+
+/**
+ * Fetch notification settings with medium cache
+ */
+export function useNotificationSettings() {
+  const token = getAuthToken()
+  const url = token ? getApiUrl(API_CONFIG.endpoints.getNotificationSettings) : null
+
+  const { data, error, isLoading, mutate } = useSWR(
+    url,
+    authFetcher,
+    mediumCacheConfig
+  )
+
+  return {
+    settings: data?.success ? data.data : null,
+    pushNotificationsEnabled: data?.success ? data.data?.pushNotifications ?? true : true,
+    isLoading,
+    error,
+    mutate,
+  }
+}

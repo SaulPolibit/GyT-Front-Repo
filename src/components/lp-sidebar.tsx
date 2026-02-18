@@ -35,7 +35,8 @@ import { NavMain } from "@/components/nav-main"
 import { NavManagement } from "@/components/nav-management"
 import { NavSecondary } from "@/components/nav-secondary"
 import { LPNavUser } from "@/components/lp-nav-user"
-import { useFirmLogo } from "@/lib/swr-hooks"
+import { useFirmLogo, useNotificationSettings, useUnreadNotificationCount } from "@/lib/swr-hooks"
+import { NotificationsPanel } from "@/components/notifications-panel"
 
 interface LPSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
@@ -44,6 +45,17 @@ interface LPSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
   // Use SWR for cached firm logo (reduces API requests)
   const { firmLogo } = useFirmLogo()
+
+  // Notification settings and unread count
+  const { pushNotificationsEnabled } = useNotificationSettings()
+  const { count: unreadCount } = useUnreadNotificationCount()
+
+  // Notifications panel state
+  const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = React.useState(false)
+
+  const handleNotificationsClick = () => {
+    setIsNotificationsPanelOpen(!isNotificationsPanelOpen)
+  }
 
   // Check environment variables for navigation visibility
   const showDashboardReports = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_REPORTS !== 'false'
@@ -123,6 +135,14 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
       },
     ],
     navSecondary: [
+      // Notifications - only show if portal notifications are enabled
+      ...(pushNotificationsEnabled ? [{
+        title: "Notifications",
+        url: "#",
+        icon: Bell,
+        onClick: handleNotificationsClick,
+        badge: unreadCount > 0 ? unreadCount : undefined,
+      }] : []),
       {
         title: "Settings",
         url: "/lp-portal/settings",
@@ -143,37 +163,45 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
   }
 
   return (
-    <Sidebar collapsible="offcanvas" {...props} className="h-full overflow-hidden">
-      <SidebarHeader className="shrink-0">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <a href="/lp-portal" className="flex items-center justify-center">
-                {firmLogo ? (
-                  <img
-                    src={firmLogo}
-                    alt="Firm logo"
-                    className="h-8 w-auto object-contain rounded"
-                  />
-                ) : (
-                  <Share2 className="!size-8" />
-                )}
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-      <SidebarContent className="flex-1 overflow-y-auto">
-        <NavMain items={data.navMain} />
-        {showManagementSection && <NavManagement items={data.navManagement} />}
-        <NavSecondary items={data.navSecondary} className="mt-auto" onSearchClick={onSearchClick} />
-      </SidebarContent>
-      <SidebarFooter className="shrink-0">
-        <LPNavUser />
-      </SidebarFooter>
-    </Sidebar>
+    <>
+      <Sidebar collapsible="offcanvas" {...props} className="h-full overflow-hidden">
+        <SidebarHeader className="shrink-0">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                className="data-[slot=sidebar-menu-button]:!p-1.5"
+              >
+                <a href="/lp-portal" className="flex items-center justify-center">
+                  {firmLogo ? (
+                    <img
+                      src={firmLogo}
+                      alt="Firm logo"
+                      className="h-8 w-auto object-contain rounded"
+                    />
+                  ) : (
+                    <Share2 className="!size-8" />
+                  )}
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent className="flex-1 overflow-y-auto">
+          <NavMain items={data.navMain} />
+          {showManagementSection && <NavManagement items={data.navManagement} />}
+          <NavSecondary items={data.navSecondary} className="mt-auto" onSearchClick={onSearchClick} />
+        </SidebarContent>
+        <SidebarFooter className="shrink-0">
+          <LPNavUser />
+        </SidebarFooter>
+      </Sidebar>
+
+      {/* Notifications Panel */}
+      <NotificationsPanel
+        isOpen={isNotificationsPanelOpen}
+        onClose={() => setIsNotificationsPanelOpen(false)}
+      />
+    </>
   )
 }

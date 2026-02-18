@@ -55,6 +55,18 @@ export const API_CONFIG = {
     enableAllNotifications: '/api/notifications/settings/enable-all',
     disableAllNotifications: '/api/notifications/settings/disable-all',
 
+    // Notifications inbox
+    getNotifications: '/api/notifications',
+    getNotificationById: (id: string) => `/api/notifications/${id}`,
+    getUnreadNotificationCount: '/api/notifications/unread-count',
+    createNotification: '/api/notifications',
+    createBulkNotifications: '/api/notifications/bulk',
+    markNotificationAsRead: (id: string) => `/api/notifications/${id}/read`,
+    markAllNotificationsAsRead: '/api/notifications/read-all',
+    deleteNotification: (id: string) => `/api/notifications/${id}`,
+    cleanupOldNotifications: '/api/notifications/cleanup/old',
+    cleanupExpiredNotifications: '/api/notifications/cleanup/expired',
+
     // Firm settings
     getFirmSettings: '/api/firm-settings',
     getFirmLogo: '/api/firm-settings/logo',

@@ -23,6 +23,7 @@ import {
   TrendingUp,
   CheckCircle,
   CreditCard,
+  Bell,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -40,7 +41,9 @@ import {
 } from "@/components/ui/sidebar"
 import { useTranslation } from "@/hooks/useTranslation"
 import { getCurrentUser } from "@/lib/auth-storage"
-import { useFirmLogo } from "@/lib/swr-hooks"
+import { useFirmLogo, useNotificationSettings, useUnreadNotificationCount } from "@/lib/swr-hooks"
+import { NotificationsPanel } from "@/components/notifications-panel"
+import { Badge } from "@/components/ui/badge"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
@@ -52,6 +55,17 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
 
   // Use SWR for cached firm logo (reduces API requests)
   const { firmLogo } = useFirmLogo()
+
+  // Notification settings and unread count
+  const { pushNotificationsEnabled } = useNotificationSettings()
+  const { count: unreadCount } = useUnreadNotificationCount()
+
+  // Notifications panel state
+  const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = React.useState(false)
+
+  const handleNotificationsClick = () => {
+    setIsNotificationsPanelOpen(!isNotificationsPanelOpen)
+  }
 
   const isRootUser = currentUser?.role === 0
   const isAdminOrRoot = currentUser?.role === 0 || currentUser?.role === 1
@@ -184,6 +198,14 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
       },
     ],
     navSecondary: [
+      // Notifications - only show if portal notifications are enabled
+      ...(pushNotificationsEnabled ? [{
+        title: "Notifications",
+        url: "#",
+        icon: Bell,
+        onClick: handleNotificationsClick,
+        badge: unreadCount > 0 ? unreadCount : undefined,
+      }] : []),
       {
         title: t.nav.settings,
         url: "/investment-manager/settings",
