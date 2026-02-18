@@ -39,8 +39,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useTranslation } from "@/hooks/useTranslation"
-import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getCurrentUser } from "@/lib/auth-storage"
+import { useFirmLogo } from "@/lib/swr-hooks"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
@@ -48,28 +48,10 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
   const { t } = useTranslation()
-  const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
   const currentUser = getCurrentUser()
 
-  React.useEffect(() => {
-    async function fetchFirmLogo() {
-      try {
-        const url = getApiUrl(API_CONFIG.endpoints.getFirmLogo)
-        const response = await fetch(url)
-
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success && result.data) {
-            setFirmLogo(result.data.firmLogo)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch firm logo:', error)
-      }
-    }
-
-    fetchFirmLogo()
-  }, [])
+  // Use SWR for cached firm logo (reduces API requests)
+  const { firmLogo } = useFirmLogo()
 
   const isRootUser = currentUser?.role === 0
   const isAdminOrRoot = currentUser?.role === 0 || currentUser?.role === 1

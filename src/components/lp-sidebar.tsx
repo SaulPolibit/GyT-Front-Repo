@@ -35,38 +35,19 @@ import { NavMain } from "@/components/nav-main"
 import { NavManagement } from "@/components/nav-management"
 import { NavSecondary } from "@/components/nav-secondary"
 import { LPNavUser } from "@/components/lp-nav-user"
-import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { useFirmLogo } from "@/lib/swr-hooks"
 
 interface LPSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
 }
 
 export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
-  const [firmLogo, setFirmLogo] = React.useState<string | null>(null)
+  // Use SWR for cached firm logo (reduces API requests)
+  const { firmLogo } = useFirmLogo()
 
   // Check environment variables for navigation visibility
   const showDashboardReports = process.env.NEXT_PUBLIC_SHOW_DASHBOARD_REPORTS !== 'false'
   const showManagementSection = process.env.NEXT_PUBLIC_SHOW_MANAGEMENT_SECTION !== 'false'
-
-  React.useEffect(() => {
-    async function fetchFirmLogo() {
-      try {
-        const url = getApiUrl(API_CONFIG.endpoints.getFirmLogo)
-        const response = await fetch(url)
-
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success && result.data) {
-            setFirmLogo(result.data.firmLogo)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch firm logo:', error)
-      }
-    }
-
-    fetchFirmLogo()
-  }, [])
 
   // Build navigation arrays based on environment variables
   const allNavMain = [

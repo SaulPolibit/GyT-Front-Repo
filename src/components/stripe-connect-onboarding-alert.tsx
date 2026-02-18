@@ -7,17 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import {
-  Building2,
   ArrowRight,
   CheckCircle,
   Clock,
   Wallet,
   X,
   AlertCircle,
-  Loader2,
 } from "lucide-react"
-import { getAuthToken } from "@/lib/auth-storage"
-import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { useStripeConnectStatus } from "@/lib/swr-hooks"
 
 interface StripeConnectOnboardingAlertProps {
   variant?: 'banner' | 'card' | 'minimal'
@@ -31,62 +28,27 @@ export function StripeConnectOnboardingAlert({
   className,
 }: StripeConnectOnboardingAlertProps) {
   const router = useRouter()
-  const [loading, setLoading] = React.useState(true)
-  const [status, setStatus] = React.useState<{
-    hasAccount: boolean
-    isComplete: boolean
-    accountStatus: string
-  } | null>(null)
   const [dismissed, setDismissed] = React.useState(false)
 
+  // Use SWR for cached Stripe Connect status (reduces API requests)
+  const { hasAccount, isComplete, accountStatus, isLoading } = useStripeConnectStatus()
+
+  // Build status object for compatibility with existing code
+  const status = {
+    hasAccount,
+    isComplete,
+    accountStatus,
+  }
+
+  // Check localStorage for dismissal on mount
   React.useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const token = getAuthToken()
-        if (!token) {
-          setLoading(false)
-          return
-        }
-
-        const response = await fetch(
-          getApiUrl(API_CONFIG.endpoints.stripeConnectAccountStatus),
-          {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        )
-
-        const data = await response.json()
-
-        if (response.ok && data.success) {
-          setStatus({
-            hasAccount: data.hasAccount,
-            isComplete: data.isComplete || false,
-            accountStatus: data.accountStatus || 'not_created',
-          })
-        }
-      } catch (error) {
-        console.error('Error checking Stripe Connect status:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    // Check localStorage for dismissal
     const dismissedUntil = localStorage.getItem('stripeConnectAlertDismissed')
     if (dismissedUntil) {
       const dismissDate = new Date(dismissedUntil)
       if (dismissDate > new Date()) {
         setDismissed(true)
-        setLoading(false)
-        return
       }
     }
-
-    checkStatus()
   }, [])
 
   const handleDismiss = () => {
@@ -103,7 +65,7 @@ export function StripeConnectOnboardingAlert({
   }
 
   // Don't show if loading, dismissed, or account is complete
-  if (loading || dismissed) {
+  if (isLoading || dismissed) {
     return null
   }
 
