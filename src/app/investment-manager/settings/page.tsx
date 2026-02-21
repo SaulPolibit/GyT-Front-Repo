@@ -86,6 +86,7 @@ export default function InvestmentManagerSettingsPage() {
   const [urgentCapitalCalls, setUrgentCapitalCalls] = React.useState(true)
   const [paymentConfirmations, setPaymentConfirmations] = React.useState(true)
   const [securityAlerts, setSecurityAlerts] = React.useState(true)
+  const [newStructureNotifications, setNewStructureNotifications] = React.useState(true)
 
   // Communication preferences
   const [preferredContactMethod, setPreferredContactMethod] = React.useState('email')
@@ -285,6 +286,7 @@ export default function InvestmentManagerSettingsPage() {
           setUrgentCapitalCalls(notifData.data.urgentCapitalCalls ?? true)
           setPaymentConfirmations(notifData.data.paymentConfirmations ?? true)
           setSecurityAlerts(notifData.data.securityAlerts ?? true)
+          setNewStructureNotifications(notifData.data.newStructureNotifications ?? true)
 
           // Communication preferences
           if (notifData.data.preferredContactMethod) {
@@ -539,6 +541,7 @@ export default function InvestmentManagerSettingsPage() {
             urgentCapitalCalls,
             paymentConfirmations,
             securityAlerts,
+            newStructureNotifications,
 
             // Communication preferences
             preferredContactMethod,
@@ -2050,6 +2053,10 @@ export default function InvestmentManagerSettingsPage() {
                         <div className="flex items-center justify-between">
                           <Label className="text-sm font-normal">Security alerts</Label>
                           <Switch checked={securityAlerts} onCheckedChange={setSecurityAlerts} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-normal">New structure created</Label>
+                          <Switch checked={newStructureNotifications} onCheckedChange={setNewStructureNotifications} />
                         </div>
                       </div>
                     )}

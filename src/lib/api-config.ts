@@ -188,6 +188,13 @@ export const API_CONFIG = {
     stripeConnectAdminStatus: (investorId: string) => `/api/stripe/connect/admin/status/${investorId}`,
     stripeConnectAdminSendInvite: (investorId: string) => `/api/stripe/connect/admin/send-invite/${investorId}`,
 
+    // Presence API (real-time online status)
+    presenceHeartbeat: '/api/presence/heartbeat',
+    presenceOffline: '/api/presence/offline',
+    presenceStatus: (userId: string) => `/api/presence/status/${userId}`,
+    presenceStatusBulk: '/api/presence/status/bulk',
+    presenceOnlineUsers: '/api/presence/online',
+
     // Add other endpoints as needed
   }
 }

@@ -41,6 +41,8 @@ import { API_CONFIG, getApiUrl } from '@/lib/api-config'
 import { getAuthToken, getCurrentUser, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { useUserPresence } from '@/lib/swr-hooks'
+import { usePresenceHeartbeat } from '@/hooks/usePresenceHeartbeat'
 
 interface Message {
   id: string
@@ -102,6 +104,18 @@ export default function LPChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const currentUser = getCurrentUser()
 
+  // DISABLED: Presence heartbeat (sends heartbeat every 30 seconds)
+  // usePresenceHeartbeat()
+
+  // DISABLED: Presence tracking
+  // const participantIds = conversations
+  //   .filter(conv => conv.participantId)
+  //   .map(conv => conv.participantId as string)
+  // const { isOnline } = useUserPresence(participantIds)
+
+  // Mock isOnline function - always returns false (presence disabled)
+  const isOnline = (_userId: string) => false
+
   useEffect(() => {
     loadConversations()
     loadAdminStaffUsers()
@@ -159,21 +173,29 @@ export default function LPChatPage() {
           const apiConversations: Conversation[] = result.data.map((conv: any) => {
             // For direct conversations, get the OTHER participant's name (not current user)
             let conversationName = conv.name || conv.title || 'Conversation'
+            let participantId = conv.participantId
+            let participantRole = conv.participantRole
 
             if (conv.type === 'direct') {
               // First try to get from participants array (most reliable)
               if (conv.participants && conv.participants.length > 0) {
                 const otherParticipant = conv.participants.find((p: any) => {
-                  const participantId = p.userId || p.id || p.user_id
-                  return participantId !== currentUser?.id
+                  const pId = p.userId || p.id || p.user_id
+                  return pId !== currentUser?.id
                 })
 
                 if (otherParticipant) {
+                  // Extract the participant ID for presence tracking
+                  participantId = otherParticipant.userId || otherParticipant.id || otherParticipant.user_id
+
                   // Try to get the user's name from various possible fields
                   const participant = otherParticipant.user || otherParticipant
                   conversationName = participant.firstName && participant.lastName
                     ? `${participant.firstName} ${participant.lastName}`.trim()
                     : participant.name || participant.username || conversationName
+
+                  // Get participant role if available
+                  participantRole = participant.role || otherParticipant.role || participantRole
                 }
               }
               // If participants array didn't work, try participantName field
@@ -183,13 +205,15 @@ export default function LPChatPage() {
               }
             }
 
+            console.log('[Chat] Conversation mapped:', { id: conv.id, name: conversationName, participantId })
+
             return {
               id: conv.id,
               name: conversationName,
               type: conv.type || 'direct',
-              participantId: conv.participantId,
+              participantId,
               participantName: conv.participantName,
-              participantRole: conv.participantRole,
+              participantRole,
               lastMessage: conv.lastMessage,
               lastMessageTime: conv.lastMessageTime || conv.updatedAt,
               unreadCount: conv.unreadCount || 0,
@@ -912,7 +936,14 @@ export default function LPChatPage() {
                           )}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                      {conversation.participantId && (
+                        <div
+                          className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background ${
+                            isOnline(conversation.participantId) ? 'bg-green-500' : 'bg-gray-400'
+                          }`}
+                          title={isOnline(conversation.participantId) ? 'Online' : 'Offline'}
+                        />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
@@ -975,7 +1006,14 @@ export default function LPChatPage() {
                         )}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                    {currentConversation?.participantId && (
+                      <div
+                        className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-background ${
+                          isOnline(currentConversation.participantId) ? 'bg-green-500' : 'bg-gray-400'
+                        }`}
+                        title={isOnline(currentConversation.participantId) ? 'Online' : 'Offline'}
+                      />
+                    )}
                   </div>
                   <div>
                     <h3 className="font-semibold">{currentConversation?.name}</h3>

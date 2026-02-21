@@ -324,3 +324,127 @@ export function useNotificationSettings() {
     mutate,
   }
 }
+
+// ===========================================
+// PRESENCE HOOKS
+// ===========================================
+
+/**
+ * Presence config - fast refresh for real-time status
+ */
+const presenceConfig: SWRConfiguration = {
+  revalidateOnFocus: true,
+  revalidateOnReconnect: true,
+  refreshInterval: 10 * 1000, // 10 seconds
+  dedupingInterval: 5 * 1000, // 5 seconds
+}
+
+/**
+ * Fetch online status for multiple users
+ * @param userIds Array of user IDs to check
+ */
+export function useUserPresence(userIds: string[]) {
+  const token = getAuthToken()
+
+  // Create a stable key from sorted user IDs
+  const key = token && userIds.length > 0
+    ? `presence:${userIds.sort().join(',')}`
+    : null
+
+  console.log('[useUserPresence] userIds:', userIds, 'key:', key)
+
+  const fetcher = async () => {
+    console.log('[useUserPresence] Fetching presence for:', userIds)
+    const response = await fetch(getApiUrl(API_CONFIG.endpoints.presenceStatusBulk), {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userIds }),
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch presence')
+    }
+
+    const result = await response.json()
+    console.log('[useUserPresence] Presence response:', result)
+    return result
+  }
+
+  const { data, error, isLoading, mutate } = useSWR(
+    key,
+    fetcher,
+    presenceConfig
+  )
+
+  // Create a map for easy lookup
+  const presenceMap: Record<string, { isOnline: boolean; lastSeenAt: string | null }> = {}
+  if (data?.success && data?.data) {
+    data.data.forEach((p: { user_id: string; is_online: boolean; last_seen_at: string | null }) => {
+      presenceMap[p.user_id] = {
+        isOnline: p.is_online,
+        lastSeenAt: p.last_seen_at,
+      }
+    })
+  }
+
+  console.log('[useUserPresence] presenceMap:', presenceMap)
+
+  return {
+    presenceMap,
+    isLoading,
+    error,
+    mutate,
+    isOnline: (userId: string) => presenceMap[userId]?.isOnline ?? false,
+  }
+}
+
+/**
+ * Fetch online status for a single user
+ * @param userId User ID to check
+ */
+export function useSingleUserPresence(userId: string | null) {
+  const token = getAuthToken()
+  const url = token && userId ? getApiUrl(API_CONFIG.endpoints.presenceStatus(userId)) : null
+
+  const { data, error, isLoading, mutate } = useSWR(
+    url,
+    authFetcher,
+    presenceConfig
+  )
+
+  return {
+    isOnline: data?.success ? data.data?.is_online ?? false : false,
+    lastSeenAt: data?.success ? data.data?.last_seen_at : null,
+    status: data?.success ? data.data?.status : 'offline',
+    isLoading,
+    error,
+    mutate,
+  }
+}
+
+/**
+ * Get all currently online users
+ * DISABLED: Set url to null to prevent API requests
+ */
+export function useOnlineUsers() {
+  const token = getAuthToken()
+  // DISABLED: Online users presence checker
+  // const url = token ? getApiUrl(API_CONFIG.endpoints.presenceOnlineUsers) : null
+  const url = null
+
+  const { data, error, isLoading, mutate } = useSWR(
+    url,
+    authFetcher,
+    presenceConfig
+  )
+
+  return {
+    onlineUsers: data?.success ? data.data : [],
+    isLoading,
+    error,
+    mutate,
+  }
+}
