@@ -101,17 +101,14 @@ export default function InvestmentManagerChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const currentUser = getCurrentUser()
 
-  // DISABLED: Presence heartbeat (sends heartbeat every 30 seconds)
-  // usePresenceHeartbeat()
+  // Enable presence heartbeat (sends heartbeat every 30 seconds)
+  usePresenceHeartbeat()
 
-  // DISABLED: Presence tracking
-  // const participantIds = conversations
-  //   .filter(conv => conv.participantId)
-  //   .map(conv => conv.participantId as string)
-  // const { isOnline } = useUserPresence(participantIds)
-
-  // Mock isOnline function - always returns false (presence disabled)
-  const isOnline = (_userId: string) => false
+  // Enable presence tracking for conversation participants
+  const participantIds = conversations
+    .filter(conv => conv.participantId)
+    .map(conv => conv.participantId as string)
+  const { isOnline } = useUserPresence(participantIds)
 
   // Track last message count to detect new messages
   const lastMessageCountRef = useRef<number>(0)
@@ -263,9 +260,9 @@ export default function InvestmentManagerChatPage() {
               id: conv.id,
               name: conversationName,
               type: conv.type || 'direct',
-              participantId: conv.participantId,
+              participantId,
               participantName: conv.participantName,
-              participantRole: conv.participantRole,
+              participantRole,
               lastMessage: conv.lastMessage,
               lastMessageTime: conv.lastMessageTime || conv.updatedAt,
               unreadCount: conv.unreadCount || 0,
@@ -1061,6 +1058,14 @@ export default function InvestmentManagerChatPage() {
                           : getRoleName(currentConversation?.participantRole || 3)
                         }
                       </span>
+                      {currentConversation?.participantId && (
+                        <>
+                          <span>•</span>
+                          <span className={isOnline(currentConversation.participantId) ? 'text-green-600' : 'text-muted-foreground'}>
+                            {isOnline(currentConversation.participantId) ? 'Online' : 'Offline'}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

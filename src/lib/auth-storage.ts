@@ -1,4 +1,5 @@
 // Authentication storage utility
+import { API_CONFIG, getApiUrl } from './api-config'
 
 // API User object from login response
 export interface ApiUser {
@@ -99,11 +100,44 @@ export function saveLoginResponse(response: LoginResponse): AuthState {
   }
 }
 
+// Mark user as offline via presence API
+async function markUserOffline(token: string): Promise<void> {
+  try {
+    const url = getApiUrl(API_CONFIG.endpoints.presenceOffline)
+
+    // Use sendBeacon for reliability (works even during page unload)
+    if (navigator.sendBeacon) {
+      const blob = new Blob([JSON.stringify({})], { type: 'application/json' })
+      navigator.sendBeacon(`${url}?token=${token}`, blob)
+      console.log('[Auth] Marked user offline via sendBeacon')
+    } else {
+      // Fallback to fetch
+      await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        keepalive: true,
+      })
+      console.log('[Auth] Marked user offline via fetch')
+    }
+  } catch (error) {
+    console.error('[Auth] Error marking user offline:', error)
+  }
+}
+
 // Logout user and clear all localStorage data
 export function logout(): void {
   if (typeof window === 'undefined') return
 
   try {
+    // Get token before clearing to mark user as offline
+    const authState = getAuthState()
+    if (authState.token) {
+      markUserOffline(authState.token)
+    }
+
     // Clear all localStorage data
     localStorage.clear()
     console.log('[Auth] All localStorage data cleared')
