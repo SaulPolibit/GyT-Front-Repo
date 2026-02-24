@@ -5,6 +5,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthRedirectHandler } from "@/components/auth-redirect-handler";
 import "./globals.css";
 
+// Force dynamic rendering for pages that need server-side data
+export const dynamic = 'force-dynamic';
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -20,19 +23,22 @@ export async function generateMetadata(): Promise<Metadata> {
   let firmLogo = null
 
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    const response = await fetch(`${apiUrl}/api/firm-settings/logo`, {
-      cache: 'no-store' // Ensure we get fresh data
-    })
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL
+    // Skip API call during build if API URL is not available
+    if (apiUrl) {
+      const response = await fetch(`${apiUrl}/api/firm-settings/logo`, {
+        next: { revalidate: 3600 } // Cache for 1 hour, revalidate in background
+      })
 
-    if (response.ok) {
-      const result = await response.json()
-      if (result.success && result.data) {
-        if (result.data.firmName) {
-          firmName = result.data.firmName
-        }
-        if (result.data.firmLogo) {
-          firmLogo = result.data.firmLogo
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success && result.data) {
+          if (result.data.firmName) {
+            firmName = result.data.firmName
+          }
+          if (result.data.firmLogo) {
+            firmLogo = result.data.firmLogo
+          }
         }
       }
     }
