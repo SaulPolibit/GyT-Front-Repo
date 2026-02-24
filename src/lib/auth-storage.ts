@@ -1,5 +1,4 @@
 // Authentication storage utility
-import { API_CONFIG, getApiUrl } from './api-config'
 
 // API User object from login response
 export interface ApiUser {
@@ -103,7 +102,9 @@ export function saveLoginResponse(response: LoginResponse): AuthState {
 // Mark user as offline via presence API
 async function markUserOffline(token: string): Promise<void> {
   try {
-    const url = getApiUrl(API_CONFIG.endpoints.presenceOffline)
+    // Construct URL directly to avoid circular imports
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+    const url = `${baseUrl}/api/presence/offline`
 
     // Use sendBeacon for reliability (works even during page unload)
     if (navigator.sendBeacon) {
