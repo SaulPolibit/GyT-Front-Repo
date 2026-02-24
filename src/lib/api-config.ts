@@ -67,6 +67,11 @@ export const API_CONFIG = {
     cleanupOldNotifications: '/api/notifications/cleanup/old',
     cleanupExpiredNotifications: '/api/notifications/cleanup/expired',
 
+    // Bulk notification sending (Admin only)
+    sendQuarterlyReportNotification: '/api/notifications/send/quarterly-report',
+    sendK1TaxFormNotification: '/api/notifications/send/k1-tax-form',
+    sendAnnouncementNotification: '/api/notifications/send/announcement',
+
     // Firm settings
     getFirmSettings: '/api/firm-settings',
     getFirmLogo: '/api/firm-settings/logo',
@@ -101,6 +106,7 @@ export const API_CONFIG = {
 
     // Chat/Messages API
     getConversations: '/api/conversations',
+    getUnreadMessageCount: '/api/conversations/unread/count',
     createConversation: '/api/conversations',
     deleteConversation: (conversationId: string) => `/api/conversations/${conversationId}`,
     getMessages: (conversationId: string) => `/api/conversations/${conversationId}/messages`,
@@ -108,6 +114,7 @@ export const API_CONFIG = {
     sendFileMessage: (conversationId: string) => `/api/conversations/${conversationId}/messages/file`,
     searchMessages: (conversationId: string) => `/api/conversations/${conversationId}/messages/search`,
     markMessageAsRead: (messageId: string) => `/api/messages/${messageId}/read`,
+    markConversationAsRead: (conversationId: string) => `/api/conversations/${conversationId}/read`,
     deleteMessage: (messageId: string) => `/api/messages/${messageId}`,
     getAvailableUsers: '/api/messages/available-users',
 

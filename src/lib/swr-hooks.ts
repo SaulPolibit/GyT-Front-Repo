@@ -304,6 +304,31 @@ export function useUnreadNotificationCount() {
 }
 
 /**
+ * Fetch unread message count across all conversations with short cache
+ */
+export function useUnreadMessageCount() {
+  const token = getAuthToken()
+  const url = token ? getApiUrl(API_CONFIG.endpoints.getUnreadMessageCount) : null
+
+  const { data, error, isLoading, mutate } = useSWR(
+    url,
+    authFetcher,
+    {
+      ...shortCacheConfig,
+      refreshInterval: 30 * 1000, // 30 seconds for count
+    }
+  )
+
+  return {
+    totalUnreadCount: data?.success ? data.data?.totalUnreadCount || 0 : 0,
+    conversationsWithUnread: data?.success ? data.data?.conversationsWithUnread || 0 : 0,
+    isLoading,
+    error,
+    mutate,
+  }
+}
+
+/**
  * Fetch notification settings with medium cache
  */
 export function useNotificationSettings() {

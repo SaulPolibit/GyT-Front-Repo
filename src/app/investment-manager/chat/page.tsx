@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -36,6 +36,7 @@ import {
 import { API_CONFIG, getApiUrl } from '@/lib/api-config'
 import { getAuthToken, getCurrentUser, logout } from '@/lib/auth-storage'
 import { toast } from 'sonner'
+import { useSWRConfig } from 'swr'
 import { useUserPresence } from '@/lib/swr-hooks'
 import { usePresenceHeartbeat } from '@/hooks/usePresenceHeartbeat'
 
@@ -84,6 +85,7 @@ interface InvestorUser {
 
 export default function InvestmentManagerChatPage() {
   const router = useRouter()
+  const { mutate: globalMutate } = useSWRConfig()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [messageInput, setMessageInput] = useState('')
@@ -110,6 +112,61 @@ export default function InvestmentManagerChatPage() {
 
   // Mock isOnline function - always returns false (presence disabled)
   const isOnline = (_userId: string) => false
+
+  // Track last message count to detect new messages
+  const lastMessageCountRef = useRef<number>(0)
+
+  // Poll for new messages when a conversation is selected
+  useEffect(() => {
+    if (!selectedConversation) return
+
+    const pollForNewMessages = async () => {
+      const token = getAuthToken()
+      if (!token) return
+
+      try {
+        const response = await fetch(
+          getApiUrl(API_CONFIG.endpoints.getMessages(selectedConversation)) + '?limit=100',
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success && result.data) {
+            const newMessages = result.data as Message[]
+
+            // Check if there are new messages (more than we had before)
+            if (newMessages.length > lastMessageCountRef.current) {
+              const latestMessage = newMessages[newMessages.length - 1]
+
+              // Only update if the latest message is from someone else
+              if (latestMessage.senderId !== currentUser?.id) {
+                setMessages(newMessages)
+                scrollToBottom()
+              }
+            }
+
+            lastMessageCountRef.current = newMessages.length
+          }
+        }
+      } catch (error) {
+        console.error('[Chat Poll] Error polling for messages:', error)
+      }
+    }
+
+    // Initialize count
+    lastMessageCountRef.current = messages.length
+
+    // Poll every 3 seconds
+    const pollInterval = setInterval(pollForNewMessages, 3000)
+
+    return () => clearInterval(pollInterval)
+  }, [selectedConversation, currentUser?.id, messages.length])
 
   useEffect(() => {
     loadConversations()
@@ -394,12 +451,24 @@ export default function InvestmentManagerChatPage() {
         // Messages should be ordered oldest to newest (chronological)
         setMessages(result.data)
 
-        // Mark unread messages as read
-        result.data.forEach((msg: Message) => {
-          if (msg.senderId !== currentUser?.id) {
-            markAsRead(msg.id)
-          }
-        })
+        // Mark conversation as read (fire and forget - don't block UI)
+        // This updates last_read_at timestamp which is used for unread count calculation
+        markConversationAsRead(conversationId)
+
+        // Always reset local conversation unread count when opening
+        setConversations(prev =>
+          prev.map(conv =>
+            conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
+          )
+        )
+
+        // Dispatch event to notify sidebar to reset realtime count
+        window.dispatchEvent(new CustomEvent('messages-read'))
+
+        // Update sidebar badge after a short delay to ensure DB is updated
+        setTimeout(() => {
+          globalMutate(getApiUrl(API_CONFIG.endpoints.getUnreadMessageCount))
+        }, 500)
       }
     } catch (error) {
       console.error('Error loading messages:', error)
@@ -533,6 +602,26 @@ export default function InvestmentManagerChatPage() {
       }
     } catch (error) {
       console.error('Error marking message as read:', error)
+    }
+  }
+
+  const markConversationAsRead = async (conversationId: string) => {
+    const token = getAuthToken()
+    if (!token) return
+
+    try {
+      await fetch(
+        getApiUrl(API_CONFIG.endpoints.markConversationAsRead(conversationId)),
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+    } catch (error) {
+      console.error('Error marking conversation as read:', error)
     }
   }
 

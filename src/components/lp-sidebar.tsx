@@ -35,20 +35,76 @@ import { NavMain } from "@/components/nav-main"
 import { NavManagement } from "@/components/nav-management"
 import { NavSecondary } from "@/components/nav-secondary"
 import { LPNavUser } from "@/components/lp-nav-user"
-import { useFirmLogo, useNotificationSettings, useUnreadNotificationCount } from "@/lib/swr-hooks"
+import { useFirmLogo, useNotificationSettings, useUnreadNotificationCount, useUnreadMessageCount } from "@/lib/swr-hooks"
 import { NotificationsPanel } from "@/components/notifications-panel"
+import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications"
+import { useRealtimeMessages } from "@/hooks/useRealtimeMessages"
+import { getCurrentUser } from "@/lib/auth-storage"
 
 interface LPSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onSearchClick?: () => void
 }
 
 export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
+  const currentUser = getCurrentUser()
+
   // Use SWR for cached firm logo (reduces API requests)
   const { firmLogo } = useFirmLogo()
 
   // Notification settings and unread count
   const { pushNotificationsEnabled } = useNotificationSettings()
-  const { count: unreadCount } = useUnreadNotificationCount()
+  const { count: unreadCount, mutate: mutateUnreadCount } = useUnreadNotificationCount()
+
+  // Unread message count for chat
+  const { conversationsWithUnread, mutate: mutateUnreadMessages } = useUnreadMessageCount()
+
+  // Realtime notification count (additions since last SWR fetch)
+  const [realtimeNotificationCount, setRealtimeNotificationCount] = React.useState(0)
+
+  // Realtime message count (new messages since last SWR fetch)
+  const [realtimeMessageCount, setRealtimeMessageCount] = React.useState(0)
+
+  // Subscribe to realtime notifications
+  useRealtimeNotifications({
+    userId: currentUser?.id || null,
+    onNewNotification: React.useCallback(() => {
+      setRealtimeNotificationCount(prev => prev + 1)
+    }, []),
+    onNotificationRead: React.useCallback(() => {
+      // Revalidate SWR count and reset realtime additions
+      mutateUnreadCount()
+      setRealtimeNotificationCount(0)
+    }, [mutateUnreadCount]),
+  })
+
+  // Subscribe to realtime messages for chat badge
+  useRealtimeMessages({
+    userId: currentUser?.id || null,
+    onNewMessage: React.useCallback(() => {
+      setRealtimeMessageCount(prev => prev + 1)
+    }, []),
+  })
+
+  // Reset realtime message count when SWR data is refreshed
+  React.useEffect(() => {
+    setRealtimeMessageCount(0)
+  }, [conversationsWithUnread])
+
+  // Listen for messages-read event from chat page
+  React.useEffect(() => {
+    const handleMessagesRead = () => {
+      setRealtimeMessageCount(0)
+      mutateUnreadMessages()
+    }
+    window.addEventListener('messages-read', handleMessagesRead)
+    return () => window.removeEventListener('messages-read', handleMessagesRead)
+  }, [mutateUnreadMessages])
+
+  // Combined unread count (SWR + realtime additions)
+  const totalUnreadCount = (unreadCount || 0) + realtimeNotificationCount
+
+  // Combined unread message count (SWR + realtime additions)
+  const totalUnreadMessages = (conversationsWithUnread || 0) + realtimeMessageCount
 
   // Notifications panel state
   const [isNotificationsPanelOpen, setIsNotificationsPanelOpen] = React.useState(false)
@@ -92,6 +148,7 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
       title: "Chat",
       url: "/lp-portal/chat",
       icon: MessageSquare,
+      badge: totalUnreadMessages > 0 ? totalUnreadMessages : undefined,
     },
   ]
 
@@ -141,7 +198,7 @@ export function LPSidebar({ onSearchClick, ...props }: LPSidebarProps) {
         url: "#",
         icon: Bell,
         onClick: handleNotificationsClick,
-        badge: unreadCount > 0 ? unreadCount : undefined,
+        badge: totalUnreadCount > 0 ? totalUnreadCount : undefined,
       }] : []),
       {
         title: "Settings",
