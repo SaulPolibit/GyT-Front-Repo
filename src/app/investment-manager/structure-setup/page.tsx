@@ -29,6 +29,7 @@ import { useRouter } from 'next/navigation'
 import { getVisibilitySettings } from '@/lib/visibility-storage'
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
 import { getAuthState, logout } from '@/lib/auth-storage'
+import { canCreateStructure, getEmulatedSubscription, saveEmulatedSubscription, hasActiveSubscription, EmulatedSubscription } from '@/lib/stripe-products'
 
 // V3.1: Investor Pre-Registration Interface
 interface InvestorPreRegistration {
@@ -333,6 +334,10 @@ export default function OnboardingPage() {
   const [showCompleteConfirmation, setShowCompleteConfirmation] = useState(false)
   const [createdStructureId, setCreatedStructureId] = useState<string | null>(null)
   const [visibilitySettings, setVisibilitySettings] = useState<ReturnType<typeof getVisibilitySettings> | null>(null)
+
+  // Subscription validation state
+  const [subscriptionStatus, setSubscriptionStatus] = useState<{ allowed: boolean; reason?: string }>({ allowed: true })
+  const [currentSubscription, setCurrentSubscription] = useState<EmulatedSubscription | null>(null)
 
   // V3.1: Investor Pre-Registration State
   const [showInvestorForm, setShowInvestorForm] = useState(false)
@@ -760,6 +765,28 @@ export default function OnboardingPage() {
     }
   }, [])
 
+  // Check subscription status on mount and when storage changes
+  useEffect(() => {
+    const checkSubscription = () => {
+      const sub = getEmulatedSubscription()
+      setCurrentSubscription(sub)
+      const status = canCreateStructure()
+      setSubscriptionStatus(status)
+    }
+
+    checkSubscription()
+
+    // Listen for subscription changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'polibit_subscription') {
+        checkSubscription()
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
   // Initialize hierarchy structures when levels change (all-at-once mode)
   useEffect(() => {
     if (formData.hierarchyMode && formData.hierarchySetupApproach === 'all-at-once') {
@@ -1030,6 +1057,14 @@ export default function OnboardingPage() {
     setIsSubmitting(true)
 
     try {
+      // Validate subscription status before creating structure
+      const subscriptionCheck = canCreateStructure()
+      if (!subscriptionCheck.allowed) {
+        toast.error(subscriptionCheck.reason || 'Cannot create structure. Please check your subscription.')
+        setIsSubmitting(false)
+        return
+      }
+
       // Validate that if parent structure is selected, ownership percentage must be provided
       if (formData.parentStructureId && (formData.parentStructureOwnershipPercentage === null || formData.parentStructureOwnershipPercentage === undefined)) {
         toast.error('Please enter the parent structure ownership percentage')
@@ -1249,6 +1284,20 @@ export default function OnboardingPage() {
             })
           }
         })
+      }
+
+      // Decrement emissions available in subscription
+      const currentSub = getEmulatedSubscription()
+      if (currentSub) {
+        const emissionsNeeded = formData.calculatedIssuances || 1
+        const updatedSubscription: EmulatedSubscription = {
+          ...currentSub,
+          emissionsUsed: currentSub.emissionsUsed + emissionsNeeded,
+          emissionsAvailable: Math.max(0, currentSub.emissionsAvailable - emissionsNeeded)
+        }
+        saveEmulatedSubscription(updatedSubscription)
+        setCurrentSubscription(updatedSubscription)
+        setSubscriptionStatus(canCreateStructure())
       }
 
       setIsSubmitting(false)
@@ -2981,6 +3030,42 @@ export default function OnboardingPage() {
                   <li key={index}>{error}</li>
                 ))}
               </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Subscription Status Alert */}
+        {!subscriptionStatus.allowed && (
+          <Alert className="mb-6 border-amber-200 bg-amber-50">
+            <AlertCircle className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-900">Subscription Required</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              {subscriptionStatus.reason}
+              <div className="mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/investment-manager/settings?tab=subscription')}
+                >
+                  Manage Subscription
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Subscription Info (when active) */}
+        {currentSubscription && currentSubscription.status === 'active' && currentSubscription.setupFeePaid && (
+          <Alert className="mb-6 border-green-200 bg-green-50">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-900">Active Subscription</AlertTitle>
+            <AlertDescription className="text-green-700">
+              <span className="font-medium">{currentSubscription.currentPlan?.name}</span>
+              {' - '}
+              <span>{currentSubscription.emissionsAvailable} emissions available</span>
+              {currentSubscription.emissionsAvailable <= 2 && currentSubscription.emissionsAvailable > 0 && (
+                <span className="text-amber-600 ml-2">(Low balance)</span>
+              )}
             </AlertDescription>
           </Alert>
         )}

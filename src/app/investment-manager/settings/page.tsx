@@ -42,6 +42,8 @@ import { AddUserModal } from '@/components/add-user-modal'
 import { PermissionsMatrixDialog } from '@/components/permissions-matrix-dialog'
 import { getNotificationSettings, saveNotificationSettings } from '@/lib/notification-settings-storage'
 import { SubscriptionManager } from '@/components/subscription-manager'
+import { SubscriptionPricingView } from '@/components/subscription-pricing-view'
+import { getSubscriptionModel } from '@/lib/stripe-products'
 
 export default function InvestmentManagerSettingsPage() {
   const router = useRouter()
@@ -2576,7 +2578,7 @@ export default function InvestmentManagerSettingsPage() {
         {/* Subscription Tab */}
         {(currentUserRole === 0 || currentUserRole === 1) && (
           <TabsContent value="subscription" className="space-y-4">
-            <SubscriptionManager />
+            <SubscriptionPricingView />
           </TabsContent>
         )}
       </Tabs>
