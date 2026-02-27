@@ -14,10 +14,11 @@ import {
   Wallet,
   Zap,
   Package,
-  Users,
-  CreditCard
+  CreditCard,
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { loadStripe } from '@stripe/stripe-js';
 import {
   getSubscriptionModel,
   SHARED_PRODUCTS,
@@ -32,13 +33,20 @@ import {
   clearEmulatedSubscription,
   EmulatedSubscription
 } from '@/lib/stripe-products';
+import { getAuthState } from '@/lib/auth-storage';
 
 interface SubscriptionPricingViewProps {
   onSubscriptionChange?: (subscription: EmulatedSubscription | null) => void;
+  useRealStripe?: boolean; // Set to true to use real Stripe instead of emulated
 }
 
-export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPricingViewProps) {
+// Initialize Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+
+export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = false }: SubscriptionPricingViewProps) {
   const [subscription, setSubscription] = useState<EmulatedSubscription | null>(null);
+  const [stripeSubscription, setStripeSubscription] = useState<any>(null);
+  const [customerId, setCustomerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -46,22 +54,91 @@ export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPr
 
   const subscriptionModel = getSubscriptionModel();
   const plans = subscriptionModel === 'tier_based' ? TIER_BASED_PLANS : PAYG_PLANS;
-  const setupFee = SHARED_PRODUCTS[0]; // Setup fee product
+  const setupFee = SHARED_PRODUCTS[0];
   const emissionProducts = SHARED_PRODUCTS.filter(
     p => p.metadata.addon_type === 'emission' || p.metadata.addon_type === 'emission_pack'
   );
 
   useEffect(() => {
+    loadSubscription();
+  }, [useRealStripe]);
+
+  const loadSubscription = async () => {
     setLoading(true);
-    const sub = getEmulatedSubscription();
-    setSubscription(sub);
-    if (sub?.currentPlan) {
-      setSelectedPlanId(sub.currentPlan.id);
+
+    if (useRealStripe) {
+      // Load from Stripe API
+      try {
+        const authState = getAuthState();
+        const email = authState?.email;
+
+        if (email) {
+          const response = await fetch(`/api/stripe/subscription?email=${encodeURIComponent(email)}`);
+          const data = await response.json();
+
+          if (data.success && data.subscription) {
+            setStripeSubscription(data.subscription);
+            setCustomerId(data.customerId);
+
+            // Convert to EmulatedSubscription format for consistency
+            const emulated: EmulatedSubscription = {
+              id: data.subscription.id,
+              status: data.subscription.status,
+              model: subscriptionModel,
+              currentPlan: plans.find(p => {
+                const tierMap: Record<string, string> = {
+                  starter: 'price_tier_starter',
+                  professional: 'price_tier_professional',
+                  enterprise: 'price_tier_enterprise',
+                  growth: 'price_payg_growth',
+                };
+                return p.id === tierMap[data.subscription.planTier];
+              }) || null,
+              setupFeePaid: true,
+              emissionsUsed: data.subscription.emissionsUsed || 0,
+              emissionsAvailable: data.subscription.emissionsAvailable || 0,
+              creditBalance: parseInt(data.subscription.creditBalance || '0'),
+              currentPeriodStart: new Date(data.subscription.currentPeriodStart * 1000),
+              currentPeriodEnd: new Date(data.subscription.currentPeriodEnd * 1000),
+            };
+            setSubscription(emulated);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading Stripe subscription:', error);
+      }
+    } else {
+      // Load emulated subscription
+      const sub = getEmulatedSubscription();
+      setSubscription(sub);
+      if (sub?.currentPlan) {
+        setSelectedPlanId(sub.currentPlan.id);
+      }
     }
+
     setLoading(false);
-  }, []);
+  };
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
+
+  // Map internal plan ID to Stripe tier
+  const getPlanTier = (planId: string): string => {
+    if (planId.includes('starter')) return 'starter';
+    if (planId.includes('professional')) return 'professional';
+    if (planId.includes('growth')) return 'growth';
+    if (planId.includes('enterprise')) return 'enterprise';
+    return 'starter';
+  };
+
+  // Map emission selection to emission pack ID
+  const getEmissionPackId = (productId: string | null): string | null => {
+    if (!productId) return null;
+    if (productId.includes('individual') || productId.includes('single')) return 'emissionSingle';
+    if (productId.includes('pack_5') || productId.includes('pack5')) return 'emissionPack5';
+    if (productId.includes('pack_10') || productId.includes('pack10')) return 'emissionPack10';
+    if (productId.includes('pack_20') || productId.includes('pack20')) return 'emissionPack20';
+    return null;
+  };
 
   const handleSubscribe = async () => {
     if (!selectedPlan) {
@@ -70,93 +147,230 @@ export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPr
     }
 
     setProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
 
-    const now = new Date();
-    const periodEnd = new Date(now);
-    periodEnd.setMonth(periodEnd.getMonth() + 1);
+    if (useRealStripe) {
+      // Use real Stripe checkout
+      try {
+        const authState = getAuthState();
 
-    // Calculate total emissions: 5 from setup + any selected pack
-    let totalEmissions = 5;
-    if (selectedEmissions) {
-      const emissionProduct = emissionProducts.find(p => p.id === selectedEmissions);
-      if (emissionProduct) {
-        totalEmissions += emissionProduct.metadata.pack_size || 1;
+        const response = await fetch('/api/stripe/create-checkout-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planTier: getPlanTier(selectedPlanId!),
+            emissionPackId: getEmissionPackId(selectedEmissions),
+            userId: authState?.userId || 'demo-user',
+            userEmail: authState?.email || 'demo@example.com',
+            firmId: authState?.firmId || '',
+            firmName: authState?.firmName || '',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.url) {
+          // Redirect to Stripe Checkout
+          window.location.href = data.url;
+        } else {
+          toast.error(data.error || 'Failed to create checkout session');
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to create checkout session');
       }
+    } else {
+      // Emulated subscription
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+
+      let totalEmissions = 5;
+      if (selectedEmissions) {
+        const emissionProduct = emissionProducts.find(p => p.id === selectedEmissions);
+        if (emissionProduct) {
+          totalEmissions += emissionProduct.metadata.pack_size || 1;
+        }
+      }
+
+      const newSubscription: EmulatedSubscription = {
+        id: `sub_${Date.now()}`,
+        status: 'active',
+        model: subscriptionModel,
+        currentPlan: selectedPlan,
+        setupFeePaid: true,
+        emissionsUsed: 0,
+        emissionsAvailable: totalEmissions,
+        creditBalance: subscriptionModel === 'payg' ? CREDIT_WALLET_CONFIG.minimumTopUp : undefined,
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+      };
+
+      saveEmulatedSubscription(newSubscription);
+      setSubscription(newSubscription);
+      onSubscriptionChange?.(newSubscription);
+      toast.success('Subscription activated!');
     }
 
-    const newSubscription: EmulatedSubscription = {
-      id: `sub_${Date.now()}`,
-      status: 'active',
-      model: subscriptionModel,
-      currentPlan: selectedPlan,
-      setupFeePaid: true,
-      emissionsUsed: 0,
-      emissionsAvailable: totalEmissions,
-      creditBalance: subscriptionModel === 'payg' ? CREDIT_WALLET_CONFIG.minimumTopUp : undefined,
-      currentPeriodStart: now,
-      currentPeriodEnd: periodEnd
-    };
-
-    saveEmulatedSubscription(newSubscription);
-    setSubscription(newSubscription);
-    onSubscriptionChange?.(newSubscription);
-    toast.success('Subscription activated!');
     setProcessing(false);
   };
 
   const handlePurchaseEmissions = async (productId: string) => {
     if (!subscription) return;
     setProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
 
-    const product = SHARED_PRODUCTS.find(p => p.id === productId);
-    if (!product) {
-      toast.error('Product not found');
-      setProcessing(false);
-      return;
+    if (useRealStripe && stripeSubscription) {
+      try {
+        const response = await fetch('/api/stripe/purchase-emissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId,
+            subscriptionId: stripeSubscription.id,
+            emissionPackId: getEmissionPackId(productId),
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          toast.success(`Purchased ${data.emissionsAdded} emission(s)!`);
+          await loadSubscription();
+        } else {
+          toast.error(data.error || 'Failed to purchase emissions');
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to purchase emissions');
+      }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const product = SHARED_PRODUCTS.find(p => p.id === productId);
+      if (!product) {
+        toast.error('Product not found');
+        setProcessing(false);
+        return;
+      }
+
+      const emissionsToAdd = product.metadata.pack_size || 1;
+      const updated: EmulatedSubscription = {
+        ...subscription,
+        emissionsAvailable: subscription.emissionsAvailable + emissionsToAdd,
+      };
+
+      saveEmulatedSubscription(updated);
+      setSubscription(updated);
+      onSubscriptionChange?.(updated);
+      toast.success(`Purchased ${emissionsToAdd} emission(s)!`);
     }
 
-    const emissionsToAdd = product.metadata.pack_size || 1;
-    const updated: EmulatedSubscription = {
-      ...subscription,
-      emissionsAvailable: subscription.emissionsAvailable + emissionsToAdd
-    };
-
-    saveEmulatedSubscription(updated);
-    setSubscription(updated);
-    onSubscriptionChange?.(updated);
-    toast.success(`Purchased ${emissionsToAdd} emission(s)!`);
     setProcessing(false);
   };
 
   const handleTopUpCredits = async (amount: number) => {
     if (!subscription || subscriptionModel !== 'payg') return;
     setProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
 
-    const updated: EmulatedSubscription = {
-      ...subscription,
-      creditBalance: (subscription.creditBalance || 0) + amount
-    };
+    if (useRealStripe && stripeSubscription) {
+      try {
+        const response = await fetch('/api/stripe/topup-credits', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId,
+            subscriptionId: stripeSubscription.id,
+            amount,
+          }),
+        });
 
-    saveEmulatedSubscription(updated);
-    setSubscription(updated);
-    onSubscriptionChange?.(updated);
-    toast.success(`Added ${formatAmount(amount)} to wallet!`);
+        const data = await response.json();
+
+        if (data.success) {
+          toast.success(`Added ${formatAmount(amount)} to wallet!`);
+          await loadSubscription();
+        } else {
+          toast.error(data.error || 'Failed to top up credits');
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to top up credits');
+      }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const updated: EmulatedSubscription = {
+        ...subscription,
+        creditBalance: (subscription.creditBalance || 0) + amount,
+      };
+
+      saveEmulatedSubscription(updated);
+      setSubscription(updated);
+      onSubscriptionChange?.(updated);
+      toast.success(`Added ${formatAmount(amount)} to wallet!`);
+    }
+
     setProcessing(false);
   };
 
   const handleCancelSubscription = async () => {
     if (!confirm('Cancel your subscription?')) return;
     setProcessing(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
 
-    clearEmulatedSubscription();
-    setSubscription(null);
-    setSelectedPlanId(null);
-    onSubscriptionChange?.(null);
-    toast.success('Subscription cancelled');
+    if (useRealStripe && stripeSubscription) {
+      try {
+        const response = await fetch('/api/stripe/subscription', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscriptionId: stripeSubscription.id,
+            immediately: false,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          toast.success('Subscription will be cancelled at end of billing period');
+          await loadSubscription();
+        } else {
+          toast.error(data.error || 'Failed to cancel subscription');
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to cancel subscription');
+      }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      clearEmulatedSubscription();
+      setSubscription(null);
+      setSelectedPlanId(null);
+      onSubscriptionChange?.(null);
+      toast.success('Subscription cancelled');
+    }
+
+    setProcessing(false);
+  };
+
+  const handleManageBilling = async () => {
+    if (!useRealStripe || !customerId) return;
+
+    setProcessing(true);
+    try {
+      const response = await fetch('/api/stripe/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data.error || 'Failed to open billing portal');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to open billing portal');
+    }
     setProcessing(false);
   };
 
@@ -180,9 +394,17 @@ export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPr
               <p className="text-sm text-muted-foreground">{subscription.currentPlan?.name}</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleCancelSubscription} disabled={processing}>
-            Cancel
-          </Button>
+          <div className="flex gap-2">
+            {useRealStripe && customerId && (
+              <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={processing}>
+                <ExternalLink className="h-4 w-4 mr-1" />
+                Manage Billing
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={handleCancelSubscription} disabled={processing}>
+              Cancel
+            </Button>
+          </div>
         </div>
 
         {/* Status Summary */}
@@ -243,7 +465,7 @@ export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPr
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Add Credits to Wallet</CardTitle>
-              <CardDescription>For KYC ({formatAmount(getPaygCostsForTier((subscription.currentPlan as any)?.tier || 'starter').kyc?.amount || 0)}/investor) and envelope ({formatAmount(getPaygCostsForTier((subscription.currentPlan as any)?.tier || 'starter').envelope?.amount || 0)}/signing) costs</CardDescription>
+              <CardDescription>For KYC and envelope costs</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
@@ -261,7 +483,7 @@ export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPr
               {subscription.creditBalance !== undefined && subscription.creditBalance <= CREDIT_WALLET_CONFIG.autoTopUpThreshold && (
                 <Alert className="mt-3" variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>Low balance - auto top-up of {formatAmount(CREDIT_WALLET_CONFIG.autoTopUpAmount)} will trigger</AlertDescription>
+                  <AlertDescription>Low balance - auto top-up will trigger</AlertDescription>
                 </Alert>
               )}
             </CardContent>
@@ -271,20 +493,28 @@ export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPr
     );
   }
 
-  // Subscription selection view - show ALL costs upfront
+  // Subscription selection view
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Building2 className="h-6 w-6 text-primary" />
-        <div>
-          <h2 className="text-xl font-bold">
-            {subscriptionModel === 'tier_based' ? 'Subscription Plans' : 'Enterprise Plans'}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Review all costs before subscribing
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Building2 className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="text-xl font-bold">
+              {subscriptionModel === 'tier_based' ? 'Subscription Plans' : 'Enterprise Plans'}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Review all costs before subscribing
+            </p>
+          </div>
         </div>
+        {useRealStripe && (
+          <Badge variant="outline" className="text-xs">
+            <CreditCard className="h-3 w-3 mr-1" />
+            Stripe Checkout
+          </Badge>
+        )}
       </div>
 
       {/* SECTION 1: Monthly Plans */}
@@ -343,7 +573,6 @@ export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPr
             })}
           </div>
 
-          {/* Overage info for tier-based */}
           {subscriptionModel === 'tier_based' && (
             <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm">
               <span className="font-medium">Overage charges if you exceed limits: </span>
@@ -514,7 +743,7 @@ export function SubscriptionPricingView({ onSubscriptionChange }: SubscriptionPr
                 disabled={processing}
               >
                 {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Subscribe Now
+                {useRealStripe ? 'Proceed to Checkout' : 'Subscribe Now'}
               </Button>
             </>
           ) : (

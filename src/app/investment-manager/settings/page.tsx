@@ -2578,7 +2578,9 @@ export default function InvestmentManagerSettingsPage() {
         {/* Subscription Tab */}
         {(currentUserRole === 0 || currentUserRole === 1) && (
           <TabsContent value="subscription" className="space-y-4">
-            <SubscriptionPricingView />
+            <SubscriptionPricingView
+              useRealStripe={process.env.NEXT_PUBLIC_USE_REAL_STRIPE === 'true'}
+            />
           </TabsContent>
         )}
       </Tabs>
