@@ -64,6 +64,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showEmissionPurchaseDialog, setShowEmissionPurchaseDialog] = useState(false);
   const [pendingEmissionProductId, setPendingEmissionProductId] = useState<string | null>(null);
+  const [showTopUpDialog, setShowTopUpDialog] = useState(false);
+  const [pendingTopUpAmount, setPendingTopUpAmount] = useState<number | null>(null);
 
   const subscriptionModel = getSubscriptionModel();
   const plans = subscriptionModel === 'tier_based' ? TIER_BASED_PLANS : PAYG_PLANS;
@@ -352,9 +354,16 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     setProcessing(false);
   };
 
-  const handleTopUpCredits = async (amount: number) => {
-    if (!subscription || subscriptionModel !== 'payg') return;
+  const initiateTopUpCredits = (amount: number) => {
+    setPendingTopUpAmount(amount);
+    setShowTopUpDialog(true);
+  };
+
+  const handleTopUpCredits = async () => {
+    if (!subscription || subscriptionModel !== 'payg' || !pendingTopUpAmount) return;
+    setShowTopUpDialog(false);
     setProcessing(true);
+    const amount = pendingTopUpAmount;
 
     if (useRealStripe && stripeSubscription) {
       try {
@@ -393,6 +402,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       toast.success(`Added ${formatAmount(amount)} to wallet!`);
     }
 
+    setPendingTopUpAmount(null);
     setProcessing(false);
   };
 
@@ -575,7 +585,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   <Button
                     key={amount}
                     variant="outline"
-                    onClick={() => handleTopUpCredits(amount)}
+                    onClick={() => initiateTopUpCredits(amount)}
                     disabled={processing}
                   >
                     +{formatAmount(amount)}
@@ -628,6 +638,26 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <AlertDialogCancel onClick={() => setPendingEmissionProductId(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handlePurchaseEmissions}>
                 Confirm Purchase
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Top Up Credits Dialog */}
+        <AlertDialog open={showTopUpDialog} onOpenChange={setShowTopUpDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Add Credits to Wallet</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingTopUpAmount
+                  ? `You are about to add ${formatAmount(pendingTopUpAmount)} to your credit wallet. This charge will be processed immediately.`
+                  : 'Confirm your top-up.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingTopUpAmount(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleTopUpCredits}>
+                Confirm Top-Up
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
