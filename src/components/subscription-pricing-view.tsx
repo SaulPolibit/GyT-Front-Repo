@@ -72,6 +72,23 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
   useEffect(() => {
     console.log('[SubscriptionPricingView] Mode:', useRealStripe ? 'REAL STRIPE' : 'EMULATED');
+
+    // Handle Stripe redirect callbacks
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const canceled = urlParams.get('canceled');
+    const sessionId = urlParams.get('session_id');
+
+    if (success === 'true' && sessionId) {
+      toast.success('Subscription created successfully!');
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
+    } else if (canceled === 'true') {
+      toast.info('Checkout was cancelled');
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
+    }
+
     loadSubscription();
   }, [useRealStripe]);
 
@@ -82,13 +99,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       // Load from Stripe API
       try {
         const authState = getAuthState();
-        const email = authState?.email;
+        const email = authState.user?.email || authState.supabase?.email;
+        const userId = authState.user?.id || authState.supabase?.id;
+        console.log('[LoadSubscription] Auth state:', { email, userId });
 
         if (email) {
           const response = await fetch(`/api/stripe/subscription?email=${encodeURIComponent(email)}`);
           const data = await response.json();
+          console.log('[LoadSubscription] API response:', data);
 
           if (data.success && data.subscription) {
+            console.log('[LoadSubscription] Subscription found:', data.subscription);
             setStripeSubscription(data.subscription);
             setCustomerId(data.customerId);
 
@@ -165,13 +186,22 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       try {
         const authState = getAuthState();
         const planTier = getPlanTier(selectedPlanId!);
+        const userEmail = authState.user?.email || authState.supabase?.email;
+        const userId = authState.user?.id || authState.supabase?.id;
 
         console.log('[Stripe Checkout] Starting checkout...', {
           planTier,
           emissionPackId: getEmissionPackId(selectedEmissions),
-          userId: authState?.userId,
-          userEmail: authState?.email,
+          userId,
+          userEmail,
         });
+
+        // Require valid user email for real Stripe
+        if (!userEmail) {
+          toast.error('Please sign in to subscribe');
+          setProcessing(false);
+          return;
+        }
 
         const response = await fetch('/api/stripe/create-checkout-session', {
           method: 'POST',
@@ -179,10 +209,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           body: JSON.stringify({
             planTier,
             emissionPackId: getEmissionPackId(selectedEmissions),
-            userId: authState?.userId || 'demo-user',
-            userEmail: authState?.email || 'demo@example.com',
-            firmId: authState?.firmId || '',
-            firmName: authState?.firmName || '',
+            userId: userId || userEmail,
+            userEmail: userEmail,
+            firmId: authState.user?.id || '',
+            firmName: '',
           }),
         });
 

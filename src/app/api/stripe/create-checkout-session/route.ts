@@ -91,8 +91,8 @@ export async function POST(request: NextRequest) {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: lineItems,
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/investment-manager/settings?tab=subscription&success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/investment-manager/settings?tab=subscription&canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')}/investment-manager/settings?tab=subscription&success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')}/investment-manager/settings?tab=subscription&canceled=true`,
       metadata: {
         userId,
         firmId: firmId || '',
