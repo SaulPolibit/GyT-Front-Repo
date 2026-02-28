@@ -113,28 +113,27 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             setStripeSubscription(data.subscription);
             setCustomerId(data.customerId);
 
+            // Find matching plan by tier name
+            const planTier = data.subscription.planTier;
+            const matchedPlan = plans.find(p => (p as any).tier === planTier) || plans[0];
+            console.log('[LoadSubscription] Matched plan:', { planTier, matchedPlan });
+
             // Convert to EmulatedSubscription format for consistency
             const emulated: EmulatedSubscription = {
               id: data.subscription.id,
               status: data.subscription.status,
               model: subscriptionModel,
-              currentPlan: plans.find(p => {
-                const tierMap: Record<string, string> = {
-                  starter: 'price_tier_starter',
-                  professional: 'price_tier_professional',
-                  enterprise: 'price_tier_enterprise',
-                  growth: 'price_payg_growth',
-                };
-                return p.id === tierMap[data.subscription.planTier];
-              }) || null,
+              currentPlan: matchedPlan,
               setupFeePaid: true,
               emissionsUsed: data.subscription.emissionsUsed || 0,
-              emissionsAvailable: data.subscription.emissionsAvailable || 0,
+              emissionsAvailable: data.subscription.emissionsAvailable || 5,
               creditBalance: parseInt(data.subscription.creditBalance || '0'),
               currentPeriodStart: new Date(data.subscription.currentPeriodStart * 1000),
               currentPeriodEnd: new Date(data.subscription.currentPeriodEnd * 1000),
             };
             setSubscription(emulated);
+          } else {
+            console.log('[LoadSubscription] No subscription found:', data);
           }
         }
       } catch (error) {
@@ -203,6 +202,19 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           return;
         }
 
+        // Check if user already has a subscription
+        const checkResponse = await fetch(`/api/stripe/subscription?email=${encodeURIComponent(userEmail)}`);
+        const checkData = await checkResponse.json();
+
+        if (checkData.success && checkData.subscription && checkData.subscription.status === 'active') {
+          toast.error('You already have an active subscription. Please manage it from the billing portal.');
+          setStripeSubscription(checkData.subscription);
+          setCustomerId(checkData.customerId);
+          await loadSubscription();
+          setProcessing(false);
+          return;
+        }
+
         const response = await fetch('/api/stripe/create-checkout-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -225,7 +237,15 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           window.location.href = data.url;
         } else {
           console.error('[Stripe Checkout] Error:', data.error);
-          toast.error(data.error || 'Failed to create checkout session');
+          // Handle specific errors
+          if (data.error?.includes('currency') || data.error?.includes('currencies')) {
+            toast.error('You have an existing subscription. Please contact support or manage your billing.');
+          } else if (data.error?.includes('active subscription')) {
+            toast.error('You already have an active subscription.');
+            await loadSubscription();
+          } else {
+            toast.error(data.error || 'Failed to create checkout session');
+          }
         }
       } catch (error: any) {
         console.error('[Stripe Checkout] Exception:', error);
