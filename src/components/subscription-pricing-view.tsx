@@ -62,6 +62,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedEmissions, setSelectedEmissions] = useState<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showEmissionPurchaseDialog, setShowEmissionPurchaseDialog] = useState(false);
+  const [pendingEmissionProductId, setPendingEmissionProductId] = useState<string | null>(null);
 
   const subscriptionModel = getSubscriptionModel();
   const plans = subscriptionModel === 'tier_based' ? TIER_BASED_PLANS : PAYG_PLANS;
@@ -290,9 +292,16 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     setProcessing(false);
   };
 
-  const handlePurchaseEmissions = async (productId: string) => {
-    if (!subscription) return;
+  const initiateEmissionPurchase = (productId: string) => {
+    setPendingEmissionProductId(productId);
+    setShowEmissionPurchaseDialog(true);
+  };
+
+  const handlePurchaseEmissions = async () => {
+    if (!subscription || !pendingEmissionProductId) return;
+    setShowEmissionPurchaseDialog(false);
     setProcessing(true);
+    const productId = pendingEmissionProductId;
 
     if (useRealStripe && stripeSubscription) {
       try {
@@ -339,6 +348,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       toast.success(`Purchased ${emissionsToAdd} emission(s)!`);
     }
 
+    setPendingEmissionProductId(null);
     setProcessing(false);
   };
 
@@ -439,7 +449,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       const data = await response.json();
 
       if (data.success && data.url) {
-        window.location.href = data.url;
+        window.open(data.url, '_blank', 'noopener,noreferrer');
       } else {
         toast.error(data.error || 'Failed to open billing portal');
       }
@@ -541,7 +551,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   key={product.id}
                   variant="outline"
                   className="flex flex-col h-auto py-3"
-                  onClick={() => handlePurchaseEmissions(product.id)}
+                  onClick={() => initiateEmissionPurchase(product.id)}
                   disabled={processing}
                 >
                   <span className="font-semibold">{product.metadata.pack_size || 1} emission{(product.metadata.pack_size || 1) > 1 ? 's' : ''}</span>
@@ -595,6 +605,29 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
               <AlertDialogAction onClick={handleCancelSubscription}>
                 Yes, Cancel
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Purchase Emissions Dialog */}
+        <AlertDialog open={showEmissionPurchaseDialog} onOpenChange={setShowEmissionPurchaseDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Purchase Additional Emissions</AlertDialogTitle>
+              <AlertDialogDescription>
+                {(() => {
+                  const product = emissionProducts.find(p => p.id === pendingEmissionProductId);
+                  if (!product) return 'Confirm your purchase.';
+                  const count = product.metadata.pack_size || 1;
+                  return `You are about to purchase ${count} emission${count > 1 ? 's' : ''} for ${formatAmount(product.amount)}. This charge will be processed immediately.`;
+                })()}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingEmissionProductId(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handlePurchaseEmissions}>
+                Confirm Purchase
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
