@@ -457,16 +457,33 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     );
   }
 
-  // Active subscription view
-  if (subscription?.status === 'active') {
+  // Active subscription view - show for active, trialing, or past_due statuses
+  const isActiveSubscription = subscription && ['active', 'trialing', 'past_due', 'incomplete'].includes(subscription.status);
+
+  console.log('[SubscriptionView] Render state:', {
+    hasSubscription: !!subscription,
+    status: subscription?.status,
+    isActiveSubscription,
+    planName: subscription?.currentPlan?.name
+  });
+
+  if (isActiveSubscription) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Building2 className="h-6 w-6 text-primary" />
             <div>
-              <h2 className="text-xl font-bold">Active Subscription</h2>
-              <p className="text-sm text-muted-foreground">{subscription.currentPlan?.name}</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">Your Subscription</h2>
+                <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
+                  {subscription.status === 'active' ? 'Active' :
+                   subscription.status === 'trialing' ? 'Trial' :
+                   subscription.status === 'past_due' ? 'Past Due' :
+                   subscription.status}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{subscription.currentPlan?.name || 'Subscription Plan'}</p>
             </div>
           </div>
           <div className="flex gap-2">
