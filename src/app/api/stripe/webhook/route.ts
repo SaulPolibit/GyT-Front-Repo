@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe-server';
+import { updateUserSubscriptionStatus } from '@/lib/supabase-server';
 import Stripe from 'stripe';
 
 // Disable body parsing, we need raw body for webhook signature verification
@@ -45,10 +46,14 @@ export async function POST(request: NextRequest) {
         // Extract metadata
         const { userId, firmId, planTier, includedEmissions, subscriptionModel } = session.metadata || {};
 
-        // Here you would typically:
-        // 1. Update your database with subscription info
-        // 2. Send confirmation email
-        // 3. Provision access
+        // Update user subscription status in Supabase
+        if (session.customer_email) {
+          await updateUserSubscriptionStatus(
+            session.customer_email,
+            'active',
+            session.subscription as string
+          );
+        }
 
         console.log('[Stripe Webhook] Subscription created for user:', userId, {
           planTier,
@@ -74,6 +79,13 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('[Stripe Webhook] Subscription updated:', subscription.id, 'Status:', subscription.status);
 
+        // Get customer email to update Supabase
+        const customerForUpdate = await stripe.customers.retrieve(subscription.customer as string);
+        if (customerForUpdate && !customerForUpdate.deleted && customerForUpdate.email) {
+          const status = subscription.status as 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing';
+          await updateUserSubscriptionStatus(customerForUpdate.email, status, subscription.id);
+        }
+
         // Handle status changes
         if (subscription.status === 'past_due') {
           // Send payment reminder
@@ -86,6 +98,12 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('[Stripe Webhook] Subscription deleted:', subscription.id);
+
+        // Get customer email to update Supabase
+        const customerForDelete = await stripe.customers.retrieve(subscription.customer as string);
+        if (customerForDelete && !customerForDelete.deleted && customerForDelete.email) {
+          await updateUserSubscriptionStatus(customerForDelete.email, 'canceled', subscription.id);
+        }
 
         // Revoke access, send cancellation email
         const { userId } = subscription.metadata || {};
