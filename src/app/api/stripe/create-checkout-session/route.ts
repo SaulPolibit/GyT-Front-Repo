@@ -64,6 +64,52 @@ export async function POST(request: NextRequest) {
 
     if (existingCustomers.data.length > 0) {
       customerId = existingCustomers.data[0].id;
+
+      // Check for existing active subscriptions
+      const existingSubscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'active',
+        limit: 1,
+      });
+
+      if (existingSubscriptions.data.length > 0) {
+        return NextResponse.json(
+          { success: false, error: 'You already have an active subscription. Please cancel it first or manage it from the billing portal.' },
+          { status: 400 }
+        );
+      }
+
+      // Expire any open checkout sessions to avoid currency conflicts
+      const openSessions = await stripe.checkout.sessions.list({
+        customer: customerId,
+        status: 'open',
+        limit: 10,
+      });
+
+      for (const session of openSessions.data) {
+        try {
+          await stripe.checkout.sessions.expire(session.id);
+          console.log(`[Stripe Checkout] Expired stale session: ${session.id}`);
+        } catch (expireError) {
+          console.warn(`[Stripe Checkout] Could not expire session ${session.id}:`, expireError);
+        }
+      }
+
+      // Check for incomplete subscriptions that might cause currency conflicts
+      const incompleteSubscriptions = await stripe.subscriptions.list({
+        customer: customerId,
+        status: 'incomplete',
+        limit: 10,
+      });
+
+      for (const sub of incompleteSubscriptions.data) {
+        try {
+          await stripe.subscriptions.cancel(sub.id);
+          console.log(`[Stripe Checkout] Cancelled incomplete subscription: ${sub.id}`);
+        } catch (cancelError) {
+          console.warn(`[Stripe Checkout] Could not cancel subscription ${sub.id}:`, cancelError);
+        }
+      }
     } else {
       // Create new customer
       const customer = await stripe.customers.create({
@@ -122,6 +168,19 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[Stripe Checkout] Error:', error);
+
+    // Handle currency conflict error specifically
+    if (error.message?.includes('cannot combine currencies')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Currency conflict detected. This customer has existing billing items in a different currency. Please contact support or delete the customer from Stripe Dashboard to start fresh.',
+          code: 'CURRENCY_CONFLICT'
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
