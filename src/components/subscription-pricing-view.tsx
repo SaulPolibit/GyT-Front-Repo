@@ -7,6 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   CheckCircle2,
   Loader2,
   AlertCircle,
@@ -51,6 +61,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   const [processing, setProcessing] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedEmissions, setSelectedEmissions] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const subscriptionModel = getSubscriptionModel();
   const plans = subscriptionModel === 'tier_based' ? TIER_BASED_PLANS : PAYG_PLANS;
@@ -60,6 +71,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   );
 
   useEffect(() => {
+    console.log('[SubscriptionPricingView] Mode:', useRealStripe ? 'REAL STRIPE' : 'EMULATED');
     loadSubscription();
   }, [useRealStripe]);
 
@@ -152,12 +164,20 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       // Use real Stripe checkout
       try {
         const authState = getAuthState();
+        const planTier = getPlanTier(selectedPlanId!);
+
+        console.log('[Stripe Checkout] Starting checkout...', {
+          planTier,
+          emissionPackId: getEmissionPackId(selectedEmissions),
+          userId: authState?.userId,
+          userEmail: authState?.email,
+        });
 
         const response = await fetch('/api/stripe/create-checkout-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            planTier: getPlanTier(selectedPlanId!),
+            planTier,
             emissionPackId: getEmissionPackId(selectedEmissions),
             userId: authState?.userId || 'demo-user',
             userEmail: authState?.email || 'demo@example.com',
@@ -167,17 +187,22 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         });
 
         const data = await response.json();
+        console.log('[Stripe Checkout] Response:', data);
 
         if (data.success && data.url) {
           // Redirect to Stripe Checkout
+          console.log('[Stripe Checkout] Redirecting to:', data.url);
           window.location.href = data.url;
         } else {
+          console.error('[Stripe Checkout] Error:', data.error);
           toast.error(data.error || 'Failed to create checkout session');
         }
       } catch (error: any) {
+        console.error('[Stripe Checkout] Exception:', error);
         toast.error(error.message || 'Failed to create checkout session');
       }
     } else {
+      console.log('[Stripe Checkout] Using emulated mode (useRealStripe=false)');
       // Emulated subscription
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -312,7 +337,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   };
 
   const handleCancelSubscription = async () => {
-    if (!confirm('Cancel your subscription?')) return;
+    setShowCancelDialog(false);
     setProcessing(true);
 
     if (useRealStripe && stripeSubscription) {
@@ -401,7 +426,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 Manage Billing
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handleCancelSubscription} disabled={processing}>
+            <Button variant="outline" size="sm" onClick={() => setShowCancelDialog(true)} disabled={processing}>
               Cancel
             </Button>
           </div>
@@ -489,6 +514,24 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             </CardContent>
           </Card>
         )}
+
+        {/* Cancel Subscription Dialog */}
+        <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to cancel your subscription? Your access will continue until the end of the current billing period.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+              <AlertDialogAction onClick={handleCancelSubscription}>
+                Yes, Cancel
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
