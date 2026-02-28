@@ -35,11 +35,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get subscriptions for customer
+    // Note: Stripe limits expansion to 4 levels, so we can't expand data.items.data.price.product
     const subscriptions = await stripe.subscriptions.list({
       customer: stripeCustomerId!,
       status: 'all',
       limit: 1,
-      expand: ['data.items.data.price.product'],
     });
 
     if (subscriptions.data.length === 0) {
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
         items: subscription.items.data.map((item) => ({
           id: item.id,
           priceId: item.price.id,
-          productName: (item.price.product as any)?.name || 'Unknown',
+          productId: typeof item.price.product === 'string' ? item.price.product : (item.price.product as any)?.id,
           amount: item.price.unit_amount,
           interval: item.price.recurring?.interval,
         })),
