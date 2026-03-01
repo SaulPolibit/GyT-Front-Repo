@@ -91,23 +91,60 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     const sessionId = urlParams.get('session_id');
     const purchase = urlParams.get('purchase');
 
-    if (success === 'true') {
-      if (purchase === 'emissions') {
-        toast.success('Emissions purchased successfully!');
-      } else if (purchase === 'credits') {
-        toast.success('Credits added to wallet successfully!');
-      } else if (sessionId) {
-        toast.success('Subscription created successfully!');
-      }
-      // Clean up URL
-      window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
-    } else if (canceled === 'true') {
-      toast.info('Checkout was cancelled');
-      // Clean up URL
-      window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
-    }
+    const verifyAndLoadSubscription = async () => {
+      // If returning from a successful purchase, verify and apply it
+      if (success === 'true' && sessionId && (purchase === 'emissions' || purchase === 'credits')) {
+        console.log('[SubscriptionPricingView] Verifying purchase session:', sessionId, 'type:', purchase);
+        try {
+          const authState = getAuthState();
+          const email = authState.user?.email || authState.supabase?.email;
 
-    loadSubscription();
+          const response = await fetch('/api/stripe/verify-purchase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, email }),
+          });
+
+          const data = await response.json();
+          console.log('[SubscriptionPricingView] Verify purchase response:', data);
+
+          if (data.success) {
+            if (data.type === 'emission_purchase') {
+              toast.success(`${data.emissionsAdded} emissions added! Total: ${data.newEmissions}`);
+            } else if (data.type === 'credit_topup') {
+              toast.success(`Credits added! New balance: $${(data.newBalance / 100).toFixed(2)}`);
+            } else if (data.message === 'Session already processed') {
+              toast.info('Purchase already applied');
+            } else {
+              toast.success('Purchase verified successfully!');
+            }
+          } else {
+            console.error('[SubscriptionPricingView] Verify purchase error:', data.error);
+            toast.error(data.error || 'Failed to verify purchase');
+          }
+        } catch (error) {
+          console.error('[SubscriptionPricingView] Verify purchase exception:', error);
+          toast.error('Failed to verify purchase');
+        }
+        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
+      } else if (success === 'true') {
+        if (sessionId) {
+          toast.success('Subscription created successfully!');
+        }
+        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
+      } else if (canceled === 'true') {
+        toast.info('Checkout was cancelled');
+        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
+      }
+
+      // Load subscription data
+      await loadSubscription();
+    };
+
+    verifyAndLoadSubscription();
   }, [useRealStripe]);
 
   const loadSubscription = async () => {

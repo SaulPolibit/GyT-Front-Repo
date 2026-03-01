@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         },
       ],
       customer_email: email,
-      success_url: baseUrl + '/investment-manager/settings?tab=subscription&purchase=emissions&success=true',
+      success_url: baseUrl + '/investment-manager/settings?tab=subscription&purchase=emissions&success=true&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: baseUrl + '/investment-manager/settings?tab=subscription&purchase=emissions&canceled=true',
       metadata: {
         type: 'emission_purchase',
