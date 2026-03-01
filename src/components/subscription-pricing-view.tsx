@@ -25,7 +25,9 @@ import {
   Zap,
   Package,
   CreditCard,
-  ExternalLink
+  ExternalLink,
+  PauseCircle,
+  PlayCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadStripe } from '@stripe/stripe-js';
@@ -66,6 +68,11 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   const [pendingEmissionProductId, setPendingEmissionProductId] = useState<string | null>(null);
   const [showTopUpDialog, setShowTopUpDialog] = useState(false);
   const [pendingTopUpAmount, setPendingTopUpAmount] = useState<number | null>(null);
+  const [showReactivateDialog, setShowReactivateDialog] = useState(false);
+  const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [showCurrencyConflictDialog, setShowCurrencyConflictDialog] = useState(false);
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const subscriptionModel = getSubscriptionModel();
   const plans = subscriptionModel === 'tier_based' ? TIER_BASED_PLANS : PAYG_PLANS;
@@ -82,9 +89,16 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     const success = urlParams.get('success');
     const canceled = urlParams.get('canceled');
     const sessionId = urlParams.get('session_id');
+    const purchase = urlParams.get('purchase');
 
-    if (success === 'true' && sessionId) {
-      toast.success('Subscription created successfully!');
+    if (success === 'true') {
+      if (purchase === 'emissions') {
+        toast.success('Emissions purchased successfully!');
+      } else if (purchase === 'credits') {
+        toast.success('Credits added to wallet successfully!');
+      } else if (sessionId) {
+        toast.success('Subscription created successfully!');
+      }
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
     } else if (canceled === 'true') {
@@ -114,30 +128,47 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
           if (data.success && data.subscription) {
             console.log('[LoadSubscription] Subscription found:', data.subscription);
+            console.log('[LoadSubscription] Subscription status:', data.subscription.status);
+            console.log('[LoadSubscription] cancelAtPeriodEnd:', data.subscription.cancelAtPeriodEnd);
+            console.log('[LoadSubscription] isPaused:', data.subscription.isPaused);
+
             setStripeSubscription(data.subscription);
             setCustomerId(data.customerId);
+            setCancelAtPeriodEnd(data.subscription.cancelAtPeriodEnd || false);
+            setIsPaused(data.subscription.isPaused || false);
 
-            // Find matching plan by tier name
-            const planTier = data.subscription.planTier;
-            const matchedPlan = plans.find(p => (p as any).tier === planTier) || plans[0];
-            console.log('[LoadSubscription] Matched plan:', { planTier, matchedPlan });
+            // Only hide if subscription is fully canceled (not active, not incomplete, etc.)
+            if (data.subscription.status === 'canceled') {
+              console.log('[LoadSubscription] Subscription is canceled, showing pricing view');
+              setSubscription(null);
+              setStripeSubscription(null);
+            } else {
+              // Show subscription for any non-canceled status
+              // Find matching plan by tier name
+              const planTier = data.subscription.planTier;
+              const matchedPlan = plans.find(p => (p as any).tier === planTier) || plans[0];
+              console.log('[LoadSubscription] Matched plan:', { planTier, matchedPlan });
 
-            // Convert to EmulatedSubscription format for consistency
-            const emulated: EmulatedSubscription = {
-              id: data.subscription.id,
-              status: data.subscription.status,
-              model: subscriptionModel,
-              currentPlan: matchedPlan,
-              setupFeePaid: true,
-              emissionsUsed: data.subscription.emissionsUsed || 0,
-              emissionsAvailable: data.subscription.emissionsAvailable || 5,
-              creditBalance: parseInt(data.subscription.creditBalance || '0'),
-              currentPeriodStart: new Date(data.subscription.currentPeriodStart * 1000),
-              currentPeriodEnd: new Date(data.subscription.currentPeriodEnd * 1000),
-            };
-            setSubscription(emulated);
+              // Convert to EmulatedSubscription format for consistency
+              const emulated: EmulatedSubscription = {
+                id: data.subscription.id,
+                status: data.subscription.status,
+                model: subscriptionModel,
+                currentPlan: matchedPlan,
+                setupFeePaid: true,
+                emissionsUsed: data.subscription.emissionsUsed || 0,
+                emissionsAvailable: data.subscription.emissionsAvailable || 5,
+                creditBalance: parseInt(data.subscription.creditBalance || '0'),
+                currentPeriodStart: new Date(data.subscription.currentPeriodStart * 1000),
+                currentPeriodEnd: new Date(data.subscription.currentPeriodEnd * 1000),
+              };
+              setSubscription(emulated);
+            }
           } else {
             console.log('[LoadSubscription] No subscription found:', data);
+            setSubscription(null);
+            setStripeSubscription(null);
+            setCancelAtPeriodEnd(false);
           }
         }
       } catch (error) {
@@ -176,13 +207,14 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     return null;
   };
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (forceNewCustomer = false) => {
     if (!selectedPlan) {
       toast.error('Please select a plan');
       return;
     }
 
     setProcessing(true);
+    setShowCurrencyConflictDialog(false);
 
     if (useRealStripe) {
       // Use real Stripe checkout
@@ -197,6 +229,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           emissionPackId: getEmissionPackId(selectedEmissions),
           userId,
           userEmail,
+          forceNewCustomer,
         });
 
         // Require valid user email for real Stripe
@@ -229,6 +262,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             userEmail: userEmail,
             firmId: authState.user?.id || '',
             firmName: '',
+            forceNewCustomer,
           }),
         });
 
@@ -240,13 +274,15 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           console.log('[Stripe Checkout] Redirecting to:', data.url);
           window.location.href = data.url;
         } else {
-          console.error('[Stripe Checkout] Error:', data.error);
+          console.error('[Stripe Checkout] Error:', data.error, data);
           // Handle specific errors
-          if (data.error?.includes('currency') || data.error?.includes('currencies')) {
-            toast.error('You have an existing subscription. Please contact support or manage your billing.');
-          } else if (data.error?.includes('active subscription')) {
-            toast.error('You already have an active subscription.');
+          if (data.subscriptionStatus || data.error?.includes('already have')) {
+            // Existing subscription found - reload to show it
+            toast.error(data.error || 'You already have an existing subscription.');
             await loadSubscription();
+          } else if (data.retryWithNewCustomer || data.error?.includes('currency') || data.error?.includes('currencies')) {
+            // Currency conflict - offer to create with new customer
+            setShowCurrencyConflictDialog(true);
           } else {
             toast.error(data.error || 'Failed to create checkout session');
           }
@@ -307,6 +343,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
     if (useRealStripe && stripeSubscription) {
       try {
+        const authState = getAuthState();
+        const userEmail = authState.user?.email || authState.supabase?.email;
+
+        console.log('[Purchase Emissions] Calling API with:', { customerId, subscriptionId: stripeSubscription.id, emissionPackId: getEmissionPackId(productId), userEmail });
         const response = await fetch('/api/stripe/purchase-emissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -314,18 +354,23 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             customerId,
             subscriptionId: stripeSubscription.id,
             emissionPackId: getEmissionPackId(productId),
+            userEmail,
           }),
         });
 
         const data = await response.json();
+        console.log('[Purchase Emissions] API response:', data);
 
-        if (data.success) {
-          toast.success(`Purchased ${data.emissionsAdded} emission(s)!`);
-          await loadSubscription();
+        if (data.success && data.url) {
+          // Redirect to Stripe Checkout
+          console.log('[Purchase Emissions] Redirecting to:', data.url);
+          window.location.href = data.url;
+          return;
         } else {
           toast.error(data.error || 'Failed to purchase emissions');
         }
       } catch (error: any) {
+        console.error('[Purchase Emissions] Error:', error);
         toast.error(error.message || 'Failed to purchase emissions');
       }
     } else {
@@ -367,6 +412,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
     if (useRealStripe && stripeSubscription) {
       try {
+        const authState = getAuthState();
+        const userEmail = authState.user?.email || authState.supabase?.email;
+
+        console.log('[TopUp Credits] Calling API with:', { customerId, subscriptionId: stripeSubscription.id, amount, userEmail });
         const response = await fetch('/api/stripe/topup-credits', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -374,18 +423,23 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             customerId,
             subscriptionId: stripeSubscription.id,
             amount,
+            userEmail,
           }),
         });
 
         const data = await response.json();
+        console.log('[TopUp Credits] API response:', data);
 
-        if (data.success) {
-          toast.success(`Added ${formatAmount(amount)} to wallet!`);
-          await loadSubscription();
+        if (data.success && data.url) {
+          // Redirect to Stripe Checkout
+          console.log('[TopUp Credits] Redirecting to:', data.url);
+          window.location.href = data.url;
+          return;
         } else {
           toast.error(data.error || 'Failed to top up credits');
         }
       } catch (error: any) {
+        console.error('[TopUp Credits] Error:', error);
         toast.error(error.message || 'Failed to top up credits');
       }
     } else {
@@ -469,6 +523,101 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     setProcessing(false);
   };
 
+  const handleReactivateSubscription = async () => {
+    if (!useRealStripe || !stripeSubscription) return;
+
+    setShowReactivateDialog(false);
+    setProcessing(true);
+
+    try {
+      const response = await fetch('/api/stripe/subscription', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: stripeSubscription.id,
+          action: 'reactivate',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Subscription reactivated successfully!');
+        setCancelAtPeriodEnd(false);
+        await loadSubscription();
+      } else {
+        toast.error(data.error || 'Failed to reactivate subscription');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to reactivate subscription');
+    }
+
+    setProcessing(false);
+  };
+
+  const handlePauseSubscription = async () => {
+    if (!useRealStripe || !stripeSubscription) return;
+
+    setShowPauseDialog(false);
+    setProcessing(true);
+
+    try {
+      const response = await fetch('/api/stripe/subscription', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: stripeSubscription.id,
+          action: 'pause',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Subscription paused. Payment collection has stopped.');
+        setIsPaused(true);
+        await loadSubscription();
+      } else {
+        toast.error(data.error || 'Failed to pause subscription');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to pause subscription');
+    }
+
+    setProcessing(false);
+  };
+
+  const handleResumeSubscription = async () => {
+    if (!useRealStripe || !stripeSubscription) return;
+
+    setProcessing(true);
+
+    try {
+      const response = await fetch('/api/stripe/subscription', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: stripeSubscription.id,
+          action: 'resume',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Subscription resumed successfully!');
+        setIsPaused(false);
+        await loadSubscription();
+      } else {
+        toast.error(data.error || 'Failed to resume subscription');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to resume subscription');
+    }
+
+    setProcessing(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
@@ -478,7 +627,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   }
 
   // Active subscription view - show for active, trialing, or past_due statuses
-  const isActiveSubscription = subscription && ['active', 'trialing', 'past_due', 'incomplete'].includes(subscription.status);
+  // Show subscription view for any non-canceled status
+  const isActiveSubscription = subscription && subscription.status !== 'canceled';
 
   console.log('[SubscriptionView] Render state:', {
     hasSubscription: !!subscription,
@@ -496,12 +646,23 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold">Your Subscription</h2>
-                <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
-                  {subscription.status === 'active' ? 'Active' :
-                   subscription.status === 'trialing' ? 'Trial' :
-                   subscription.status === 'past_due' ? 'Past Due' :
-                   subscription.status}
-                </Badge>
+                {isPaused ? (
+                  <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                    <PauseCircle className="h-3 w-3 mr-1" />
+                    Paused
+                  </Badge>
+                ) : cancelAtPeriodEnd ? (
+                  <Badge variant="destructive">
+                    Cancelling
+                  </Badge>
+                ) : (
+                  <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
+                    {subscription.status === 'active' ? 'Active' :
+                     subscription.status === 'trialing' ? 'Trial' :
+                     subscription.status === 'past_due' ? 'Past Due' :
+                     subscription.status}
+                  </Badge>
+                )}
               </div>
               <p className="text-sm text-muted-foreground">{subscription.currentPlan?.name || 'Subscription Plan'}</p>
             </div>
@@ -513,11 +674,49 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 Manage Billing
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => setShowCancelDialog(true)} disabled={processing}>
-              Cancel
-            </Button>
+            {isPaused ? (
+              <Button variant="default" size="sm" onClick={handleResumeSubscription} disabled={processing}>
+                <PlayCircle className="h-4 w-4 mr-1" />
+                Resume
+              </Button>
+            ) : cancelAtPeriodEnd ? (
+              <Button variant="default" size="sm" onClick={() => setShowReactivateDialog(true)} disabled={processing}>
+                Reactivate
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={() => setShowPauseDialog(true)} disabled={processing}>
+                  <PauseCircle className="h-4 w-4 mr-1" />
+                  Pause
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowCancelDialog(true)} disabled={processing}>
+                  Cancel
+                </Button>
+              </>
+            )}
           </div>
         </div>
+
+        {/* Paused Warning */}
+        {isPaused && (
+          <Alert className="bg-yellow-50 border-yellow-200">
+            <PauseCircle className="h-4 w-4 text-yellow-600" />
+            <AlertDescription className="text-yellow-800">
+              Your subscription is paused. Payment collection has stopped. Click "Resume" to reactivate billing.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Cancellation Warning */}
+        {cancelAtPeriodEnd && !isPaused && subscription.currentPeriodEnd && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your subscription is set to cancel on {subscription.currentPeriodEnd.toLocaleDateString()}.
+              Click "Reactivate" to continue your subscription.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Status Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -658,6 +857,42 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <AlertDialogCancel onClick={() => setPendingTopUpAmount(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handleTopUpCredits}>
                 Confirm Top-Up
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Reactivate Subscription Dialog */}
+        <AlertDialog open={showReactivateDialog} onOpenChange={setShowReactivateDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reactivate Subscription</AlertDialogTitle>
+              <AlertDialogDescription>
+                Your subscription is scheduled to cancel. Would you like to reactivate it and continue with your current plan?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep Cancelled</AlertDialogCancel>
+              <AlertDialogAction onClick={handleReactivateSubscription}>
+                Yes, Reactivate
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Pause Subscription Dialog */}
+        <AlertDialog open={showPauseDialog} onOpenChange={setShowPauseDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Pause Subscription</AlertDialogTitle>
+              <AlertDialogDescription>
+                Pausing your subscription will stop payment collection. Your subscription will remain active but you won't be charged until you resume. You can resume at any time.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Keep Active</AlertDialogCancel>
+              <AlertDialogAction onClick={handlePauseSubscription}>
+                Yes, Pause
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -912,7 +1147,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <Button
                 className="w-full mt-4"
                 size="lg"
-                onClick={handleSubscribe}
+                onClick={() => handleSubscribe()}
                 disabled={processing}
               >
                 {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
@@ -926,6 +1161,26 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           )}
         </CardContent>
       </Card>
+
+      {/* Currency Conflict Dialog */}
+      <AlertDialog open={showCurrencyConflictDialog} onOpenChange={setShowCurrencyConflictDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Currency Conflict Detected</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your account has existing billing items in a different currency. This can happen if you previously had a subscription in another currency.
+              <br /><br />
+              Would you like to create a new billing profile to proceed with this subscription?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleSubscribe(true)}>
+              Create New Profile & Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

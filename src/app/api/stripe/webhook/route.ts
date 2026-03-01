@@ -41,10 +41,69 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        console.log('[Stripe Webhook] Checkout completed:', session.id);
+        console.log('[Stripe Webhook] Checkout completed:', session.id, 'Mode:', session.mode);
+        console.log('[Stripe Webhook] Session metadata:', session.metadata);
 
-        // Extract metadata
-        const { userId, firmId, planTier, includedEmissions, subscriptionModel } = session.metadata || {};
+        const metadata = session.metadata || {};
+
+        // Handle emission purchase
+        if (metadata.type === 'emission_purchase') {
+          const { subscriptionId, emissionsAdded, customerId } = metadata;
+          console.log('[Stripe Webhook] Emission purchase:', { subscriptionId, emissionsAdded });
+
+          if (subscriptionId && emissionsAdded) {
+            try {
+              // Get current subscription
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+              const currentEmissions = parseInt(subscription.metadata.emissionsAvailable || '0');
+              const newEmissions = currentEmissions + parseInt(emissionsAdded);
+
+              // Update subscription metadata
+              await stripe.subscriptions.update(subscriptionId, {
+                metadata: {
+                  ...subscription.metadata,
+                  emissionsAvailable: newEmissions.toString(),
+                },
+              });
+
+              console.log('[Stripe Webhook] Updated emissions:', currentEmissions, '->', newEmissions);
+            } catch (err) {
+              console.error('[Stripe Webhook] Failed to update emissions:', err);
+            }
+          }
+          break;
+        }
+
+        // Handle credit top-up
+        if (metadata.type === 'credit_topup') {
+          const { subscriptionId, amount } = metadata;
+          console.log('[Stripe Webhook] Credit top-up:', { subscriptionId, amount });
+
+          if (subscriptionId && amount) {
+            try {
+              // Get current subscription
+              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+              const currentBalance = parseInt(subscription.metadata.creditBalance || '0');
+              const newBalance = currentBalance + parseInt(amount);
+
+              // Update subscription metadata
+              await stripe.subscriptions.update(subscriptionId, {
+                metadata: {
+                  ...subscription.metadata,
+                  creditBalance: newBalance.toString(),
+                },
+              });
+
+              console.log('[Stripe Webhook] Updated credit balance:', currentBalance, '->', newBalance);
+            } catch (err) {
+              console.error('[Stripe Webhook] Failed to update credit balance:', err);
+            }
+          }
+          break;
+        }
+
+        // Handle subscription checkout
+        const { userId, firmId, planTier, includedEmissions, subscriptionModel } = metadata;
 
         // Update user subscription status in Supabase
         if (session.customer_email) {

@@ -4,7 +4,7 @@ import { stripe, getSubscriptionModel, getPriceIds, getSharedPriceIds } from '@/
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { planTier, emissionPackId, userId, userEmail, firmId, firmName } = body;
+    const { planTier, emissionPackId, userId, userEmail, firmId, firmName, forceNewCustomer } = body;
 
     if (!planTier || !userId || !userEmail) {
       return NextResponse.json(
@@ -55,63 +55,12 @@ export async function POST(request: NextRequest) {
     // 4. For PAYG model, add initial credit wallet deposit
     // This would typically be handled separately, but for demo we'll track it in metadata
 
-    // Check if customer already exists
+    // Check if customer already exists (unless forceNewCustomer is set)
     let customerId: string | undefined;
-    const existingCustomers = await stripe.customers.list({
-      email: userEmail,
-      limit: 1,
-    });
 
-    if (existingCustomers.data.length > 0) {
-      customerId = existingCustomers.data[0].id;
-
-      // Check for existing active subscriptions
-      const existingSubscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: 'active',
-        limit: 1,
-      });
-
-      if (existingSubscriptions.data.length > 0) {
-        return NextResponse.json(
-          { success: false, error: 'You already have an active subscription. Please cancel it first or manage it from the billing portal.' },
-          { status: 400 }
-        );
-      }
-
-      // Expire any open checkout sessions to avoid currency conflicts
-      const openSessions = await stripe.checkout.sessions.list({
-        customer: customerId,
-        status: 'open',
-        limit: 10,
-      });
-
-      for (const session of openSessions.data) {
-        try {
-          await stripe.checkout.sessions.expire(session.id);
-          console.log(`[Stripe Checkout] Expired stale session: ${session.id}`);
-        } catch (expireError) {
-          console.warn(`[Stripe Checkout] Could not expire session ${session.id}:`, expireError);
-        }
-      }
-
-      // Check for incomplete subscriptions that might cause currency conflicts
-      const incompleteSubscriptions = await stripe.subscriptions.list({
-        customer: customerId,
-        status: 'incomplete',
-        limit: 10,
-      });
-
-      for (const sub of incompleteSubscriptions.data) {
-        try {
-          await stripe.subscriptions.cancel(sub.id);
-          console.log(`[Stripe Checkout] Cancelled incomplete subscription: ${sub.id}`);
-        } catch (cancelError) {
-          console.warn(`[Stripe Checkout] Could not cancel subscription ${sub.id}:`, cancelError);
-        }
-      }
-    } else {
-      // Create new customer
+    if (forceNewCustomer) {
+      // Create a completely new customer to avoid currency conflicts
+      console.log('[Stripe Checkout] Creating new customer (forceNewCustomer=true)');
       const customer = await stripe.customers.create({
         email: userEmail,
         metadata: {
@@ -119,9 +68,88 @@ export async function POST(request: NextRequest) {
           firmId: firmId || '',
           firmName: firmName || '',
           subscriptionModel: model,
+          createdReason: 'currency_conflict_retry',
         },
       });
       customerId = customer.id;
+    } else {
+      const existingCustomers = await stripe.customers.list({
+        email: userEmail,
+        limit: 1,
+      });
+
+      if (existingCustomers.data.length > 0) {
+        customerId = existingCustomers.data[0].id;
+
+        // Check for existing subscriptions (any non-canceled status)
+        const existingSubscriptions = await stripe.subscriptions.list({
+          customer: customerId,
+          limit: 5,
+        });
+
+        // Find any active, trialing, past_due, or paused subscription
+        const blockingSubscription = existingSubscriptions.data.find(sub =>
+          ['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status) ||
+          sub.pause_collection !== null
+        );
+
+        if (blockingSubscription) {
+          const status = blockingSubscription.pause_collection ? 'paused' : blockingSubscription.status;
+          return NextResponse.json(
+            {
+              success: false,
+              error: `You already have a subscription (status: ${status}). Please manage it from the billing portal or cancel it first.`,
+              subscriptionId: blockingSubscription.id,
+              subscriptionStatus: status,
+            },
+            { status: 400 }
+          );
+        }
+
+        // Expire any open checkout sessions to avoid currency conflicts
+        const openSessions = await stripe.checkout.sessions.list({
+          customer: customerId,
+          status: 'open',
+          limit: 10,
+        });
+
+        for (const session of openSessions.data) {
+          try {
+            await stripe.checkout.sessions.expire(session.id);
+            console.log(`[Stripe Checkout] Expired stale session: ${session.id}`);
+          } catch (expireError) {
+            console.warn(`[Stripe Checkout] Could not expire session ${session.id}:`, expireError);
+          }
+        }
+
+        // Check for incomplete subscriptions that might cause currency conflicts
+        const incompleteSubscriptions = await stripe.subscriptions.list({
+          customer: customerId,
+          status: 'incomplete',
+          limit: 10,
+        });
+
+        for (const sub of incompleteSubscriptions.data) {
+          try {
+            await stripe.subscriptions.cancel(sub.id);
+            console.log(`[Stripe Checkout] Cancelled incomplete subscription: ${sub.id}`);
+          } catch (cancelError) {
+            console.warn(`[Stripe Checkout] Could not cancel subscription ${sub.id}:`, cancelError);
+          }
+        }
+      } else {
+        // Create new customer
+        const customer = await stripe.customers.create({
+          email: userEmail,
+          metadata: {
+            userId,
+            firmId: firmId || '',
+            firmName: firmName || '',
+            subscriptionModel: model,
+          },
+        });
+        customerId = customer.id;
+      }
     }
 
     // Calculate included emissions
@@ -175,7 +203,8 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'Currency conflict detected. This customer has existing billing items in a different currency. Please contact support or delete the customer from Stripe Dashboard to start fresh.',
-          code: 'CURRENCY_CONFLICT'
+          code: 'CURRENCY_CONFLICT',
+          retryWithNewCustomer: true,
         },
         { status: 400 }
       );

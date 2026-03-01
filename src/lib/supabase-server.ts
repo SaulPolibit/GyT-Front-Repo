@@ -21,7 +21,7 @@ export function getSupabaseServerClient(): SupabaseClient | null {
 
 export async function updateUserSubscriptionStatus(
   email: string,
-  status: 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing' | null,
+  status: 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing' | 'paused' | null,
   subscriptionId?: string
 ): Promise<boolean> {
   const supabase = getSupabaseServerClient()

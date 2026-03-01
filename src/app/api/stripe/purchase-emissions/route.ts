@@ -1,89 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe, getSharedPriceIds, EMISSION_PACKS } from '@/lib/stripe-server';
+import { stripe, getSharedPriceIds } from '@/lib/stripe-server';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { customerId, subscriptionId, emissionPackId } = body;
+    const { customerId, subscriptionId, emissionPackId, userEmail } = body;
 
-    if (!customerId || !subscriptionId || !emissionPackId) {
+    console.log('[Stripe Purchase Emissions] Request:', { customerId, subscriptionId, emissionPackId, userEmail });
+
+    if (!emissionPackId) {
       return NextResponse.json(
-        { success: false, error: 'customerId, subscriptionId, and emissionPackId required' },
+        { success: false, error: 'emissionPackId is required' },
         { status: 400 }
       );
     }
 
     const sharedPriceIds = getSharedPriceIds();
+    const priceId = (sharedPriceIds as any)[emissionPackId];
 
-    // Map pack ID to price ID
-    const priceIdMap: Record<string, string> = {
-      emissionSingle: sharedPriceIds.emissionSingle,
-      emissionPack5: sharedPriceIds.emissionPack5,
-      emissionPack10: sharedPriceIds.emissionPack10,
-      emissionPack20: sharedPriceIds.emissionPack20,
-    };
-
-    const priceId = priceIdMap[emissionPackId];
     if (!priceId) {
       return NextResponse.json(
-        { success: false, error: `Invalid emission pack: ${emissionPackId}` },
+        { success: false, error: 'Invalid emission pack: ' + emissionPackId },
         { status: 400 }
       );
     }
 
-    // Get emission count for this pack
-    const packSizeMap: Record<string, number> = {
-      emissionSingle: EMISSION_PACKS.single,
-      emissionPack5: EMISSION_PACKS.pack5,
-      emissionPack10: EMISSION_PACKS.pack10,
-      emissionPack20: EMISSION_PACKS.pack20,
-    };
-    const emissionsToAdd = packSizeMap[emissionPackId] || 1;
+    // Calculate emissions being added
+    let emissionsAdded = 1;
+    if (emissionPackId === 'emissionPack5') emissionsAdded = 5;
+    if (emissionPackId === 'emissionPack10') emissionsAdded = 10;
+    if (emissionPackId === 'emissionPack20') emissionsAdded = 20;
 
-    // Create invoice item for one-time purchase
-    const invoiceItem = await stripe.invoiceItems.create({
-      customer: customerId,
-      price: priceId,
-      description: `Additional Emissions (${emissionsToAdd})`,
-    });
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    // Create and pay invoice immediately
-    const invoice = await stripe.invoices.create({
-      customer: customerId,
-      auto_advance: true,
-      collection_method: 'charge_automatically',
+    // Get user email for checkout
+    let email = userEmail;
+    if (!email && customerId) {
+      try {
+        const customer = await stripe.customers.retrieve(customerId);
+        if (customer && !customer.deleted && customer.email) {
+          email = customer.email;
+        }
+      } catch (e) {
+        console.warn('[Stripe Purchase Emissions] Could not retrieve customer:', e);
+      }
+    }
+
+    // Create a simple Checkout session - no customer attachment
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      customer_email: email,
+      success_url: baseUrl + '/investment-manager/settings?tab=subscription&purchase=emissions&success=true',
+      cancel_url: baseUrl + '/investment-manager/settings?tab=subscription&purchase=emissions&canceled=true',
       metadata: {
         type: 'emission_purchase',
+        customerId: customerId || '',
+        subscriptionId: subscriptionId || '',
         emissionPackId,
-        emissionsAdded: emissionsToAdd.toString(),
+        emissionsAdded: emissionsAdded.toString(),
+        userEmail: email || '',
       },
     });
 
-    // Finalize and pay the invoice
-    const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
-    const paidInvoice = await stripe.invoices.pay(invoice.id);
-
-    // Update subscription metadata with new emission count
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const currentEmissions = parseInt(subscription.metadata.emissionsAvailable || '0');
-    const newEmissions = currentEmissions + emissionsToAdd;
-
-    await stripe.subscriptions.update(subscriptionId, {
-      metadata: {
-        ...subscription.metadata,
-        emissionsAvailable: newEmissions.toString(),
-      },
-    });
+    console.log('[Stripe Purchase Emissions] Session created:', session.id, session.url);
 
     return NextResponse.json({
       success: true,
-      invoice: {
-        id: paidInvoice.id,
-        status: paidInvoice.status,
-        amountPaid: paidInvoice.amount_paid,
-      },
-      emissionsAdded: emissionsToAdd,
-      totalEmissions: newEmissions,
+      url: session.url,
+      sessionId: session.id,
+      emissionsAdded,
     });
   } catch (error: any) {
     console.error('[Stripe Purchase Emissions] Error:', error);
