@@ -439,46 +439,261 @@ export const clearEmulatedSubscription = (): void => {
 };
 
 /**
- * Check if user has an active subscription
+ * Real Stripe subscription interface (cached globally)
+ */
+export interface StripeSubscription {
+  id: string;
+  status: string;
+  planTier: string;
+  planName: string;
+  planAmount: number;
+  emissionsAvailable: number;
+  emissionsUsed: number;
+  creditBalance: number;
+  currentPeriodStart: number;
+  currentPeriodEnd: number;
+  cancelAtPeriodEnd: boolean;
+  isPaused: boolean;
+  customerId: string;
+  customerEmail: string;
+  lastFetched: number; // Timestamp for cache invalidation
+}
+
+const STRIPE_SUBSCRIPTION_KEY = 'polibit_stripe_subscription';
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes cache TTL
+
+/**
+ * Get cached Stripe subscription from localStorage
+ */
+export const getStripeSubscription = (): StripeSubscription | null => {
+  if (typeof window === 'undefined') return null;
+  const stored = localStorage.getItem(STRIPE_SUBSCRIPTION_KEY);
+  if (stored) {
+    try {
+      const sub = JSON.parse(stored) as StripeSubscription;
+      // Check if cache is still valid
+      if (Date.now() - sub.lastFetched < CACHE_TTL_MS) {
+        return sub;
+      }
+      // Cache expired, return null to trigger refresh
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+/**
+ * Save Stripe subscription to localStorage (cache)
+ */
+export const saveStripeSubscription = (subscription: StripeSubscription): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STRIPE_SUBSCRIPTION_KEY, JSON.stringify({
+    ...subscription,
+    lastFetched: Date.now(),
+  }));
+  // Dispatch event for other components to react
+  window.dispatchEvent(new CustomEvent('stripe-subscription-changed', { detail: subscription }));
+};
+
+/**
+ * Clear cached Stripe subscription
+ */
+export const clearStripeSubscription = (): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(STRIPE_SUBSCRIPTION_KEY);
+  window.dispatchEvent(new CustomEvent('stripe-subscription-changed', { detail: null }));
+};
+
+/**
+ * Fetch Stripe subscription from API and cache it
+ */
+export const fetchStripeSubscription = async (email: string): Promise<StripeSubscription | null> => {
+  try {
+    const response = await fetch(`/api/stripe/subscription?email=${encodeURIComponent(email)}`);
+    const data = await response.json();
+
+    if (data.success && data.subscription) {
+      const sub = data.subscription;
+      const stripeSubscription: StripeSubscription = {
+        id: sub.id,
+        status: sub.status,
+        planTier: sub.planTier || 'starter',
+        planName: sub.planName || 'Subscription',
+        planAmount: sub.planAmount || 0,
+        emissionsAvailable: parseInt(sub.emissionsAvailable || '0'),
+        emissionsUsed: parseInt(sub.emissionsUsed || '0'),
+        creditBalance: parseInt(sub.creditBalance || '0'),
+        currentPeriodStart: sub.currentPeriodStart,
+        currentPeriodEnd: sub.currentPeriodEnd,
+        cancelAtPeriodEnd: sub.cancelAtPeriodEnd || false,
+        isPaused: sub.isPaused || false,
+        customerId: data.customerId || '',
+        customerEmail: email,
+        lastFetched: Date.now(),
+      };
+      saveStripeSubscription(stripeSubscription);
+      return stripeSubscription;
+    }
+    return null;
+  } catch (error) {
+    console.error('[fetchStripeSubscription] Error:', error);
+    return null;
+  }
+};
+
+/**
+ * Get active subscription (checks both emulated and real Stripe)
+ * Returns the most relevant subscription
+ */
+export const getActiveSubscription = (): { type: 'emulated' | 'stripe' | null; subscription: EmulatedSubscription | StripeSubscription | null } => {
+  // First check real Stripe subscription (cached)
+  const stripeSub = getStripeSubscription();
+  if (stripeSub && (stripeSub.status === 'active' || stripeSub.isPaused)) {
+    return { type: 'stripe', subscription: stripeSub };
+  }
+
+  // Fallback to emulated subscription
+  const emulatedSub = getEmulatedSubscription();
+  if (emulatedSub && (emulatedSub.status === 'active' || emulatedSub.status === 'trialing')) {
+    return { type: 'emulated', subscription: emulatedSub };
+  }
+
+  return { type: null, subscription: null };
+};
+
+/**
+ * Check if user has an active subscription (checks both emulated and real Stripe)
  */
 export const hasActiveSubscription = (): boolean => {
-  const sub = getEmulatedSubscription();
-  return sub !== null && (sub.status === 'active' || sub.status === 'trialing');
+  const { subscription } = getActiveSubscription();
+  return subscription !== null;
 };
 
 /**
  * Check if user can create a new structure (based on subscription)
+ * Checks both emulated and cached real Stripe subscription
  */
-export const canCreateStructure = (): { allowed: boolean; reason?: string } => {
-  const sub = getEmulatedSubscription();
+export const canCreateStructure = (): { allowed: boolean; reason?: string; emissionsAvailable?: number } => {
+  const { type, subscription } = getActiveSubscription();
 
-  if (!sub) {
+  if (!subscription) {
     return {
       allowed: false,
       reason: 'No active subscription. Please subscribe to create structures.'
     };
   }
 
-  if (sub.status !== 'active' && sub.status !== 'trialing') {
-    return {
-      allowed: false,
-      reason: 'Your subscription is not active. Please update your subscription.'
-    };
+  // Handle Stripe subscription
+  if (type === 'stripe') {
+    const stripeSub = subscription as StripeSubscription;
+
+    if (stripeSub.status !== 'active' && !stripeSub.isPaused) {
+      return {
+        allowed: false,
+        reason: 'Your subscription is not active. Please update your subscription.'
+      };
+    }
+
+    if (stripeSub.emissionsAvailable <= 0) {
+      return {
+        allowed: false,
+        reason: 'No emissions available. Please purchase additional emissions.',
+        emissionsAvailable: 0
+      };
+    }
+
+    return { allowed: true, emissionsAvailable: stripeSub.emissionsAvailable };
   }
 
-  if (!sub.setupFeePaid) {
-    return {
-      allowed: false,
-      reason: 'Setup fee has not been paid. Please complete the setup process.'
-    };
+  // Handle emulated subscription
+  if (type === 'emulated') {
+    const emulatedSub = subscription as EmulatedSubscription;
+
+    if (emulatedSub.status !== 'active' && emulatedSub.status !== 'trialing') {
+      return {
+        allowed: false,
+        reason: 'Your subscription is not active. Please update your subscription.'
+      };
+    }
+
+    if (!emulatedSub.setupFeePaid) {
+      return {
+        allowed: false,
+        reason: 'Setup fee has not been paid. Please complete the setup process.'
+      };
+    }
+
+    if (emulatedSub.emissionsAvailable <= 0) {
+      return {
+        allowed: false,
+        reason: 'No emissions available. Please purchase additional emissions.',
+        emissionsAvailable: 0
+      };
+    }
+
+    return { allowed: true, emissionsAvailable: emulatedSub.emissionsAvailable };
   }
 
-  if (sub.emissionsAvailable <= 0) {
-    return {
-      allowed: false,
-      reason: 'No emissions available. Please purchase additional emissions.'
-    };
+  return { allowed: false, reason: 'Unknown subscription type.' };
+};
+
+/**
+ * Check if user can create a new structure (async version that checks real Stripe)
+ * This fetches from API if cache is expired and updates the global cache
+ */
+export const canCreateStructureAsync = async (userEmail?: string): Promise<{ allowed: boolean; reason?: string; emissionsAvailable?: number }> => {
+  // First try cached subscription (both emulated and Stripe)
+  const cachedResult = canCreateStructure();
+  if (cachedResult.allowed) {
+    return cachedResult;
   }
 
-  return { allowed: true };
+  // If cached check fails and we have email, try fetching fresh from Stripe API
+  if (userEmail) {
+    try {
+      // This will fetch and cache the subscription
+      const stripeSub = await fetchStripeSubscription(userEmail);
+
+      if (stripeSub) {
+        // Check subscription status
+        if (stripeSub.status !== 'active' && !stripeSub.isPaused) {
+          return {
+            allowed: false,
+            reason: 'Your subscription is not active. Please update your subscription.'
+          };
+        }
+
+        // Check emissions available
+        if (stripeSub.emissionsAvailable <= 0) {
+          return {
+            allowed: false,
+            reason: 'No emissions available. Please purchase additional emissions.',
+            emissionsAvailable: 0
+          };
+        }
+
+        return {
+          allowed: true,
+          emissionsAvailable: stripeSub.emissionsAvailable
+        };
+      }
+    } catch (error) {
+      console.error('[canCreateStructureAsync] Error checking Stripe subscription:', error);
+    }
+  }
+
+  // Return original cached result if Stripe fetch fails
+  return cachedResult;
+};
+
+/**
+ * Refresh the global subscription cache
+ * Call this after subscription changes (purchase, cancel, etc.)
+ */
+export const refreshSubscriptionCache = async (userEmail: string): Promise<StripeSubscription | null> => {
+  // Clear existing cache to force refresh
+  clearStripeSubscription();
+  return fetchStripeSubscription(userEmail);
 };

@@ -29,7 +29,7 @@ import { useRouter } from 'next/navigation'
 import { getVisibilitySettings } from '@/lib/visibility-storage'
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
 import { getAuthState, logout } from '@/lib/auth-storage'
-import { canCreateStructure, getEmulatedSubscription, saveEmulatedSubscription, hasActiveSubscription, EmulatedSubscription } from '@/lib/stripe-products'
+import { canCreateStructure, canCreateStructureAsync, getEmulatedSubscription, saveEmulatedSubscription, hasActiveSubscription, refreshSubscriptionCache, EmulatedSubscription } from '@/lib/stripe-products'
 
 // V3.1: Investor Pre-Registration Interface
 interface InvestorPreRegistration {
@@ -767,10 +767,16 @@ export default function OnboardingPage() {
 
   // Check subscription status on mount and when storage changes
   useEffect(() => {
-    const checkSubscription = () => {
+    const checkSubscription = async () => {
       const sub = getEmulatedSubscription()
       setCurrentSubscription(sub)
-      const status = canCreateStructure()
+
+      // Get user email for real Stripe check
+      const authState = getAuthState()
+      const userEmail = authState.user?.email || authState.supabase?.email
+
+      // Use async version that checks both emulated and real Stripe
+      const status = await canCreateStructureAsync(userEmail)
       setSubscriptionStatus(status)
     }
 
@@ -1058,7 +1064,9 @@ export default function OnboardingPage() {
 
     try {
       // Validate subscription status before creating structure
-      const subscriptionCheck = canCreateStructure()
+      const authState = getAuthState()
+      const userEmail = authState.user?.email || authState.supabase?.email
+      const subscriptionCheck = await canCreateStructureAsync(userEmail)
       if (!subscriptionCheck.allowed) {
         toast.error(subscriptionCheck.reason || 'Cannot create structure. Please check your subscription.')
         setIsSubmitting(false)
@@ -1297,13 +1305,13 @@ export default function OnboardingPage() {
         }
         saveEmulatedSubscription(updatedSubscription)
         setCurrentSubscription(updatedSubscription)
-        setSubscriptionStatus(canCreateStructure())
+        // Update subscription status (userEmail is already defined at the top of try block)
+        const updatedStatus = await canCreateStructureAsync(userEmail)
+        setSubscriptionStatus(updatedStatus)
       }
 
       // Also update real Stripe subscription if user has one
       try {
-        const authState = getAuthState()
-        const userEmail = authState.user?.email || authState.supabase?.email
         if (userEmail) {
           const emissionsNeeded = formData.calculatedIssuances || 1
           // Call the API for each emission needed
@@ -1321,6 +1329,11 @@ export default function OnboardingPage() {
             }
             console.log('[Structure Setup] Decremented Stripe emission:', data)
           }
+          // Refresh the global subscription cache after updating emissions
+          await refreshSubscriptionCache(userEmail)
+          // Update subscription status display
+          const updatedStatus = await canCreateStructureAsync(userEmail)
+          setSubscriptionStatus(updatedStatus)
         }
       } catch (stripeError) {
         console.warn('[Structure Setup] Error updating Stripe emissions:', stripeError)

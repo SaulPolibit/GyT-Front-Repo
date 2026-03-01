@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Loader2, AlertCircle } from "lucide-react"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken, getAuthState, logout } from "@/lib/auth-storage"
+import { refreshSubscriptionCache } from "@/lib/stripe-products"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -425,6 +426,8 @@ export default function EditInvestorPage({ params }: PageProps) {
             if (data.success) {
               console.log('[Investor Edit] Deducted KYC credits:', data)
               toast.info(`$${(kycCostCents / 100).toFixed(2)} deducted for KYC verification`)
+              // Refresh the global subscription cache
+              await refreshSubscriptionCache(userEmail)
             } else {
               console.warn('[Investor Edit] Failed to deduct KYC credits:', data.error)
               // Show warning but don't block the update

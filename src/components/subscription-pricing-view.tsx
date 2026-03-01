@@ -43,6 +43,9 @@ import {
   getEmulatedSubscription,
   saveEmulatedSubscription,
   clearEmulatedSubscription,
+  saveStripeSubscription,
+  clearStripeSubscription,
+  StripeSubscription,
   EmulatedSubscription
 } from '@/lib/stripe-products';
 import { getAuthState } from '@/lib/auth-storage';
@@ -174,11 +177,33 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             setCancelAtPeriodEnd(data.subscription.cancelAtPeriodEnd || false);
             setIsPaused(data.subscription.isPaused || false);
 
+            // Save to global cache for app-wide access
+            const globalSub: StripeSubscription = {
+              id: data.subscription.id,
+              status: data.subscription.status,
+              planTier: data.subscription.planTier || 'starter',
+              planName: data.subscription.planName || 'Subscription',
+              planAmount: data.subscription.planAmount || 0,
+              emissionsAvailable: parseInt(data.subscription.emissionsAvailable || '0'),
+              emissionsUsed: parseInt(data.subscription.emissionsUsed || '0'),
+              creditBalance: parseInt(data.subscription.creditBalance || '0'),
+              currentPeriodStart: data.subscription.currentPeriodStart,
+              currentPeriodEnd: data.subscription.currentPeriodEnd,
+              cancelAtPeriodEnd: data.subscription.cancelAtPeriodEnd || false,
+              isPaused: data.subscription.isPaused || false,
+              customerId: data.customerId || '',
+              customerEmail: email,
+              lastFetched: Date.now(),
+            };
+            saveStripeSubscription(globalSub);
+            console.log('[LoadSubscription] Saved to global cache:', globalSub);
+
             // Only hide if subscription is fully canceled (not active, not incomplete, etc.)
             if (data.subscription.status === 'canceled') {
               console.log('[LoadSubscription] Subscription is canceled, showing pricing view');
               setSubscription(null);
               setStripeSubscription(null);
+              clearStripeSubscription(); // Clear global cache too
             } else {
               // Show subscription for any non-canceled status
               // Find matching plan by tier name
@@ -206,6 +231,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             setSubscription(null);
             setStripeSubscription(null);
             setCancelAtPeriodEnd(false);
+            clearStripeSubscription(); // Clear global cache
           }
         }
       } catch (error) {
