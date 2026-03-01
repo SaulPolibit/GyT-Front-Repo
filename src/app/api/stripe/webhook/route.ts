@@ -48,56 +48,134 @@ export async function POST(request: NextRequest) {
 
         // Handle emission purchase
         if (metadata.type === 'emission_purchase') {
-          const { subscriptionId, emissionsAdded, customerId } = metadata;
-          console.log('[Stripe Webhook] Emission purchase:', { subscriptionId, emissionsAdded });
+          const { subscriptionId, emissionsAdded, customerId, userEmail } = metadata;
+          const customerEmail = session.customer_email || userEmail;
+          console.log('[Stripe Webhook] Emission purchase:', { subscriptionId, emissionsAdded, customerId, customerEmail });
 
-          if (subscriptionId && emissionsAdded) {
-            try {
-              // Get current subscription
-              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          try {
+            let subscription = null;
+
+            // Try to get subscription by ID first
+            if (subscriptionId) {
+              try {
+                subscription = await stripe.subscriptions.retrieve(subscriptionId);
+              } catch (e) {
+                console.warn('[Stripe Webhook] Could not retrieve subscription by ID:', subscriptionId);
+              }
+            }
+
+            // If no subscription found, look up by customer email
+            if (!subscription && customerEmail) {
+              const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
+              if (customers.data.length > 0) {
+                const subs = await stripe.subscriptions.list({
+                  customer: customers.data[0].id,
+                  status: 'active',
+                  limit: 1,
+                });
+                if (subs.data.length > 0) {
+                  subscription = subs.data[0];
+                }
+              }
+            }
+
+            // If no subscription found, try by customerId
+            if (!subscription && customerId) {
+              const subs = await stripe.subscriptions.list({
+                customer: customerId,
+                status: 'active',
+                limit: 1,
+              });
+              if (subs.data.length > 0) {
+                subscription = subs.data[0];
+              }
+            }
+
+            if (subscription && emissionsAdded) {
               const currentEmissions = parseInt(subscription.metadata.emissionsAvailable || '0');
               const newEmissions = currentEmissions + parseInt(emissionsAdded);
 
               // Update subscription metadata
-              await stripe.subscriptions.update(subscriptionId, {
+              await stripe.subscriptions.update(subscription.id, {
                 metadata: {
                   ...subscription.metadata,
                   emissionsAvailable: newEmissions.toString(),
                 },
               });
 
-              console.log('[Stripe Webhook] Updated emissions:', currentEmissions, '->', newEmissions);
-            } catch (err) {
-              console.error('[Stripe Webhook] Failed to update emissions:', err);
+              console.log('[Stripe Webhook] Updated emissions:', currentEmissions, '->', newEmissions, 'for subscription:', subscription.id);
+            } else {
+              console.error('[Stripe Webhook] No subscription found to update emissions');
             }
+          } catch (err) {
+            console.error('[Stripe Webhook] Failed to update emissions:', err);
           }
           break;
         }
 
         // Handle credit top-up
         if (metadata.type === 'credit_topup') {
-          const { subscriptionId, amount } = metadata;
-          console.log('[Stripe Webhook] Credit top-up:', { subscriptionId, amount });
+          const { subscriptionId, amount, customerId, userEmail } = metadata;
+          const customerEmail = session.customer_email || userEmail;
+          console.log('[Stripe Webhook] Credit top-up:', { subscriptionId, amount, customerId, customerEmail });
 
-          if (subscriptionId && amount) {
-            try {
-              // Get current subscription
-              const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          try {
+            let subscription = null;
+
+            // Try to get subscription by ID first
+            if (subscriptionId) {
+              try {
+                subscription = await stripe.subscriptions.retrieve(subscriptionId);
+              } catch (e) {
+                console.warn('[Stripe Webhook] Could not retrieve subscription by ID:', subscriptionId);
+              }
+            }
+
+            // If no subscription found, look up by customer email
+            if (!subscription && customerEmail) {
+              const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
+              if (customers.data.length > 0) {
+                const subs = await stripe.subscriptions.list({
+                  customer: customers.data[0].id,
+                  status: 'active',
+                  limit: 1,
+                });
+                if (subs.data.length > 0) {
+                  subscription = subs.data[0];
+                }
+              }
+            }
+
+            // If no subscription found, try by customerId
+            if (!subscription && customerId) {
+              const subs = await stripe.subscriptions.list({
+                customer: customerId,
+                status: 'active',
+                limit: 1,
+              });
+              if (subs.data.length > 0) {
+                subscription = subs.data[0];
+              }
+            }
+
+            if (subscription && amount) {
               const currentBalance = parseInt(subscription.metadata.creditBalance || '0');
               const newBalance = currentBalance + parseInt(amount);
 
               // Update subscription metadata
-              await stripe.subscriptions.update(subscriptionId, {
+              await stripe.subscriptions.update(subscription.id, {
                 metadata: {
                   ...subscription.metadata,
                   creditBalance: newBalance.toString(),
                 },
               });
 
-              console.log('[Stripe Webhook] Updated credit balance:', currentBalance, '->', newBalance);
-            } catch (err) {
-              console.error('[Stripe Webhook] Failed to update credit balance:', err);
+              console.log('[Stripe Webhook] Updated credit balance:', currentBalance, '->', newBalance, 'for subscription:', subscription.id);
+            } else {
+              console.error('[Stripe Webhook] No subscription found to update credit balance');
             }
+          } catch (err) {
+            console.error('[Stripe Webhook] Failed to update credit balance:', err);
           }
           break;
         }
