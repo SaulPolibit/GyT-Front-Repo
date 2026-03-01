@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { AlertCircle, CheckCircle2, ArrowLeft, Shield, Loader2 } from "lucide-react"
 import { getCurrentUser, getAuthToken, updateUserKycData } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
+import { toast } from "sonner"
 
 export default function KYCVerificationPage() {
   const router = useRouter()
@@ -14,11 +15,105 @@ export default function KYCVerificationPage() {
   const returnUrl = searchParams.get('returnUrl') || '/lp-portal/marketplace'
   const [user, setUser] = React.useState(getCurrentUser())
   const [isCreatingSession, setIsCreatingSession] = React.useState(false)
+  const [isCheckingStatus, setIsCheckingStatus] = React.useState(false)
   const [sessionError, setSessionError] = React.useState<string | null>(null)
 
   // Handle navigation back
   const handleGoBack = () => {
     router.push(returnUrl)
+  }
+
+  // Check if user has a session and fetch its current status from backend
+  React.useEffect(() => {
+    const checkSessionStatus = async () => {
+      const currentUser = getCurrentUser()
+
+      // If user has a kycSessionId, check its status
+      if (currentUser?.kycSessionId && currentUser.kycStatus !== 'Approved') {
+        console.log('[KYC Verification] Checking session status for:', currentUser.kycSessionId)
+        setIsCheckingStatus(true)
+
+        try {
+          const token = getAuthToken()
+          if (!token) {
+            setIsCheckingStatus(false)
+            return
+          }
+
+          // Fetch session status from backend
+          const response = await fetch(getApiUrl(API_CONFIG.endpoints.getDiditSession(currentUser.kycSessionId)), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            console.log('[KYC Verification] Session status response:', data)
+
+            const sessionStatus = data.data?.status || data.status
+
+            if (sessionStatus && sessionStatus !== currentUser.kycStatus) {
+              console.log('[KYC Verification] Status changed:', currentUser.kycStatus, '->', sessionStatus)
+
+              // Update localStorage
+              updateUserKycData(currentUser.kycSessionId, currentUser.kycUrl, sessionStatus)
+
+              // If approved, also update the user in the database
+              if (sessionStatus === 'Approved') {
+                await updateUserKycStatusInDatabase(currentUser.kycSessionId, sessionStatus)
+                toast.success('KYC verification approved!')
+              }
+
+              // Refresh user state
+              setUser(getCurrentUser())
+            }
+          }
+        } catch (error) {
+          console.error('[KYC Verification] Error checking session status:', error)
+        } finally {
+          setIsCheckingStatus(false)
+        }
+      }
+    }
+
+    checkSessionStatus()
+  }, [])
+
+  // Function to update KYC status in the database
+  const updateUserKycStatusInDatabase = async (sessionId: string, status: string) => {
+    try {
+      const token = getAuthToken()
+      if (!token) return
+
+      const currentUser = getCurrentUser()
+      if (!currentUser?.id) return
+
+      console.log('[KYC Verification] Updating KYC status in database:', { sessionId, status })
+
+      // Update user's KYC status via API
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.updateUserProfile), {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          kycStatus: status,
+          kycSessionId: sessionId,
+        }),
+      })
+
+      if (response.ok) {
+        console.log('[KYC Verification] Successfully updated KYC status in database')
+      } else {
+        console.error('[KYC Verification] Failed to update KYC status in database:', response.status)
+      }
+    } catch (error) {
+      console.error('[KYC Verification] Error updating KYC status in database:', error)
+    }
   }
 
   // Auto-create KYC session if user doesn't have kycUrl
@@ -29,8 +124,8 @@ export default function KYCVerificationPage() {
         return
       }
 
-      // Skip if already creating
-      if (isCreatingSession) {
+      // Skip if already creating or checking
+      if (isCreatingSession || isCheckingStatus) {
         return
       }
 
@@ -83,7 +178,7 @@ export default function KYCVerificationPage() {
     }
 
     createKycSession()
-  }, [user?.kycUrl, user?.kycStatus, isCreatingSession])
+  }, [user?.kycUrl, user?.kycStatus, isCreatingSession, isCheckingStatus])
 
   // If user is already approved, show success message
   if (user && user.kycStatus === 'Approved') {
@@ -227,6 +322,69 @@ export default function KYCVerificationPage() {
     )
   }
 
+  // Function to manually check and refresh KYC status
+  const handleRefreshStatus = async () => {
+    const currentUser = getCurrentUser()
+
+    if (!currentUser?.kycSessionId) {
+      toast.error('No KYC session found')
+      return
+    }
+
+    setIsCheckingStatus(true)
+
+    try {
+      const token = getAuthToken()
+      if (!token) {
+        throw new Error('No authentication token')
+      }
+
+      // Fetch session status from backend
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.getDiditSession(currentUser.kycSessionId)), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('[KYC Verification] Refresh status response:', data)
+
+        const sessionStatus = data.data?.status || data.status
+
+        if (sessionStatus) {
+          // Update localStorage
+          updateUserKycData(currentUser.kycSessionId, currentUser.kycUrl, sessionStatus)
+
+          // If status changed, update database
+          if (sessionStatus !== currentUser.kycStatus) {
+            await updateUserKycStatusInDatabase(currentUser.kycSessionId, sessionStatus)
+
+            if (sessionStatus === 'Approved') {
+              toast.success('KYC verification approved!')
+            } else {
+              toast.info(`KYC status: ${sessionStatus}`)
+            }
+          } else {
+            toast.info(`Current status: ${sessionStatus}`)
+          }
+
+          // Refresh user state
+          setUser(getCurrentUser())
+        }
+      } else {
+        toast.error('Failed to check status')
+      }
+    } catch (error) {
+      console.error('[KYC Verification] Error refreshing status:', error)
+      toast.error('Failed to check status')
+    } finally {
+      setIsCheckingStatus(false)
+    }
+  }
+
   // Show KYC verification iframe
   return (
     <div className="h-screen flex flex-col">
@@ -238,9 +396,26 @@ export default function KYCVerificationPage() {
         <div className="flex-1">
           <h1 className="text-lg font-semibold">Complete KYC Verification</h1>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Shield className="h-3.5 w-3.5" />
-          <span>Status: <span className="font-medium">{user.kycStatus || 'Not started'}</span></span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Shield className="h-3.5 w-3.5" />
+            <span>Status: <span className="font-medium">{user.kycStatus || 'Not started'}</span></span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshStatus}
+            disabled={isCheckingStatus}
+          >
+            {isCheckingStatus ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                Checking...
+              </>
+            ) : (
+              'Check Status'
+            )}
+          </Button>
         </div>
       </div>
 
