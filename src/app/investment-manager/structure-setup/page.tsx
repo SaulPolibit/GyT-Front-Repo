@@ -1300,6 +1300,33 @@ export default function OnboardingPage() {
         setSubscriptionStatus(canCreateStructure())
       }
 
+      // Also update real Stripe subscription if user has one
+      try {
+        const authState = getAuthState()
+        const userEmail = authState.user?.email || authState.supabase?.email
+        if (userEmail) {
+          const emissionsNeeded = formData.calculatedIssuances || 1
+          // Call the API for each emission needed
+          for (let i = 0; i < emissionsNeeded; i++) {
+            const response = await fetch('/api/stripe/use-emission', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: userEmail }),
+            })
+            const data = await response.json()
+            if (!data.success) {
+              console.warn('[Structure Setup] Failed to decrement Stripe emission:', data.error)
+              // Don't block structure creation if Stripe update fails
+              break
+            }
+            console.log('[Structure Setup] Decremented Stripe emission:', data)
+          }
+        }
+      } catch (stripeError) {
+        console.warn('[Structure Setup] Error updating Stripe emissions:', stripeError)
+        // Don't block structure creation if Stripe update fails
+      }
+
       setIsSubmitting(false)
       setCreatedStructureId(newStructure.id)
       setInReviewMode(true)

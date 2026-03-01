@@ -60,6 +60,7 @@ export default function EditInvestorPage({ params }: PageProps) {
   const [country, setCountry] = useState("United States")
   const [taxId, setTaxId] = useState("")
   const [kycStatus, setKycStatus] = useState("Not Started")
+  const [originalKycStatus, setOriginalKycStatus] = useState("Not Started") // Track original status for credit deduction
   const [accreditedInvestor, setAccreditedInvestor] = useState(false)
   const [riskTolerance, setRiskTolerance] = useState("")
   const [investmentPreferences, setInvestmentPreferences] = useState("")
@@ -152,6 +153,7 @@ export default function EditInvestorPage({ params }: PageProps) {
         setCountry(investor.country || "United States")
         setTaxId(investor.taxId || "")
         setKycStatus(investor.kycStatus || "Not Started")
+        setOriginalKycStatus(investor.kycStatus || "Not Started") // Store original for credit deduction check
         setAccreditedInvestor(investor.accreditedInvestor || false)
         setRiskTolerance(investor.riskTolerance || "")
         setInvestmentPreferences(investor.investmentPreferences || "")
@@ -401,6 +403,43 @@ export default function EditInvestorPage({ params }: PageProps) {
       }
 
       const result = await response.json()
+
+      // If KYC status changed to "Approved", deduct credits from subscription
+      if (kycStatus === 'Approved' && originalKycStatus !== 'Approved') {
+        try {
+          const authState = getAuthState()
+          const userEmail = authState.user?.email || authState.supabase?.email
+          if (userEmail) {
+            // KYC cost in cents (e.g., $25 = 2500 cents) - adjust based on your pricing
+            const kycCostCents = 2500 // $25.00 per KYC
+            const response = await fetch('/api/stripe/use-credits', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: userEmail,
+                amount: kycCostCents,
+                reason: `KYC approval for investor ${email}`,
+              }),
+            })
+            const data = await response.json()
+            if (data.success) {
+              console.log('[Investor Edit] Deducted KYC credits:', data)
+              toast.info(`$${(kycCostCents / 100).toFixed(2)} deducted for KYC verification`)
+            } else {
+              console.warn('[Investor Edit] Failed to deduct KYC credits:', data.error)
+              // Show warning but don't block the update
+              if (data.error?.includes('Insufficient')) {
+                toast.warning('Low credit balance. Please top up your credit wallet.')
+              }
+            }
+          }
+        } catch (creditError) {
+          console.warn('[Investor Edit] Error deducting KYC credits:', creditError)
+          // Don't block investor update if credit deduction fails
+        }
+        // Update original status to prevent duplicate deductions
+        setOriginalKycStatus('Approved')
+      }
 
       toast.success('Investor updated successfully')
       // router.push(`/investment-manager/investors/${id}`)
