@@ -183,12 +183,14 @@ export async function POST(request: NextRequest) {
         // Handle subscription checkout
         const { userId, firmId, planTier, includedEmissions, subscriptionModel } = metadata;
 
-        // Update user subscription status in Supabase
+        // Update user subscription status in Supabase (including model and tier)
         if (session.customer_email) {
           await updateUserSubscriptionStatus(
             session.customer_email,
             'active',
-            session.subscription as string
+            session.subscription as string,
+            subscriptionModel as 'tier_based' | 'payg' | undefined,
+            planTier // This is the tier (starter, professional, enterprise, growth)
           );
         }
 
@@ -220,7 +222,14 @@ export async function POST(request: NextRequest) {
         const customerForUpdate = await stripe.customers.retrieve(subscription.customer as string);
         if (customerForUpdate && !customerForUpdate.deleted && customerForUpdate.email) {
           const status = subscription.status as 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing';
-          await updateUserSubscriptionStatus(customerForUpdate.email, status, subscription.id);
+          const subMetadata = subscription.metadata || {};
+          await updateUserSubscriptionStatus(
+            customerForUpdate.email,
+            status,
+            subscription.id,
+            subMetadata.subscriptionModel as 'tier_based' | 'payg' | undefined,
+            subMetadata.planTier
+          );
         }
 
         // Handle status changes

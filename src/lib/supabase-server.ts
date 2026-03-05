@@ -22,7 +22,9 @@ export function getSupabaseServerClient(): SupabaseClient | null {
 export async function updateUserSubscriptionStatus(
   email: string,
   status: 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing' | 'paused' | null,
-  subscriptionId?: string
+  subscriptionId?: string,
+  subscriptionModel?: 'tier_based' | 'payg',
+  subscriptionTier?: string
 ): Promise<boolean> {
   const supabase = getSupabaseServerClient()
   if (!supabase) {
@@ -31,13 +33,23 @@ export async function updateUserSubscriptionStatus(
   }
 
   try {
+    const updateData: Record<string, any> = {
+      subscription_status: status,
+      stripe_subscription_id: subscriptionId || null,
+      updated_at: new Date().toISOString(),
+    }
+
+    // Include subscription model and tier if provided
+    if (subscriptionModel) {
+      updateData.subscription_model = subscriptionModel
+    }
+    if (subscriptionTier) {
+      updateData.subscription_tier = subscriptionTier
+    }
+
     const { error } = await supabase
       .from('users')
-      .update({
-        subscription_status: status,
-        stripe_subscription_id: subscriptionId || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('email', email)
 
     if (error) {
@@ -45,7 +57,7 @@ export async function updateUserSubscriptionStatus(
       return false
     }
 
-    console.log(`[Supabase Server] Updated subscription status for ${email}: ${status}`)
+    console.log(`[Supabase Server] Updated subscription status for ${email}: ${status}, model: ${subscriptionModel}, tier: ${subscriptionTier}`)
     return true
   } catch (error) {
     console.error('[Supabase Server] Exception updating subscription status:', error)

@@ -27,6 +27,7 @@ interface Structure {
   id: string
   name: string
   type: string
+  subtype?: string
 }
 
 export default function AddInvestorPage() {
@@ -44,47 +45,38 @@ export default function AddInvestorPage() {
   const [users, setUsers] = useState<User[]>([])
 
   // Form state
+  const [userMode, setUserMode] = useState<'create' | 'existing'>('create')
   const [investorType, setInvestorType] = useState<InvestorType>('Individual')
   const [selectedUserId, setSelectedUserId] = useState("")
   const [selectedStructure, setSelectedStructure] = useState("")
 
+  // New user fields (when userMode === 'create')
+  const [newFirstName, setNewFirstName] = useState("")
+  const [newLastName, setNewLastName] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true)
+
   // Common fields
   const [email, setEmail] = useState("")
-  const [phoneNumber, setPhoneNumber] = useState("")
-  const [country, setCountry] = useState("United States")
-  const [taxId, setTaxId] = useState("")
-  const [kycStatus, setKycStatus] = useState("Not Started")
-  const [accreditedInvestor, setAccreditedInvestor] = useState(false)
-  const [riskTolerance, setRiskTolerance] = useState("")
-  const [investmentPreferences, setInvestmentPreferences] = useState("")
 
-  // Individual fields
+  // Type-specific required fields (for existing user mode)
   const [fullName, setFullName] = useState("")
-  const [dateOfBirth, setDateOfBirth] = useState("")
-  const [nationality, setNationality] = useState("")
-  const [passportNumber, setPassportNumber] = useState("")
-  const [addressLine1, setAddressLine1] = useState("")
-  const [addressLine2, setAddressLine2] = useState("")
-  const [city, setCity] = useState("")
-  const [state, setState] = useState("")
-  const [postalCode, setPostalCode] = useState("")
-
-  // Institution fields
   const [institutionName, setInstitutionName] = useState("")
-  const [institutionType, setInstitutionType] = useState("")
-  const [registrationNumber, setRegistrationNumber] = useState("")
-  const [legalRepresentative, setLegalRepresentative] = useState("")
-
-  // Fund of Funds fields
   const [fundName, setFundName] = useState("")
-  const [fundManager, setFundManager] = useState("")
-  const [aum, setAum] = useState("")
-
-  // Family Office fields
   const [officeName, setOfficeName] = useState("")
-  const [familyName, setFamilyName] = useState("")
-  const [principalContact, setPrincipalContact] = useState("")
-  const [assetsUnderManagement, setAssetsUnderManagement] = useState("")
+
+  // Custom terms (per-investor overrides, dynamic based on structure type)
+  const [feeDiscount, setFeeDiscount] = useState("")
+  const [vatExempt, setVatExempt] = useState(false)
+  const [preferredReturnOverride, setPreferredReturnOverride] = useState("")
+  const [performanceFeeOverride, setPerformanceFeeOverride] = useState("")
+  const [interestRateOverride, setInterestRateOverride] = useState("")
+  const [grossInterestRateOverride, setGrossInterestRateOverride] = useState("")
+
+  // Closing Tranche (tracks which closing round investor joined)
+  const [closingTranche, setClosingTranche] = useState<'initial' | 'second' | 'third' | 'final' | 'custom' | ''>('')
+  const [closingDate, setClosingDate] = useState("")
+  const [closingTrancheCustomName, setClosingTrancheCustomName] = useState("")
 
   // Load structures and non-investor users
   useEffect(() => {
@@ -134,8 +126,8 @@ export default function AddInvestorPage() {
           setStructures(structuresResult.data)
         }
 
-        // Fetch non-investor users (users with role 0, 1, or 2)
-        const usersUrl = getApiUrl(API_CONFIG.endpoints.getUsersByRole('0,1,2'))
+        // Fetch existing investor users (role 3 only)
+        const usersUrl = getApiUrl(API_CONFIG.endpoints.getUsersByRole('3'))
         const usersResponse = await fetch(usersUrl, {
           method: 'GET',
           headers: {
@@ -179,16 +171,33 @@ export default function AddInvestorPage() {
     fetchData()
   }, [])
 
-  // Update email and name when user is selected (for Individual type)
+  // Update email when user is selected (for existing user mode)
   useEffect(() => {
-    if (investorType === 'Individual' && selectedUserId) {
+    if (userMode === 'existing' && selectedUserId) {
       const user = users.find(u => u.id === selectedUserId)
       if (user) {
         setEmail(user.email)
-        setFullName(`${user.firstName} ${user.lastName}`.trim())
       }
     }
-  }, [selectedUserId, investorType, users])
+  }, [selectedUserId, users, userMode])
+
+  // Determine which custom terms to show based on selected structure type
+  const selectedStructureData = structures.find(s => s.id === selectedStructure)
+  const structureType = selectedStructureData?.type || ''
+  const structureSubtype = selectedStructureData?.subtype || ''
+
+  const isFullFeatured = structureType === 'fund' ||
+    (structureType === 'fideicomiso' && structureSubtype === 'multi-property')
+  const isPrivateDebt = structureType === 'private-debt'
+  const isSimple = structureType === 'sa' ||
+    (structureType === 'fideicomiso' && structureSubtype !== 'multi-property')
+
+  // Fund & Multi-Property Trust: fee discount, VAT, preferred return, performance fee
+  // SA/LLC & Single-Property Trust: fee discount, VAT, preferred return
+  // Private Debt: fee discount, VAT, interest rate, gross interest rate
+  const showPreferredReturn = isFullFeatured || isSimple
+  const showPerformanceFee = isFullFeatured
+  const showInterestRates = isPrivateDebt
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -198,32 +207,41 @@ export default function AddInvestorPage() {
       return
     }
 
-    if (!selectedUserId) {
-      toast.error("Please select a user")
-      return
-    }
-
-    // Validation based on investor type
-    if (investorType === 'Individual') {
-      // Individual type already has user selected (validated above)
-    } else {
+    // Validate based on user mode
+    if (userMode === 'create') {
       if (!email) {
         toast.error("Please enter email")
         return
       }
-
+      if (!newFirstName) {
+        toast.error("Please enter first name")
+        return
+      }
+      if (!newPassword) {
+        toast.error("Please enter a password")
+        return
+      }
+      if (newPassword.length < 6) {
+        toast.error("Password must be at least 6 characters")
+        return
+      }
+      // Validate type-specific required fields for new user
+      // Individual uses firstName (already validated above)
       if (investorType === 'Institution' && !institutionName) {
         toast.error("Please enter institution name")
         return
       }
-
       if (investorType === 'Family Office' && !officeName) {
         toast.error("Please enter office name")
         return
       }
-
       if (investorType === 'Fund of Funds' && !fundName) {
         toast.error("Please enter fund name")
+        return
+      }
+    } else {
+      if (!selectedUserId) {
+        toast.error("Please select a user")
         return
       }
     }
@@ -238,45 +256,45 @@ export default function AddInvestorPage() {
         return
       }
 
-      // Build payload based on investor type
+      // Build payload - custom terms always included (per-structure)
       const payload: any = {
-        investorType,
-        email,
-        phoneNumber,
-        country,
-        taxId,
-        kycStatus,
-        accreditedInvestor,
-        riskTolerance,
-        investmentPreferences,
         structureId: selectedStructure,
-        userId: selectedUserId,
+        // Custom terms
+        feeDiscount: feeDiscount ? parseFloat(feeDiscount) : 0,
+        vatExempt,
+        customTerms: {
+          ...(showPreferredReturn && preferredReturnOverride ? { preferredReturn: parseFloat(preferredReturnOverride) } : {}),
+          ...(showPerformanceFee && performanceFeeOverride ? { performanceFee: parseFloat(performanceFeeOverride) } : {}),
+          ...(showInterestRates && interestRateOverride ? { interestRate: parseFloat(interestRateOverride) } : {}),
+          ...(showInterestRates && grossInterestRateOverride ? { grossInterestRate: parseFloat(grossInterestRateOverride) } : {}),
+        },
+        // Closing Tranche (tracks which closing round investor joined)
+        ...(closingTranche ? { closingTranche } : {}),
+        ...(closingDate ? { closingDate } : {}),
+        ...(closingTranche === 'custom' && closingTrancheCustomName ? { closingTrancheCustomName } : {}),
       }
 
-      if (investorType === 'Individual') {
-        payload.fullName = fullName
-        payload.dateOfBirth = dateOfBirth
-        payload.nationality = nationality
-        payload.passportNumber = passportNumber
-        payload.addressLine1 = addressLine1
-        payload.addressLine2 = addressLine2
-        payload.city = city
-        payload.state = state
-        payload.postalCode = postalCode
-      } else if (investorType === 'Institution') {
-        payload.institutionName = institutionName
-        payload.institutionType = institutionType
-        payload.registrationNumber = registrationNumber
-        payload.legalRepresentative = legalRepresentative
-      } else if (investorType === 'Fund of Funds') {
-        payload.fundName = fundName
-        payload.fundManager = fundManager
-        payload.aum = aum ? parseFloat(aum) : undefined
-      } else if (investorType === 'Family Office') {
-        payload.officeName = officeName
-        payload.familyName = familyName
-        payload.principalContact = principalContact
-        payload.assetsUnderManagement = assetsUnderManagement ? parseFloat(assetsUnderManagement) : undefined
+      if (userMode === 'create') {
+        // New user: send account data with investor type and type-specific fields
+        payload.createUser = true
+        payload.firstName = newFirstName
+        payload.lastName = newLastName
+        payload.email = email
+        payload.password = newPassword
+        payload.sendWelcomeEmail = sendWelcomeEmail
+        payload.investorType = investorType
+        // Add type-specific required fields
+        if (investorType === 'Institution') {
+          payload.institutionName = institutionName
+        } else if (investorType === 'Family Office') {
+          payload.officeName = officeName
+        } else if (investorType === 'Fund of Funds') {
+          payload.fundName = fundName
+        }
+        // Individual uses firstName which is already sent
+      } else {
+        // Existing user: only send userId (API uses existing user's investorType)
+        payload.userId = selectedUserId
       }
 
       const apiUrl = getApiUrl(API_CONFIG.endpoints.createInvestor)
@@ -304,6 +322,19 @@ export default function AddInvestorPage() {
         }
       }
 
+      // Handle 403 Subscription Limit Exceeded
+      if (response.status === 403) {
+        const errorData = await response.json()
+        if (errorData.error === 'Subscription Limit Exceeded') {
+          toast.error(`Subscription Limit Reached`, {
+            description: `You have ${errorData.currentCount}/${errorData.limit} investors. ${errorData.upgradeOption ? `Upgrade to ${errorData.upgradeOption.name} for more.` : 'Contact support to increase your limit.'}`,
+            duration: 8000
+          })
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || 'Failed to create investor')
@@ -311,7 +342,13 @@ export default function AddInvestorPage() {
 
       const result = await response.json()
 
-      toast.success('Investor created successfully')
+      if (result.userCreated) {
+        toast.success(result.emailSent
+          ? 'Investor and user account created. Welcome email sent.'
+          : 'Investor and user account created successfully.')
+      } else {
+        toast.success('Investor created successfully')
+      }
       router.push('/investment-manager/investors')
     } catch (err: any) {
       console.error('Error creating investor:', err)
@@ -394,378 +431,340 @@ export default function AddInvestorPage() {
               </Select>
             </div>
 
-            {/* Investor Type Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="investorType">Investor Type *</Label>
-              <Select value={investorType} onValueChange={(value) => setInvestorType(value as InvestorType)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select investor type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Individual">Individual</SelectItem>
-                  <SelectItem value="Institution">Institution</SelectItem>
-                  <SelectItem value="Family Office">Family Office</SelectItem>
-                  <SelectItem value="Fund of Funds">Fund of Funds</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* User Mode Toggle */}
+            <div className="space-y-4">
+              <Label>User Account *</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={userMode === 'create' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setUserMode('create'); setSelectedUserId(""); setFullName(""); setInstitutionName(""); setFundName(""); setOfficeName("") }}
+                >
+                  Create New User
+                </Button>
+                <Button
+                  type="button"
+                  variant={userMode === 'existing' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => { setUserMode('existing'); setNewFirstName(""); setNewLastName(""); setNewPassword("") }}
+                >
+                  Select Existing User
+                </Button>
+              </div>
 
-            {/* User Selection - Always shown */}
-            <div className="space-y-2">
-              <Label htmlFor="user">Associate User *</Label>
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.firstName} {user.lastName} ({user.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                {investorType === 'Individual'
-                  ? 'Email and name will be taken from the selected user'
-                  : 'Associate a user account with this investor'}
-              </p>
-            </div>
+              {userMode === 'create' ? (
+                <div className="space-y-6 p-4 border rounded-lg bg-muted/30">
+                  <p className="text-sm text-muted-foreground">
+                    A new user account will be created with investor access to the LP Portal.
+                  </p>
 
-            {/* Individual: Additional fields */}
-            {investorType === 'Individual' && (
-              <>
-
-                {/* Individual specific fields */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                    <Input
-                      id="dateOfBirth"
-                      type="date"
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="nationality">Nationality</Label>
-                    <Input
-                      id="nationality"
-                      value={nationality}
-                      onChange={(e) => setNationality(e.target.value)}
-                      placeholder="e.g., United States"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="passportNumber">Passport Number</Label>
-                    <Input
-                      id="passportNumber"
-                      value={passportNumber}
-                      onChange={(e) => setPassportNumber(e.target.value)}
-                      placeholder="Passport number"
-                    />
-                  </div>
-                </div>
-
-                {/* Address fields */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium">Address</h3>
-                  <div className="grid grid-cols-1 gap-4">
+                  {/* Account Credentials */}
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="addressLine1">Address Line 1</Label>
+                      <Label htmlFor="newFirstName">First Name *</Label>
                       <Input
-                        id="addressLine1"
-                        value={addressLine1}
-                        onChange={(e) => setAddressLine1(e.target.value)}
-                        placeholder="Street address"
+                        id="newFirstName"
+                        value={newFirstName}
+                        onChange={(e) => setNewFirstName(e.target.value)}
+                        placeholder="First name"
+                        required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="addressLine2">Address Line 2</Label>
+                      <Label htmlFor="newLastName">Last Name</Label>
                       <Input
-                        id="addressLine2"
-                        value={addressLine2}
-                        onChange={(e) => setAddressLine2(e.target.value)}
-                        placeholder="Apt, suite, etc. (optional)"
+                        id="newLastName"
+                        value={newLastName}
+                        onChange={(e) => setNewLastName(e.target.value)}
+                        placeholder="Last name"
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="city">City</Label>
-                        <Input
-                          id="city"
-                          value={city}
-                          onChange={(e) => setCity(e.target.value)}
-                          placeholder="City"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="state">State</Label>
-                        <Input
-                          id="state"
-                          value={state}
-                          onChange={(e) => setState(e.target.value)}
-                          placeholder="State"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="postalCode">Postal Code</Label>
-                        <Input
-                          id="postalCode"
-                          value={postalCode}
-                          onChange={(e) => setPostalCode(e.target.value)}
-                          placeholder="Postal code"
-                        />
-                      </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newEmail">Email *</Label>
+                    <Input
+                      id="newEmail"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="investor@example.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">Password *</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Min. 6 characters"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sendWelcomeEmail" className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="sendWelcomeEmail"
+                        checked={sendWelcomeEmail}
+                        onChange={(e) => setSendWelcomeEmail(e.target.checked)}
+                        className="rounded"
+                      />
+                      Send welcome email with login credentials
+                    </Label>
+                  </div>
+
+                  {/* Investor Type Selection */}
+                  <div className="space-y-2 border-t pt-4">
+                    <Label htmlFor="investorType">Investor Type *</Label>
+                    <Select value={investorType} onValueChange={(value) => setInvestorType(value as InvestorType)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select investor type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Individual">Individual</SelectItem>
+                        <SelectItem value="Institution">Institution</SelectItem>
+                        <SelectItem value="Family Office">Family Office</SelectItem>
+                        <SelectItem value="Fund of Funds">Fund of Funds</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Additional profile details and bank information can be managed by the investor in their LP Portal settings.
+                    </p>
+                  </div>
+
+                  {/* Type-specific required fields for new user */}
+                  {investorType === 'Institution' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="institutionNameCreate">Institution Name *</Label>
+                      <Input
+                        id="institutionNameCreate"
+                        value={institutionName}
+                        onChange={(e) => setInstitutionName(e.target.value)}
+                        placeholder="Institution name"
+                        required
+                      />
                     </div>
-                  </div>
-                </div>
-              </>
-            )}
+                  )}
+                  {investorType === 'Family Office' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="officeNameCreate">Office Name *</Label>
+                      <Input
+                        id="officeNameCreate"
+                        value={officeName}
+                        onChange={(e) => setOfficeName(e.target.value)}
+                        placeholder="Family office name"
+                        required
+                      />
+                    </div>
+                  )}
+                  {investorType === 'Fund of Funds' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="fundNameCreate">Fund Name *</Label>
+                      <Input
+                        id="fundNameCreate"
+                        value={fundName}
+                        onChange={(e) => setFundName(e.target.value)}
+                        placeholder="Fund name"
+                        required
+                      />
+                    </div>
+                  )}
 
-            {/* Institution Fields */}
-            {investorType === 'Institution' && (
-              <>
+                </div>
+              ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="institution@example.com"
-                    required
-                  />
+                  <Label htmlFor="existingUser">Select User *</Label>
+                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an existing investor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.firstName} {user.lastName} ({user.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Select an existing investor user to assign to this structure. Profile data is already stored on their account.
+                  </p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="institutionName">Institution Name *</Label>
-                    <Input
-                      id="institutionName"
-                      value={institutionName}
-                      onChange={(e) => setInstitutionName(e.target.value)}
-                      placeholder="Institution name"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="institutionType">Institution Type</Label>
-                    <Input
-                      id="institutionType"
-                      value={institutionType}
-                      onChange={(e) => setInstitutionType(e.target.value)}
-                      placeholder="e.g., Bank, Insurance, etc."
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="registrationNumber">Registration Number</Label>
-                    <Input
-                      id="registrationNumber"
-                      value={registrationNumber}
-                      onChange={(e) => setRegistrationNumber(e.target.value)}
-                      placeholder="Registration number"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="legalRepresentative">Legal Representative</Label>
-                    <Input
-                      id="legalRepresentative"
-                      value={legalRepresentative}
-                      onChange={(e) => setLegalRepresentative(e.target.value)}
-                      placeholder="Name of legal representative"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
+              )}
+            </div>
 
-            {/* Family Office Fields */}
-            {investorType === 'Family Office' && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="office@example.com"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="officeName">Office Name *</Label>
-                    <Input
-                      id="officeName"
-                      value={officeName}
-                      onChange={(e) => setOfficeName(e.target.value)}
-                      placeholder="Family office name"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="familyName">Family Name</Label>
-                    <Input
-                      id="familyName"
-                      value={familyName}
-                      onChange={(e) => setFamilyName(e.target.value)}
-                      placeholder="Family name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="principalContact">Principal Contact</Label>
-                    <Input
-                      id="principalContact"
-                      value={principalContact}
-                      onChange={(e) => setPrincipalContact(e.target.value)}
-                      placeholder="Contact person name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="assetsUnderManagement">Assets Under Management</Label>
-                    <Input
-                      id="assetsUnderManagement"
-                      type="number"
-                      value={assetsUnderManagement}
-                      onChange={(e) => setAssetsUnderManagement(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Fund of Funds Fields */}
-            {investorType === 'Fund of Funds' && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="fund@example.com"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fundName">Fund Name *</Label>
-                    <Input
-                      id="fundName"
-                      value={fundName}
-                      onChange={(e) => setFundName(e.target.value)}
-                      placeholder="Fund name"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fundManager">Fund Manager</Label>
-                    <Input
-                      id="fundManager"
-                      value={fundManager}
-                      onChange={(e) => setFundManager(e.target.value)}
-                      placeholder="Manager name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="aum">AUM (Assets Under Management)</Label>
-                    <Input
-                      id="aum"
-                      type="number"
-                      value={aum}
-                      onChange={(e) => setAum(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Common fields for all types */}
+            {/* Custom terms (per-investor overrides, dynamic based on structure type) */}
+            {selectedStructure && (
             <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-medium">Additional Information</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <h3 className="text-sm font-medium">Custom terms</h3>
+              <p className="text-xs text-muted-foreground">
+                Per-investor overrides for the selected structure
+              </p>
+              <div className="space-y-4">
+                {/* VAT Exempt - always shown */}
                 <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="country">Country</Label>
-                  <Input
-                    id="country"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    placeholder="Country"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="taxId">Tax ID</Label>
-                  <Input
-                    id="taxId"
-                    value={taxId}
-                    onChange={(e) => setTaxId(e.target.value)}
-                    placeholder="Tax ID"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="kycStatus">KYC Status</Label>
-                  <Select value={kycStatus} onValueChange={setKycStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Not Started">Not Started</SelectItem>
-                      <SelectItem value="In Progress">In Progress</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="Approved">Approved</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="riskTolerance">Risk Tolerance</Label>
-                  <Select value={riskTolerance} onValueChange={setRiskTolerance}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select risk tolerance" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Conservative">Conservative</SelectItem>
-                      <SelectItem value="Moderate">Moderate</SelectItem>
-                      <SelectItem value="Aggressive">Aggressive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="investmentPreferences">Investment Preferences</Label>
-                  <Input
-                    id="investmentPreferences"
-                    value={investmentPreferences}
-                    onChange={(e) => setInvestmentPreferences(e.target.value)}
-                    placeholder="e.g., Real Estate, Technology, Healthcare"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accreditedInvestor" className="flex items-center gap-2">
+                  <Label htmlFor="vatExempt" className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      id="accreditedInvestor"
-                      checked={accreditedInvestor}
-                      onChange={(e) => setAccreditedInvestor(e.target.checked)}
+                      id="vatExempt"
+                      checked={vatExempt}
+                      onChange={(e) => setVatExempt(e.target.checked)}
                       className="rounded"
                     />
-                    Accredited Investor
+                    VAT Exempt
                   </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Exempts this investor from VAT on fees
+                  </p>
                 </div>
+
+                {/* Closing Tranche - tracks which closing round investor joined */}
+                <div className="space-y-4 border-t pt-4">
+                  <h4 className="text-sm font-medium">Closing Tranche</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Track which closing round this investor joined (for capital call tracking)
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="closingTranche">Closing Round</Label>
+                      <Select value={closingTranche} onValueChange={(value) => setClosingTranche(value as typeof closingTranche)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select closing round" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="initial">Initial Closing</SelectItem>
+                          <SelectItem value="second">Second Closing</SelectItem>
+                          <SelectItem value="third">Third Closing</SelectItem>
+                          <SelectItem value="final">Final Closing</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="closingDate">Closing Date</Label>
+                      <Input
+                        id="closingDate"
+                        type="date"
+                        value={closingDate}
+                        onChange={(e) => setClosingDate(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  {closingTranche === 'custom' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="closingTrancheCustomName">Custom Closing Name</Label>
+                      <Input
+                        id="closingTrancheCustomName"
+                        value={closingTrancheCustomName}
+                        onChange={(e) => setClosingTrancheCustomName(e.target.value)}
+                        placeholder="e.g., Extension Round, Bridge Closing"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Management Fee Discount - always shown, first field after tranche info */}
+                <div className="space-y-2">
+                  <Label htmlFor="feeDiscount">Management Fee Discount (%)</Label>
+                  <Input
+                    id="feeDiscount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={feeDiscount}
+                    onChange={(e) => setFeeDiscount(e.target.value)}
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Percentage discount applied to the structure&apos;s management fee for this investor (0-100%)
+                  </p>
+                </div>
+
+                {/* Preferred Return Override - Fund, Multi-Property Trust, SA/LLC, Single-Property Trust */}
+                {showPreferredReturn && (
+                  <div className="space-y-2">
+                    <Label htmlFor="preferredReturnOverride">Preferred Return Override (%)</Label>
+                    <Input
+                      id="preferredReturnOverride"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={preferredReturnOverride}
+                      onChange={(e) => setPreferredReturnOverride(e.target.value)}
+                      placeholder="Leave empty to use structure default"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Override the preferred return rate for this investor
+                    </p>
+                  </div>
+                )}
+
+                {/* Performance Fee Override - Fund & Multi-Property Trust only */}
+                {showPerformanceFee && (
+                  <div className="space-y-2">
+                    <Label htmlFor="performanceFeeOverride">Performance Fee Override (%)</Label>
+                    <Input
+                      id="performanceFeeOverride"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={performanceFeeOverride}
+                      onChange={(e) => setPerformanceFeeOverride(e.target.value)}
+                      placeholder="Leave empty to use structure default"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Override the carried interest / performance fee for this investor
+                    </p>
+                  </div>
+                )}
+
+                {/* Interest Rate Override - Private Debt only */}
+                {showInterestRates && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="interestRateOverride">Interest Rate Override (%)</Label>
+                      <Input
+                        id="interestRateOverride"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={interestRateOverride}
+                        onChange={(e) => setInterestRateOverride(e.target.value)}
+                        placeholder="Leave empty to use structure default"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Override the base interest rate (brute) for this investor
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="grossInterestRateOverride">Gross Interest Rate Override (%)</Label>
+                      <Input
+                        id="grossInterestRateOverride"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        value={grossInterestRateOverride}
+                        onChange={(e) => setGrossInterestRateOverride(e.target.value)}
+                        placeholder="Leave empty to use structure default"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Override the annual gross interest rate for this investor
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
+            )}
 
             {/* Action buttons */}
             <div className="flex gap-4 pt-4">

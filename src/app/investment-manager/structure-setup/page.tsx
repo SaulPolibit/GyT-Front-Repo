@@ -30,6 +30,7 @@ import { getVisibilitySettings } from '@/lib/visibility-storage'
 import { getApiUrl, API_CONFIG } from '@/lib/api-config'
 import { getAuthState, logout } from '@/lib/auth-storage'
 import { canCreateStructure, canCreateStructureAsync, getEmulatedSubscription, saveEmulatedSubscription, hasActiveSubscription, refreshSubscriptionCache, EmulatedSubscription } from '@/lib/stripe-products'
+import { validateStructureCreation, getLimitExceededMessage, formatCurrency } from '@/lib/subscription-limits'
 
 // V3.1: Investor Pre-Registration Interface
 interface InvestorPreRegistration {
@@ -1063,12 +1064,22 @@ export default function OnboardingPage() {
     setIsSubmitting(true)
 
     try {
-      // Validate subscription status before creating structure
+      // Validate subscription status before creating structure (emissions check)
       const authState = getAuthState()
       const userEmail = authState.user?.email || authState.supabase?.email
       const subscriptionCheck = await canCreateStructureAsync(userEmail)
       if (!subscriptionCheck.allowed) {
         toast.error(subscriptionCheck.reason || 'Cannot create structure. Please check your subscription.')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Validate subscription limits for structure commitment (tier_based model)
+      const totalCommitment = parseFloat(formData.totalCapitalCommitment) || 0
+      const commitmentValidation = await validateStructureCreation(totalCommitment)
+      if (!commitmentValidation.allowed) {
+        const errorMessage = getLimitExceededMessage('structure', commitmentValidation)
+        toast.error(errorMessage, { duration: 8000 })
         setIsSubmitting(false)
         return
       }
@@ -1701,6 +1712,30 @@ export default function OnboardingPage() {
             console.log('Error: ', e)
           }
         }
+
+        // Handle 403 Subscription Limit Exceeded
+        if (structureResponse.status === 403) {
+          try {
+            const errorData = await structureResponse.json()
+            if (errorData.error === "SUBSCRIPTION_LIMIT_EXCEEDED") {
+              console.log('[Structure Setup] Subscription limit exceeded:', errorData)
+              const details = errorData.details || {}
+              let errorMessage = errorData.message || 'Subscription limit exceeded.'
+
+              // Add upgrade suggestion if available
+              if (details.upgradeOption) {
+                errorMessage += ` Upgrade to ${details.upgradeOption.name} for higher limits.`
+              }
+
+              toast.error(errorMessage, { duration: 8000 })
+              setIsSubmitting(false)
+              return
+            }
+          } catch (e) {
+            console.log('Error parsing 403 response:', e)
+          }
+        }
+
         const errorData = await structureResponse.json().catch(() => ({}))
         console.error('[Structure Setup] Failed to create structure:', errorData)
         toast.error('Failed to create structure. Please try again.')

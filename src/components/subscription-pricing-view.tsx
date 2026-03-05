@@ -27,7 +27,9 @@ import {
   CreditCard,
   ExternalLink,
   PauseCircle,
-  PlayCircle
+  PlayCircle,
+  Users,
+  TrendingUp
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadStripe } from '@stripe/stripe-js';
@@ -48,7 +50,8 @@ import {
   StripeSubscription,
   EmulatedSubscription
 } from '@/lib/stripe-products';
-import { getAuthState } from '@/lib/auth-storage';
+import { getAuthState, getAuthToken } from '@/lib/auth-storage';
+import { getApiUrl, API_CONFIG } from '@/lib/api-config';
 
 interface SubscriptionPricingViewProps {
   onSubscriptionChange?: (subscription: EmulatedSubscription | null) => void;
@@ -77,7 +80,31 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
-  const subscriptionModel = getSubscriptionModel();
+  // Extra AUM and Extra Investors states (tier_based only)
+  const [showExtraInvestorsDialog, setShowExtraInvestorsDialog] = useState(false);
+  const [showExtraAumDialog, setShowExtraAumDialog] = useState(false);
+  const [pendingExtraInvestors, setPendingExtraInvestors] = useState<number | null>(null);
+  const [pendingExtraAum, setPendingExtraAum] = useState<number | null>(null);
+  const [subscriptionUsage, setSubscriptionUsage] = useState<{
+    investors: { current: number; limit: number; remaining: number };
+    commitment: { current: number; limit: number; remaining: number } | null;
+  } | null>(null);
+
+  // Subscription model from database (dynamic, not from env)
+  const [subscriptionModelFromDb, setSubscriptionModelFromDb] = useState<'tier_based' | 'payg' | null>(null);
+  const [usageLoadError, setUsageLoadError] = useState<string | null>(null);
+
+  // Use database value if available, fallback to env for initial render
+  const subscriptionModel = subscriptionModelFromDb || getSubscriptionModel();
+
+  console.log('[SubscriptionPricingView] Current state:', {
+    subscriptionModel,
+    subscriptionModelFromDb,
+    hasUsage: !!subscriptionUsage,
+    usageLoadError,
+    envModel: typeof window !== 'undefined' ? process.env.NEXT_PUBLIC_SUBSCRIPTION_MODEL : 'server'
+  });
+  console.log('[SubscriptionPricingView] subscriptionUsage details:', subscriptionUsage);
   const plans = subscriptionModel === 'tier_based' ? TIER_BASED_PLANS : PAYG_PLANS;
   const setupFee = SHARED_PRODUCTS[0];
   const emissionProducts = SHARED_PRODUCTS.filter(
@@ -95,6 +122,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     const purchase = urlParams.get('purchase');
 
     const verifyAndLoadSubscription = async () => {
+      const quantity = urlParams.get('quantity');
+
       // If returning from a successful purchase, verify and apply it
       if (success === 'true' && sessionId && (purchase === 'emissions' || purchase === 'credits')) {
         console.log('[SubscriptionPricingView] Verifying purchase session:', sessionId, 'type:', purchase);
@@ -130,6 +159,43 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           toast.error('Failed to verify purchase');
         }
         // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
+      } else if (success === 'true' && (purchase === 'extra_investors' || purchase === 'extra_aum') && sessionId) {
+        // Verify and apply the extra purchase
+        console.log('[SubscriptionPricingView] Verifying extra purchase:', { purchase, sessionId, quantity });
+        try {
+          const token = getAuthToken();
+          const verifyUrl = getApiUrl(API_CONFIG.endpoints.verifyExtraPurchase);
+          const verifyResponse = await fetch(verifyUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const verifyData = await verifyResponse.json();
+          console.log('[SubscriptionPricingView] Verify response:', verifyData);
+
+          if (verifyData.success) {
+            if (purchase === 'extra_investors') {
+              toast.success(`Successfully added ${quantity || ''} extra investor slots! New limit: ${verifyData.newLimit}`);
+            } else {
+              toast.success(`Successfully added $${quantity || ''}M extra AUM! New limit: $${(verifyData.newLimit / 1000000).toFixed(0)}M`);
+            }
+          } else {
+            // May already be processed
+            if (purchase === 'extra_investors') {
+              toast.success(`Extra investor slots purchased! Your limits have been updated.`);
+            } else {
+              toast.success(`Extra AUM capacity purchased! Your limits have been updated.`);
+            }
+          }
+        } catch (verifyError) {
+          console.error('[SubscriptionPricingView] Error verifying extra purchase:', verifyError);
+          toast.success('Purchase completed! Refreshing your limits...');
+        }
         window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
       } else if (success === 'true') {
         if (sessionId) {
@@ -244,6 +310,42 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       if (sub?.currentPlan) {
         setSelectedPlanId(sub.currentPlan.id);
       }
+    }
+
+    // Always load subscription usage from database API (includes model and limits)
+    try {
+      const token = getAuthToken();
+      console.log('[LoadSubscription] Loading usage, token exists:', !!token);
+      if (token) {
+        const usageUrl = getApiUrl(API_CONFIG.endpoints.subscriptionUsage || '/stripe/subscription-usage');
+        console.log('[LoadSubscription] Fetching from:', usageUrl);
+        const usageResponse = await fetch(usageUrl, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const usageData = await usageResponse.json();
+        console.log('[LoadSubscription] Usage data:', usageData);
+        if (usageData.success && usageData.usage) {
+          // Set subscription model from database
+          if (usageData.usage.model) {
+            setSubscriptionModelFromDb(usageData.usage.model as 'tier_based' | 'payg');
+          }
+          // Set usage stats
+          setSubscriptionUsage({
+            investors: usageData.usage.investors,
+            commitment: usageData.usage.commitment
+          });
+          setUsageLoadError(null);
+        } else {
+          console.error('[LoadSubscription] API returned error:', usageData);
+          setUsageLoadError(usageData.message || usageData.error || 'Failed to load usage data');
+        }
+      } else {
+        console.warn('[LoadSubscription] No auth token found');
+        setUsageLoadError('Not authenticated');
+      }
+    } catch (usageError: any) {
+      console.error('[LoadSubscription] Error loading usage:', usageError);
+      setUsageLoadError(usageError.message || 'Failed to load usage data');
     }
 
     setLoading(false);
@@ -681,6 +783,87 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     setProcessing(false);
   };
 
+  // Extra Investors purchase handlers
+  const initiateExtraInvestorsPurchase = (count: number) => {
+    setPendingExtraInvestors(count);
+    setShowExtraInvestorsDialog(true);
+  };
+
+  const handlePurchaseExtraInvestors = async () => {
+    if (!pendingExtraInvestors) return;
+    setShowExtraInvestorsDialog(false);
+    setProcessing(true);
+
+    try {
+      const url = getApiUrl(API_CONFIG.endpoints.purchaseExtraInvestors);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({ extraInvestors: pendingExtraInvestors }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.url) {
+        // Redirect to Stripe checkout
+        console.log('[Purchase Extra Investors] Redirecting to:', data.url);
+        window.location.href = data.url;
+        return;
+      } else {
+        toast.error(data.message || data.error || 'Failed to create checkout session');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to purchase extra investors');
+    }
+
+    setPendingExtraInvestors(null);
+    setProcessing(false);
+  };
+
+  // Extra AUM purchase handlers
+  const initiateExtraAumPurchase = (millions: number) => {
+    setPendingExtraAum(millions);
+    setShowExtraAumDialog(true);
+  };
+
+  const handlePurchaseExtraAum = async () => {
+    if (!pendingExtraAum) return;
+    setShowExtraAumDialog(false);
+    setProcessing(true);
+
+    try {
+      const amountInDollars = pendingExtraAum * 1000000; // Convert millions to dollars
+      const url = getApiUrl(API_CONFIG.endpoints.purchaseExtraAum);
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAuthToken()}`
+        },
+        body: JSON.stringify({ extraCommitment: amountInDollars }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.url) {
+        // Redirect to Stripe checkout
+        console.log('[Purchase Extra AUM] Redirecting to:', data.url);
+        window.location.href = data.url;
+        return;
+      } else {
+        toast.error(data.message || data.error || 'Failed to create checkout session');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to purchase extra AUM');
+    }
+
+    setPendingExtraAum(null);
+    setProcessing(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
@@ -810,6 +993,206 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             </CardContent>
           </Card>
         </div>
+
+        {/* Extra AUM and Extra Investors (tier_based only) */}
+        {subscriptionModel === 'tier_based' && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Subscription Limits & Extras
+              </CardTitle>
+              <CardDescription>Purchase additional capacity for your account</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {usageLoadError ? (
+                <div className="text-center py-4">
+                  <AlertCircle className="h-6 w-6 text-destructive mx-auto mb-2" />
+                  <p className="text-sm text-destructive mb-2">{usageLoadError}</p>
+                  <Button variant="outline" size="sm" onClick={loadSubscription}>Retry</Button>
+                </div>
+              ) : !subscriptionUsage ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+                  <span className="text-muted-foreground">Loading limits...</span>
+                </div>
+              ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Current Limits & Extra Investors */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Investor Capacity</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {subscriptionUsage.investors.current} / {subscriptionUsage.investors.limit} used
+              </div>
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-2">
+                {[10, 25, 50].map((count) => (
+                  <Button
+                    key={count}
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-col h-auto py-2"
+                    onClick={() => initiateExtraInvestorsPurchase(count)}
+                    disabled={processing}
+                  >
+                    <span className="font-semibold">+{count}</span>
+                    <span className="text-xs text-muted-foreground">${count * 10}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* AUM Capacity */}
+            {subscriptionUsage.commitment && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">AUM Capacity</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  ${(subscriptionUsage.commitment.current / 1000000).toFixed(1)}M / ${(subscriptionUsage.commitment.limit / 1000000).toFixed(0)}M
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%` }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  {[1, 5, 10].map((millions) => (
+                    <Button
+                      key={millions}
+                      variant="outline"
+                      size="sm"
+                      className="flex flex-col h-auto py-2"
+                      onClick={() => initiateExtraAumPurchase(millions)}
+                      disabled={processing}
+                    >
+                      <span className="font-semibold">+${millions}M</span>
+                      <span className="text-xs text-muted-foreground">${millions * 100}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Remove old duplicate cards below */}
+        {false && subscriptionModel === 'tier_based' && subscriptionUsage && (
+          <div className="grid md:grid-cols-2 gap-4">
+            {/* Old duplicate - disabled */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Investor Capacity
+                </CardTitle>
+                <CardDescription>
+                  {subscriptionUsage.investors.current} / {subscriptionUsage.investors.limit} investors used
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-3">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Usage</span>
+                    <span>{Math.round((subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {subscriptionUsage.investors.remaining} slots remaining
+                  </div>
+                </div>
+                <Separator className="my-3" />
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Purchase Extra Investors</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[10, 25, 50].map((count) => (
+                      <Button
+                        key={count}
+                        variant="outline"
+                        size="sm"
+                        className="flex flex-col h-auto py-2"
+                        onClick={() => initiateExtraInvestorsPurchase(count)}
+                        disabled={processing}
+                      >
+                        <span className="font-semibold">+{count}</span>
+                        <span className="text-xs text-muted-foreground">${count * 10}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Current Limits & Extra AUM */}
+            {subscriptionUsage.commitment && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    AUM Capacity
+                  </CardTitle>
+                  <CardDescription>
+                    ${(subscriptionUsage.commitment.current / 1000000).toFixed(1)}M / ${(subscriptionUsage.commitment.limit / 1000000).toFixed(0)}M used
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-3">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Usage</span>
+                      <span>{Math.round((subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%` }}
+                      />
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      ${((subscriptionUsage.commitment.limit - subscriptionUsage.commitment.current) / 1000000).toFixed(1)}M remaining
+                    </div>
+                  </div>
+                  <Separator className="my-3" />
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Purchase Extra AUM</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[1, 5, 10].map((millions) => (
+                        <Button
+                          key={millions}
+                          variant="outline"
+                          size="sm"
+                          className="flex flex-col h-auto py-2"
+                          onClick={() => initiateExtraAumPurchase(millions)}
+                          disabled={processing}
+                        >
+                          <span className="font-semibold">+${millions}M</span>
+                          <span className="text-xs text-muted-foreground">${millions * 100}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
         {/* Purchase More Emissions */}
         <Card>
@@ -956,6 +1339,46 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <AlertDialogCancel>Keep Active</AlertDialogCancel>
               <AlertDialogAction onClick={handlePauseSubscription}>
                 Yes, Pause
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Extra Investors Purchase Dialog */}
+        <AlertDialog open={showExtraInvestorsDialog} onOpenChange={setShowExtraInvestorsDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Purchase Extra Investor Slots</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingExtraInvestors
+                  ? `You are about to purchase ${pendingExtraInvestors} additional investor slots for $${pendingExtraInvestors * 10}. This will increase your maximum investor capacity.`
+                  : 'Confirm your purchase.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handlePurchaseExtraInvestors}>
+                Confirm Purchase
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Extra AUM Purchase Dialog */}
+        <AlertDialog open={showExtraAumDialog} onOpenChange={setShowExtraAumDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Purchase Extra AUM Capacity</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingExtraAum
+                  ? `You are about to purchase $${pendingExtraAum}M additional AUM capacity for $${pendingExtraAum * 100}. This will increase your maximum total commitment limit.`
+                  : 'Confirm your purchase.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handlePurchaseExtraAum}>
+                Confirm Purchase
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1224,6 +1647,144 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           )}
         </CardContent>
       </Card>
+
+      {/* Extra AUM and Extra Investors (tier_based only) - show even without active subscription */}
+      {/* Debug: subscriptionModel={subscriptionModel}, hasUsage={!!subscriptionUsage} */}
+      {subscriptionModel === 'tier_based' && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Current Usage & Extras
+            </CardTitle>
+            <CardDescription>Purchase additional capacity for your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {usageLoadError ? (
+              <div className="text-center py-8">
+                <AlertCircle className="h-6 w-6 text-destructive mx-auto mb-2" />
+                <p className="text-sm text-destructive mb-2">{usageLoadError}</p>
+                <Button variant="outline" size="sm" onClick={loadSubscription}>
+                  Retry
+                </Button>
+              </div>
+            ) : !subscriptionUsage ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
+                <span className="text-muted-foreground">Loading usage data...</span>
+              </div>
+            ) : (
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Investor Capacity */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">Investor Capacity</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {subscriptionUsage.investors.current} / {subscriptionUsage.investors.limit} used
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[10, 25, 50].map((count) => (
+                    <Button
+                      key={count}
+                      variant="outline"
+                      size="sm"
+                      className="flex flex-col h-auto py-2"
+                      onClick={() => initiateExtraInvestorsPurchase(count)}
+                      disabled={processing}
+                    >
+                      <span className="font-semibold">+{count}</span>
+                      <span className="text-xs text-muted-foreground">${count * 10}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* AUM Capacity */}
+              {subscriptionUsage.commitment && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">AUM Capacity</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    ${(subscriptionUsage.commitment.current / 1000000).toFixed(1)}M / ${(subscriptionUsage.commitment.limit / 1000000).toFixed(0)}M used
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1, 5, 10].map((millions) => (
+                      <Button
+                        key={millions}
+                        variant="outline"
+                        size="sm"
+                        className="flex flex-col h-auto py-2"
+                        onClick={() => initiateExtraAumPurchase(millions)}
+                        disabled={processing}
+                      >
+                        <span className="font-semibold">+${millions}M</span>
+                        <span className="text-xs text-muted-foreground">${millions * 100}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Extra Investors Purchase Dialog */}
+      <AlertDialog open={showExtraInvestorsDialog} onOpenChange={setShowExtraInvestorsDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Purchase Extra Investor Slots</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingExtraInvestors
+                ? `You are about to purchase ${pendingExtraInvestors} additional investor slots for $${pendingExtraInvestors * 10}. This will increase your maximum investor capacity.`
+                : 'Confirm your purchase.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePurchaseExtraInvestors}>
+              Confirm Purchase
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Extra AUM Purchase Dialog */}
+      <AlertDialog open={showExtraAumDialog} onOpenChange={setShowExtraAumDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Purchase Extra AUM Capacity</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingExtraAum
+                ? `You are about to purchase $${pendingExtraAum}M additional AUM capacity for $${pendingExtraAum * 100}. This will increase your maximum total commitment limit.`
+                : 'Confirm your purchase.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePurchaseExtraAum}>
+              Confirm Purchase
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Currency Conflict Dialog */}
       <AlertDialog open={showCurrencyConflictDialog} onOpenChange={setShowCurrencyConflictDialog}>

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, User, Users, Building, Briefcase, Mail, MapPin, Wallet, Loader2, AlertCircle, CheckCircle, XCircle, CreditCard, Clock } from "lucide-react"
+import { Search, User, Users, Building, Briefcase, Mail, MapPin, Wallet, Loader2, AlertCircle, CheckCircle, XCircle, CreditCard, Clock, Plus } from "lucide-react"
+import Link from "next/link"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
 import { getAuthToken, getAuthState } from "@/lib/auth-storage"
 
@@ -253,6 +254,12 @@ export default function InvestorsPage() {
             {filteredInvestors.length} investor{filteredInvestors.length !== 1 ? 's' : ''}
           </p>
         </div>
+        <Button asChild>
+          <Link href="/investment-manager/investors/add">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Investor
+          </Link>
+        </Button>
       </div>
 
       {/* Summary Cards */}

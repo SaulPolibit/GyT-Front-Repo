@@ -182,6 +182,10 @@ export const API_CONFIG = {
     stripeGetUpcomingInvoice: '/api/stripe/upcoming-invoice',
     stripeCreateSetupIntent: '/api/stripe/create-setup-intent',
     stripeGetPaymentMethods: '/api/stripe/payment-methods',
+    subscriptionUsage: '/api/stripe/subscription-usage',
+    purchaseExtraInvestors: '/api/stripe/purchase-extra-investors',
+    purchaseExtraAum: '/api/stripe/purchase-extra-aum',
+    verifyExtraPurchase: '/api/stripe/verify-extra-purchase',
 
     // Stripe Connect API (for Investors)
     stripeConnectCreateAccount: '/api/stripe/connect/create-account',
