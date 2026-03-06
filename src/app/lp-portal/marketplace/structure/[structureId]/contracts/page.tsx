@@ -540,9 +540,6 @@ export default function ContractsSigningPage({ params }: Props) {
                   <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800">
                     Complete signing the agreement to proceed to payment.
-                    {creditCheck.model === 'payg' && creditCheck.cost > 0 && (
-                      <span className="ml-1">This will use ${(creditCheck.cost / 100).toFixed(2)} credits.</span>
-                    )}
                   </p>
                 </div>
               )}
