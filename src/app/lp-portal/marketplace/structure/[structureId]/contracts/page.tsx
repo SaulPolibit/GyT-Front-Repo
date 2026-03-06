@@ -34,6 +34,14 @@ export default function ContractsSigningPage({ params }: Props) {
   const [isSigned, setIsSigned] = React.useState(false)
   const [isChecking, setIsChecking] = React.useState(false)
   const [isVerified, setIsVerified] = React.useState(false)
+  const [creditCheck, setCreditCheck] = React.useState<{
+    allowed: boolean
+    cost: number
+    balance: number
+    model: string | null
+    message: string
+  } | null>(null)
+  const [checkingCredits, setCheckingCredits] = React.useState(true)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   const tokens = searchParams.get("tokens") || "0"
@@ -125,6 +133,55 @@ export default function ContractsSigningPage({ params }: Props) {
 
     fetchStructure()
   }, [structureId])
+
+  // Check credits for document signing (PAYG model)
+  // Credits are deducted when user clicks "Verify Signature" after signing
+  React.useEffect(() => {
+    const checkCredits = async () => {
+      setCheckingCredits(true)
+      try {
+        const token = getAuthToken()
+        if (!token) {
+          setCreditCheck({ allowed: true, cost: 0, balance: 0, model: null, message: '' })
+          setCheckingCredits(false)
+          return
+        }
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.checkSigningCredits), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (response.status === 401) {
+          setCheckingCredits(false)
+          return
+        }
+
+        const data = await response.json()
+        console.log('[Contracts] Credit check response:', data)
+
+        setCreditCheck({
+          allowed: data.allowed,
+          cost: data.cost || 0,
+          balance: data.balance || 0,
+          model: data.model,
+          message: data.message || ''
+        })
+      } catch (err) {
+        console.error('[Contracts] Error checking credits:', err)
+        // On error, allow the operation (don't block due to check failure)
+        setCreditCheck({ allowed: true, cost: 0, balance: 0, model: null, message: '' })
+      } finally {
+        setCheckingCredits(false)
+      }
+    }
+
+    checkCredits()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Load DocuSeal script
   useEffect(() => {
@@ -306,7 +363,7 @@ export default function ContractsSigningPage({ params }: Props) {
     }
   }
 
-  if (loading) {
+  if (loading || checkingCredits) {
     return (
       <div className="space-y-6 p-4 md:p-6">
         <Button variant="ghost" asChild>
@@ -316,7 +373,10 @@ export default function ContractsSigningPage({ params }: Props) {
           </a>
         </Button>
         <div className="text-center py-12">
-          <p className="text-muted-foreground">Loading...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">
+            {checkingCredits ? 'Checking account credits...' : 'Loading...'}
+          </p>
         </div>
       </div>
     )
@@ -404,8 +464,27 @@ export default function ContractsSigningPage({ params }: Props) {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col flex-1 min-h-0 gap-3 pt-0 overflow-y-auto">
+              {/* Insufficient Credits Error */}
+              {creditCheck && !creditCheck.allowed && (
+                <div className="border rounded-lg bg-muted/30 flex-1 min-h-0 flex items-center justify-center">
+                  <div className="text-center p-8 max-w-md">
+                    <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-amber-900 mb-2">Document Cannot Be Created</h3>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Please send an email to your administrator to proceed.
+                    </p>
+                    <Button variant="outline" asChild>
+                      <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Back to Checkout
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* DocuSeal Embed */}
-              {!hasTemplateError ? (
+              {creditCheck?.allowed && !hasTemplateError ? (
                 <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
                   {/* @ts-expect-error - DocuSeal is a custom web component */}
 
@@ -429,7 +508,7 @@ export default function ContractsSigningPage({ params }: Props) {
                     className="w-full h-full"
                   />
                 </div>
-              ) : (
+              ) : creditCheck?.allowed && hasTemplateError ? (
                 <div className="border rounded-lg bg-muted/30 flex-1 min-h-0 flex items-center justify-center">
                   <div className="text-center p-8 max-w-md">
                     <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -440,10 +519,10 @@ export default function ContractsSigningPage({ params }: Props) {
                     </p>
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* Status Alert - Compact */}
-              {hasTemplateError && (
+              {creditCheck?.allowed && hasTemplateError && (
                 <div className="flex gap-2 p-3 border border-red-200 bg-red-50 rounded-lg">
                   <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
@@ -456,16 +535,19 @@ export default function ContractsSigningPage({ params }: Props) {
                 </div>
               )}
 
-              {!hasTemplateError && !isSigned && (
+              {creditCheck?.allowed && !hasTemplateError && !isSigned && (
                 <div className="flex gap-2 p-3 border border-amber-200 bg-amber-50 rounded-lg">
                   <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800">
                     Complete signing the agreement to proceed to payment.
+                    {creditCheck.model === 'payg' && creditCheck.cost > 0 && (
+                      <span className="ml-1">This will use ${(creditCheck.cost / 100).toFixed(2)} credits.</span>
+                    )}
                   </p>
                 </div>
               )}
 
-              {!hasTemplateError && isSigned && (
+              {creditCheck?.allowed && !hasTemplateError && isSigned && (
                 <div className="flex gap-2 p-3 border border-green-200 bg-green-50 rounded-lg">
                   <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-green-800">
@@ -475,6 +557,7 @@ export default function ContractsSigningPage({ params }: Props) {
               )}
 
               {/* Action Buttons */}
+              {creditCheck?.allowed && (
               <div className="flex flex-col gap-3 pt-4">
                 {!hasTemplateError && !isSigned ? (
                   <Button
@@ -524,6 +607,7 @@ export default function ContractsSigningPage({ params }: Props) {
                   )}
                 </div>
               </div>
+              )}
             </CardContent>
           </Card>
         </div>

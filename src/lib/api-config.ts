@@ -22,6 +22,8 @@ export const API_CONFIG = {
     deleteStructure: (structureId: string) => `/api/structures/${structureId}`,
     getStructureDocuments: (structureId: string) => `/api/documents/entity/Structure/${structureId}`,
     verifyUserSignature: '/api/docuseal/verifyUserSignature',
+    checkSigningCredits: '/api/docuseal/check-signing-credits',
+    deductSigningCredits: '/api/docuseal/deduct-signing-credits',
     createPayment: '/api/payments',
 
     // Investments API
@@ -186,6 +188,7 @@ export const API_CONFIG = {
     purchaseExtraInvestors: '/api/stripe/purchase-extra-investors',
     purchaseExtraAum: '/api/stripe/purchase-extra-aum',
     verifyExtraPurchase: '/api/stripe/verify-extra-purchase',
+    purchaseCredits: '/api/stripe/purchase-credits',
 
     // Stripe Connect API (for Investors)
     stripeConnectCreateAccount: '/api/stripe/connect/create-account',

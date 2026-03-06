@@ -125,8 +125,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       const quantity = urlParams.get('quantity');
 
       // If returning from a successful purchase, verify and apply it
-      if (success === 'true' && sessionId && (purchase === 'emissions' || purchase === 'credits')) {
-        console.log('[SubscriptionPricingView] Verifying purchase session:', sessionId, 'type:', purchase);
+      if (success === 'true' && sessionId && purchase === 'emissions') {
+        console.log('[SubscriptionPricingView] Verifying emissions purchase:', sessionId);
         try {
           const authState = getAuthState();
           const email = authState.user?.email || authState.supabase?.email;
@@ -143,8 +143,6 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           if (data.success) {
             if (data.type === 'emission_purchase') {
               toast.success(`${data.emissionsAdded} emissions added! Total: ${data.newEmissions}`);
-            } else if (data.type === 'credit_topup') {
-              toast.success(`Credits added! New balance: $${(data.newBalance / 100).toFixed(2)}`);
             } else if (data.message === 'Session already processed') {
               toast.info('Purchase already applied');
             } else {
@@ -158,7 +156,34 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           console.error('[SubscriptionPricingView] Verify purchase exception:', error);
           toast.error('Failed to verify purchase');
         }
-        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
+      } else if (success === 'true' && purchase === 'credits' && sessionId) {
+        // Verify credit top-up via backend
+        console.log('[SubscriptionPricingView] Verifying credit top-up:', { sessionId, amount: urlParams.get('amount') });
+        try {
+          const token = getAuthToken();
+          const verifyUrl = getApiUrl(API_CONFIG.endpoints.verifyExtraPurchase);
+          const verifyResponse = await fetch(verifyUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const verifyData = await verifyResponse.json();
+          console.log('[SubscriptionPricingView] Verify credits response:', verifyData);
+
+          if (verifyData.success) {
+            toast.success(`Credits added! New balance: $${(verifyData.newBalance / 100).toFixed(2)}`);
+          } else {
+            toast.success('Credits purchased! Your balance has been updated.');
+          }
+        } catch (error) {
+          console.error('[SubscriptionPricingView] Error verifying credit purchase:', error);
+          toast.success('Credits purchased! Refreshing...');
+        }
         window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
       } else if (success === 'true' && (purchase === 'extra_investors' || purchase === 'extra_aum') && sessionId) {
         // Verify and apply the extra purchase
@@ -334,6 +359,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             investors: usageData.usage.investors,
             commitment: usageData.usage.commitment
           });
+          // Update subscription credit balance from database (for PAYG)
+          if (usageData.usage.creditBalance !== undefined) {
+            setSubscription(prev => prev ? { ...prev, creditBalance: usageData.usage.creditBalance } : prev);
+          }
           setUsageLoadError(null);
         } else {
           console.error('[LoadSubscription] API returned error:', usageData);
@@ -575,21 +604,19 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     setProcessing(true);
     const amount = pendingTopUpAmount;
 
-    if (useRealStripe && stripeSubscription) {
+    if (useRealStripe) {
       try {
-        const authState = getAuthState();
-        const userEmail = authState.user?.email || authState.supabase?.email;
+        const token = getAuthToken();
+        const url = getApiUrl(API_CONFIG.endpoints.purchaseCredits);
 
-        console.log('[TopUp Credits] Calling API with:', { customerId, subscriptionId: stripeSubscription.id, amount, userEmail });
-        const response = await fetch('/api/stripe/topup-credits', {
+        console.log('[TopUp Credits] Calling API with:', { amount });
+        const response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerId,
-            subscriptionId: stripeSubscription.id,
-            amount,
-            userEmail,
-          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ amountInCents: amount }),
         });
 
         const data = await response.json();
@@ -601,7 +628,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           window.location.href = data.url;
           return;
         } else {
-          toast.error(data.error || 'Failed to top up credits');
+          toast.error(data.message || data.error || 'Failed to create checkout session');
         }
       } catch (error: any) {
         console.error('[TopUp Credits] Error:', error);
@@ -1240,7 +1267,18 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               {subscription.creditBalance !== undefined && subscription.creditBalance <= CREDIT_WALLET_CONFIG.autoTopUpThreshold && (
                 <Alert className="mt-3" variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>Low balance - auto top-up will trigger</AlertDescription>
+                  <AlertDescription className="flex items-center justify-between w-full">
+                    <span>Low credit balance ({formatAmount(subscription.creditBalance)} remaining) - add more credits to continue operations</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => initiateTopUpCredits(CREDIT_WALLET_CONFIG.autoTopUpAmount)}
+                      disabled={processing}
+                    >
+                      Add {formatAmount(CREDIT_WALLET_CONFIG.autoTopUpAmount)}
+                    </Button>
+                  </AlertDescription>
                 </Alert>
               )}
             </CardContent>
