@@ -658,12 +658,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
     if (useRealStripe && stripeSubscription) {
       try {
+        // Get user email to validate 12-month minimum commitment
+        const authState = getAuthState();
+        const userEmail = authState.user?.email || authState.supabase?.email;
+
         const response = await fetch('/api/stripe/subscription', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subscriptionId: stripeSubscription.id,
             immediately: false,
+            userEmail: userEmail,
           }),
         });
 
@@ -672,8 +677,11 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         if (data.success) {
           toast.success('Subscription will be cancelled at end of billing period');
           await loadSubscription();
+        } else if (data.error === 'MINIMUM_COMMITMENT') {
+          // 12-month minimum commitment not met
+          toast.error(data.message || `You cannot cancel yet. ${data.remainingMonths} month(s) remaining in your 12-month commitment.`);
         } else {
-          toast.error(data.error || 'Failed to cancel subscription');
+          toast.error(data.error || data.message || 'Failed to cancel subscription');
         }
       } catch (error: any) {
         toast.error(error.message || 'Failed to cancel subscription');

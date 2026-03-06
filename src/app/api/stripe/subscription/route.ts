@@ -112,16 +112,66 @@ export async function GET(request: NextRequest) {
 }
 
 // DELETE - Cancel subscription
+// Note: 12-month minimum commitment is enforced
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const { subscriptionId, immediately } = body;
+    const { subscriptionId, immediately, userEmail } = body;
 
     if (!subscriptionId) {
       return NextResponse.json(
         { success: false, error: 'subscriptionId required' },
         { status: 400 }
       );
+    }
+
+    // Check 12-month minimum commitment
+    // Get the subscription to find the customer email
+    const currentSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const customer = await stripe.customers.retrieve(currentSubscription.customer as string);
+    const email = (!customer.deleted && customer.email) ? customer.email : userEmail;
+
+    if (email) {
+      // Fetch subscription_start_date from Supabase
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('subscription_start_date')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      console.log('[Stripe Subscription DELETE] Checking commitment:', { email, subscription_start_date: userData?.subscription_start_date });
+
+      if (userData?.subscription_start_date) {
+        const startDate = new Date(userData.subscription_start_date);
+        const now = new Date();
+        const monthsElapsed = (now.getFullYear() - startDate.getFullYear()) * 12 +
+                              (now.getMonth() - startDate.getMonth());
+
+        const MINIMUM_MONTHS = 12;
+
+        console.log('[Stripe Subscription DELETE] Commitment check:', { monthsElapsed, MINIMUM_MONTHS, shouldBlock: monthsElapsed < MINIMUM_MONTHS });
+
+        if (monthsElapsed < MINIMUM_MONTHS) {
+          const remainingMonths = MINIMUM_MONTHS - monthsElapsed;
+          const canCancelDate = new Date(startDate);
+          canCancelDate.setMonth(canCancelDate.getMonth() + MINIMUM_MONTHS);
+
+          return NextResponse.json({
+            success: false,
+            error: 'MINIMUM_COMMITMENT',
+            message: `Your subscription has a 12-month minimum commitment. You can cancel after ${canCancelDate.toLocaleDateString()}.`,
+            monthsElapsed,
+            remainingMonths,
+            canCancelDate: canCancelDate.toISOString()
+          }, { status: 403 });
+        }
+      }
     }
 
     let subscription;
@@ -131,7 +181,6 @@ export async function DELETE(request: NextRequest) {
       subscription = await stripe.subscriptions.cancel(subscriptionId);
 
       // Sync with Supabase - update status to canceled
-      const customer = await stripe.customers.retrieve(subscription.customer as string);
       if (customer && !customer.deleted && customer.email) {
         await updateUserSubscriptionStatus(customer.email, 'canceled', subscription.id);
       }
