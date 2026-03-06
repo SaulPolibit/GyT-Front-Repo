@@ -17,6 +17,14 @@ export async function POST(request: NextRequest) {
     const priceIds = getPriceIds();
     const sharedPriceIds = getSharedPriceIds();
 
+    console.log('[Stripe Checkout] Creating session with:', {
+      model,
+      planTier,
+      userId,
+      userEmail,
+      envVar: process.env.NEXT_PUBLIC_SUBSCRIPTION_MODEL
+    });
+
     // Get the plan price ID
     const planPriceId = (priceIds.plans as any)[planTier];
     if (!planPriceId) {
