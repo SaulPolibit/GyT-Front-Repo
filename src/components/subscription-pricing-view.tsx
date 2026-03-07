@@ -1029,8 +1029,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           </Card>
         </div>
 
-        {/* Extra AUM and Extra Investors (tier_based only) */}
-        {subscriptionModel === 'tier_based' && (
+        {/* Extra AUM and Extra Investors (tier_based only) - only show when subscription exists */}
+        {subscriptionModel === 'tier_based' && stripeSubscription && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
@@ -1252,8 +1252,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           </CardContent>
         </Card>
 
-        {/* Top Up Credits (PAYG only) */}
-        {subscriptionModel === 'payg' && (
+        {/* Top Up Credits (PAYG only) - only show when subscription exists */}
+        {subscriptionModel === 'payg' && stripeSubscription && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Add Credits to Wallet</CardTitle>
@@ -1694,9 +1694,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         </CardContent>
       </Card>
 
-      {/* Extra AUM and Extra Investors (tier_based only) - show even without active subscription */}
-      {/* Debug: subscriptionModel={subscriptionModel}, hasUsage={!!subscriptionUsage} */}
-      {subscriptionModel === 'tier_based' && (
+      {/* Extra AUM and Extra Investors (tier_based only) - only show when subscription exists */}
+      {subscriptionModel === 'tier_based' && stripeSubscription && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
