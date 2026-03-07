@@ -1068,20 +1068,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-2 pt-2">
-                {[10, 25, 50].map((count) => (
-                  <Button
-                    key={count}
-                    variant="outline"
-                    size="sm"
-                    className="flex flex-col h-auto py-2"
-                    onClick={() => initiateExtraInvestorsPurchase(count)}
-                    disabled={processing}
-                  >
-                    <span className="font-semibold">+{count}</span>
-                    <span className="text-xs text-muted-foreground">${count * 10}</span>
-                  </Button>
-                ))}
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex flex-col h-auto py-2 w-full"
+                  onClick={() => initiateExtraInvestorsPurchase(1)}
+                  disabled={processing}
+                >
+                  <span className="font-semibold">+1 Investor</span>
+                  <span className="text-xs text-muted-foreground">Add extra capacity</span>
+                </Button>
               </div>
             </div>
 
@@ -1101,20 +1098,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                     style={{ width: `${Math.min(100, (subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%` }}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                  {[1, 5, 10].map((millions) => (
-                    <Button
-                      key={millions}
-                      variant="outline"
-                      size="sm"
-                      className="flex flex-col h-auto py-2"
-                      onClick={() => initiateExtraAumPurchase(millions)}
-                      disabled={processing}
-                    >
-                      <span className="font-semibold">+${millions}M</span>
-                      <span className="text-xs text-muted-foreground">${millions * 100}</span>
-                    </Button>
-                  ))}
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-col h-auto py-2 w-full"
+                    onClick={() => initiateExtraAumPurchase(1)}
+                    disabled={processing}
+                  >
+                    <span className="font-semibold">+$1M AUM</span>
+                    <span className="text-xs text-muted-foreground">Add extra capacity</span>
+                  </Button>
                 </div>
               </div>
             )}
@@ -1157,20 +1151,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <Separator className="my-3" />
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Purchase Extra Investors</div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[10, 25, 50].map((count) => (
-                      <Button
-                        key={count}
-                        variant="outline"
-                        size="sm"
-                        className="flex flex-col h-auto py-2"
-                        onClick={() => initiateExtraInvestorsPurchase(count)}
-                        disabled={processing}
-                      >
-                        <span className="font-semibold">+{count}</span>
-                        <span className="text-xs text-muted-foreground">${count * 10}</span>
-                      </Button>
-                    ))}
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex flex-col h-auto py-2 w-full"
+                      onClick={() => initiateExtraInvestorsPurchase(1)}
+                      disabled={processing}
+                    >
+                      <span className="font-semibold">+1 Investor</span>
+                      <span className="text-xs text-muted-foreground">Add extra capacity</span>
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -1394,10 +1385,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showExtraInvestorsDialog} onOpenChange={setShowExtraInvestorsDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Purchase Extra Investor Slots</AlertDialogTitle>
+              <AlertDialogTitle>Purchase Extra Investor Slot</AlertDialogTitle>
               <AlertDialogDescription>
                 {pendingExtraInvestors
-                  ? `You are about to purchase ${pendingExtraInvestors} additional investor slots for $${pendingExtraInvestors * 10}. This will increase your maximum investor capacity.`
+                  ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''}. This will increase your maximum investor capacity.`
                   : 'Confirm your purchase.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -1735,20 +1726,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                     style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[10, 25, 50].map((count) => (
-                    <Button
-                      key={count}
-                      variant="outline"
-                      size="sm"
-                      className="flex flex-col h-auto py-2"
-                      onClick={() => initiateExtraInvestorsPurchase(count)}
-                      disabled={processing}
-                    >
-                      <span className="font-semibold">+{count}</span>
-                      <span className="text-xs text-muted-foreground">${count * 10}</span>
-                    </Button>
-                  ))}
+                <div className="pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-col h-auto py-2 w-full"
+                    onClick={() => initiateExtraInvestorsPurchase(1)}
+                    disabled={processing}
+                  >
+                    <span className="font-semibold">+1 Investor</span>
+                    <span className="text-xs text-muted-foreground">Add extra capacity</span>
+                  </Button>
                 </div>
               </div>
 
@@ -1768,20 +1756,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                       style={{ width: `${Math.min(100, (subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%` }}
                     />
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[1, 5, 10].map((millions) => (
-                      <Button
-                        key={millions}
-                        variant="outline"
-                        size="sm"
-                        className="flex flex-col h-auto py-2"
-                        onClick={() => initiateExtraAumPurchase(millions)}
-                        disabled={processing}
-                      >
-                        <span className="font-semibold">+${millions}M</span>
-                        <span className="text-xs text-muted-foreground">${millions * 100}</span>
-                      </Button>
-                    ))}
+                  <div className="pt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex flex-col h-auto py-2 w-full"
+                      onClick={() => initiateExtraAumPurchase(1)}
+                      disabled={processing}
+                    >
+                      <span className="font-semibold">+$1M AUM</span>
+                      <span className="text-xs text-muted-foreground">Add extra capacity</span>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -1795,10 +1780,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       <AlertDialog open={showExtraInvestorsDialog} onOpenChange={setShowExtraInvestorsDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Purchase Extra Investor Slots</AlertDialogTitle>
+            <AlertDialogTitle>Purchase Extra Investor Slot</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingExtraInvestors
-                ? `You are about to purchase ${pendingExtraInvestors} additional investor slots for $${pendingExtraInvestors * 10}. This will increase your maximum investor capacity.`
+                ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''}. This will increase your maximum investor capacity.`
                 : 'Confirm your purchase.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
