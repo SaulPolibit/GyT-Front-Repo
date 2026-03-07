@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe-server';
 import { updateUserSubscriptionStatus } from '@/lib/supabase-server';
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
 
 // Disable body parsing, we need raw body for webhook signature verification
 export const dynamic = 'force-dynamic';
@@ -48,64 +49,75 @@ export async function POST(request: NextRequest) {
 
         // Handle emission purchase
         if (metadata.type === 'emission_purchase') {
-          const { subscriptionId, emissionsAdded, customerId, userEmail } = metadata;
+          const { emissionsAdded, userEmail } = metadata;
           const customerEmail = session.customer_email || userEmail;
-          console.log('[Stripe Webhook] Emission purchase:', { subscriptionId, emissionsAdded, customerId, customerEmail });
+          console.log('[Stripe Webhook] Emission purchase:', { emissionsAdded, customerEmail });
 
           try {
-            let subscription = null;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-            // Try to get subscription by ID first
-            if (subscriptionId) {
-              try {
-                subscription = await stripe.subscriptions.retrieve(subscriptionId);
-              } catch (e) {
-                console.warn('[Stripe Webhook] Could not retrieve subscription by ID:', subscriptionId);
-              }
+            if (!supabaseUrl || !supabaseKey) {
+              console.error('[Stripe Webhook] Supabase not configured');
+              break;
             }
 
-            // If no subscription found, look up by customer email
-            if (!subscription && customerEmail) {
-              const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
-              if (customers.data.length > 0) {
-                const subs = await stripe.subscriptions.list({
-                  customer: customers.data[0].id,
-                  status: 'active',
-                  limit: 1,
-                });
-                if (subs.data.length > 0) {
-                  subscription = subs.data[0];
-                }
-              }
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            // Check if session already processed
+            const { data: existingSession } = await supabase
+              .from('processed_stripe_sessions')
+              .select('id')
+              .eq('session_id', session.id)
+              .maybeSingle();
+
+            if (existingSession) {
+              console.log('[Stripe Webhook] Emission session already processed:', session.id);
+              break;
             }
 
-            // If no subscription found, try by customerId
-            if (!subscription && customerId) {
-              const subs = await stripe.subscriptions.list({
-                customer: customerId,
-                status: 'active',
-                limit: 1,
-              });
-              if (subs.data.length > 0) {
-                subscription = subs.data[0];
-              }
+            // Get platform subscription
+            const { data: platformSub, error: subError } = await supabase
+              .from('platform_subscription')
+              .select('id, emissions_available')
+              .in('subscription_status', ['active', 'trialing'])
+              .limit(1)
+              .single();
+
+            if (subError || !platformSub) {
+              console.error('[Stripe Webhook] No active platform subscription found:', subError);
+              break;
             }
 
-            if (subscription && emissionsAdded) {
-              const currentEmissions = parseInt(subscription.metadata.emissionsAvailable || '0');
-              const newEmissions = currentEmissions + parseInt(emissionsAdded);
+            // Get user ID for processed_stripe_sessions
+            let userId = platformSub.managed_by_user_id;
+            if (customerEmail) {
+              const { data: user } = await supabase
+                .from('users')
+                .select('id')
+                .eq('email', customerEmail.toLowerCase())
+                .single();
+              if (user) userId = user.id;
+            }
 
-              // Update subscription metadata
-              await stripe.subscriptions.update(subscription.id, {
-                metadata: {
-                  ...subscription.metadata,
-                  emissionsAvailable: newEmissions.toString(),
-                },
-              });
+            // Mark session as processed
+            await supabase
+              .from('processed_stripe_sessions')
+              .insert({ session_id: session.id, user_id: userId });
 
-              console.log('[Stripe Webhook] Updated emissions:', currentEmissions, '->', newEmissions, 'for subscription:', subscription.id);
+            // Update platform_subscription
+            const currentEmissions = platformSub.emissions_available || 0;
+            const newEmissions = currentEmissions + parseInt(emissionsAdded || '0');
+
+            const { error: updateError } = await supabase
+              .from('platform_subscription')
+              .update({ emissions_available: newEmissions })
+              .eq('id', platformSub.id);
+
+            if (updateError) {
+              console.error('[Stripe Webhook] Error updating emissions:', updateError);
             } else {
-              console.error('[Stripe Webhook] No subscription found to update emissions');
+              console.log('[Stripe Webhook] Updated emissions:', currentEmissions, '->', newEmissions);
             }
           } catch (err) {
             console.error('[Stripe Webhook] Failed to update emissions:', err);
@@ -115,64 +127,75 @@ export async function POST(request: NextRequest) {
 
         // Handle credit top-up
         if (metadata.type === 'credit_topup') {
-          const { subscriptionId, amount, customerId, userEmail } = metadata;
+          const { amount, userEmail } = metadata;
           const customerEmail = session.customer_email || userEmail;
-          console.log('[Stripe Webhook] Credit top-up:', { subscriptionId, amount, customerId, customerEmail });
+          console.log('[Stripe Webhook] Credit top-up:', { amount, customerEmail });
 
           try {
-            let subscription = null;
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-            // Try to get subscription by ID first
-            if (subscriptionId) {
-              try {
-                subscription = await stripe.subscriptions.retrieve(subscriptionId);
-              } catch (e) {
-                console.warn('[Stripe Webhook] Could not retrieve subscription by ID:', subscriptionId);
-              }
+            if (!supabaseUrl || !supabaseKey) {
+              console.error('[Stripe Webhook] Supabase not configured');
+              break;
             }
 
-            // If no subscription found, look up by customer email
-            if (!subscription && customerEmail) {
-              const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
-              if (customers.data.length > 0) {
-                const subs = await stripe.subscriptions.list({
-                  customer: customers.data[0].id,
-                  status: 'active',
-                  limit: 1,
-                });
-                if (subs.data.length > 0) {
-                  subscription = subs.data[0];
-                }
-              }
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            // Check if session already processed
+            const { data: existingSession } = await supabase
+              .from('processed_stripe_sessions')
+              .select('id')
+              .eq('session_id', session.id)
+              .maybeSingle();
+
+            if (existingSession) {
+              console.log('[Stripe Webhook] Credit session already processed:', session.id);
+              break;
             }
 
-            // If no subscription found, try by customerId
-            if (!subscription && customerId) {
-              const subs = await stripe.subscriptions.list({
-                customer: customerId,
-                status: 'active',
-                limit: 1,
-              });
-              if (subs.data.length > 0) {
-                subscription = subs.data[0];
-              }
+            // Get platform subscription
+            const { data: platformSub, error: subError } = await supabase
+              .from('platform_subscription')
+              .select('id, credit_balance, managed_by_user_id')
+              .in('subscription_status', ['active', 'trialing'])
+              .limit(1)
+              .single();
+
+            if (subError || !platformSub) {
+              console.error('[Stripe Webhook] No active platform subscription found:', subError);
+              break;
             }
 
-            if (subscription && amount) {
-              const currentBalance = parseInt(subscription.metadata.creditBalance || '0');
-              const newBalance = currentBalance + parseInt(amount);
+            // Get user ID for processed_stripe_sessions
+            let userId = platformSub.managed_by_user_id;
+            if (customerEmail) {
+              const { data: user } = await supabase
+                .from('users')
+                .select('id')
+                .eq('email', customerEmail.toLowerCase())
+                .single();
+              if (user) userId = user.id;
+            }
 
-              // Update subscription metadata
-              await stripe.subscriptions.update(subscription.id, {
-                metadata: {
-                  ...subscription.metadata,
-                  creditBalance: newBalance.toString(),
-                },
-              });
+            // Mark session as processed
+            await supabase
+              .from('processed_stripe_sessions')
+              .insert({ session_id: session.id, user_id: userId });
 
-              console.log('[Stripe Webhook] Updated credit balance:', currentBalance, '->', newBalance, 'for subscription:', subscription.id);
+            // Update platform_subscription
+            const currentBalance = platformSub.credit_balance || 0;
+            const newBalance = currentBalance + parseInt(amount || '0');
+
+            const { error: updateError } = await supabase
+              .from('platform_subscription')
+              .update({ credit_balance: newBalance })
+              .eq('id', platformSub.id);
+
+            if (updateError) {
+              console.error('[Stripe Webhook] Error updating credit balance:', updateError);
             } else {
-              console.error('[Stripe Webhook] No subscription found to update credit balance');
+              console.log('[Stripe Webhook] Updated credit balance:', currentBalance, '->', newBalance);
             }
           } catch (err) {
             console.error('[Stripe Webhook] Failed to update credit balance:', err);
@@ -218,23 +241,27 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('[Stripe Webhook] Subscription updated:', subscription.id, 'Status:', subscription.status);
 
-        // Get customer email to update Supabase
-        const customerForUpdate = await stripe.customers.retrieve(subscription.customer as string);
-        if (customerForUpdate && !customerForUpdate.deleted && customerForUpdate.email) {
-          const status = subscription.status as 'active' | 'canceled' | 'past_due' | 'incomplete' | 'trialing';
-          const subMetadata = subscription.metadata || {};
-          await updateUserSubscriptionStatus(
-            customerForUpdate.email,
-            status,
-            subscription.id,
-            subMetadata.subscriptionModel as 'tier_based' | 'payg' | undefined,
-            subMetadata.planTier
-          );
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+          if (supabaseUrl && supabaseKey) {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            // Update platform_subscription status
+            await supabase
+              .from('platform_subscription')
+              .update({ subscription_status: subscription.status })
+              .eq('stripe_subscription_id', subscription.id);
+
+            console.log('[Stripe Webhook] Updated platform_subscription status to:', subscription.status);
+          }
+        } catch (err) {
+          console.error('[Stripe Webhook] Error updating platform_subscription:', err);
         }
 
         // Handle status changes
         if (subscription.status === 'past_due') {
-          // Send payment reminder
           console.log('[Stripe Webhook] Subscription past due, send reminder');
         }
 
@@ -245,13 +272,25 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('[Stripe Webhook] Subscription deleted:', subscription.id);
 
-        // Get customer email to update Supabase
-        const customerForDelete = await stripe.customers.retrieve(subscription.customer as string);
-        if (customerForDelete && !customerForDelete.deleted && customerForDelete.email) {
-          await updateUserSubscriptionStatus(customerForDelete.email, 'canceled', subscription.id);
+        try {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+          if (supabaseUrl && supabaseKey) {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            // Update platform_subscription status to canceled
+            await supabase
+              .from('platform_subscription')
+              .update({ subscription_status: 'canceled' })
+              .eq('stripe_subscription_id', subscription.id);
+
+            console.log('[Stripe Webhook] Updated platform_subscription status to canceled');
+          }
+        } catch (err) {
+          console.error('[Stripe Webhook] Error updating platform_subscription:', err);
         }
 
-        // Revoke access, send cancellation email
         const { userId } = subscription.metadata || {};
         console.log('[Stripe Webhook] Subscription cancelled for user:', userId);
 

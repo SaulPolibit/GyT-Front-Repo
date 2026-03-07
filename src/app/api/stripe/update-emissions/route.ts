@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe-server';
+import { createClient } from '@supabase/supabase-js';
 
-// POST - Manually update emissions for a subscription
+// POST - Manually update emissions for platform subscription
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -14,46 +14,67 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find customer by email
-    const customers = await stripe.customers.list({ email, limit: 1 });
-    if (customers.data.length === 0) {
+    console.log('[Update Emissions] Request:', { email, addEmissions });
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json(
-        { success: false, error: 'No customer found with this email' },
-        { status: 404 }
+        { success: false, error: 'Supabase not configured' },
+        { status: 500 }
       );
     }
 
-    // Find active subscription
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customers.data[0].id,
-      status: 'active',
-      limit: 1,
-    });
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    if (subscriptions.data.length === 0) {
+    // Get platform subscription (applies to all users)
+    const { data: subscription, error: subError } = await supabase
+      .from('platform_subscription')
+      .select('id, emissions_available, subscription_status')
+      .in('subscription_status', ['active', 'trialing'])
+      .limit(1)
+      .single();
+
+    if (subError || !subscription) {
+      console.error('[Update Emissions] No active subscription found:', subError);
       return NextResponse.json(
         { success: false, error: 'No active subscription found' },
         { status: 404 }
       );
     }
 
-    const subscription = subscriptions.data[0];
-    const currentEmissions = parseInt(subscription.metadata.emissionsAvailable || '0');
-    const newEmissions = currentEmissions + parseInt(addEmissions);
+    const currentEmissions = subscription.emissions_available || 0;
+    const emissionsToAdd = parseInt(addEmissions);
+    const newEmissions = currentEmissions + emissionsToAdd;
 
-    // Update subscription metadata
-    await stripe.subscriptions.update(subscription.id, {
-      metadata: {
-        ...subscription.metadata,
-        emissionsAvailable: newEmissions.toString(),
-      },
+    // Update platform_subscription
+    const { error: updateError } = await supabase
+      .from('platform_subscription')
+      .update({
+        emissions_available: newEmissions,
+      })
+      .eq('id', subscription.id);
+
+    if (updateError) {
+      console.error('[Update Emissions] Error updating subscription:', updateError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to update emissions' },
+        { status: 500 }
+      );
+    }
+
+    console.log('[Update Emissions] Updated emissions:', {
+      previousEmissions: currentEmissions,
+      addedEmissions: emissionsToAdd,
+      newEmissions,
     });
 
     return NextResponse.json({
       success: true,
       subscriptionId: subscription.id,
       previousEmissions: currentEmissions,
-      addedEmissions: parseInt(addEmissions),
+      addedEmissions: emissionsToAdd,
       newEmissions,
     });
   } catch (error: any) {

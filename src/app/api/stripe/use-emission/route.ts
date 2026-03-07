@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe-server';
+import { createClient } from '@supabase/supabase-js';
 
 // POST - Decrement one emission when a structure is created
 export async function POST(request: NextRequest) {
@@ -14,37 +14,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('[Use Emission] Looking up customer by email:', email);
+    console.log('[Use Emission] Request for email:', email);
 
-    // Find customer by email
-    const customers = await stripe.customers.list({ email, limit: 1 });
-    if (customers.data.length === 0) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
       return NextResponse.json(
-        { success: false, error: 'No customer found with this email' },
-        { status: 404 }
+        { success: false, error: 'Supabase not configured' },
+        { status: 500 }
       );
     }
 
-    // Find active or paused subscription
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customers.data[0].id,
-      limit: 10,
-    });
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find first active or paused subscription
-    const subscription = subscriptions.data.find(s =>
-      s.status === 'active' || s.pause_collection
-    );
+    // Get platform subscription (applies to all users)
+    const { data: subscription, error: subError } = await supabase
+      .from('platform_subscription')
+      .select('id, emissions_available, emissions_used, subscription_status')
+      .in('subscription_status', ['active', 'trialing'])
+      .limit(1)
+      .single();
 
-    if (!subscription) {
+    if (subError || !subscription) {
+      console.error('[Use Emission] No active subscription found:', subError);
       return NextResponse.json(
         { success: false, error: 'No active subscription found' },
         { status: 404 }
       );
     }
 
-    const currentEmissions = parseInt(subscription.metadata.emissionsAvailable || '0');
-    const emissionsUsed = parseInt(subscription.metadata.emissionsUsed || '0');
+    const currentEmissions = subscription.emissions_available || 0;
+    const emissionsUsed = subscription.emissions_used || 0;
 
     // Check if there are emissions available
     if (currentEmissions <= 0) {
@@ -58,14 +59,22 @@ export async function POST(request: NextRequest) {
     const newEmissionsAvailable = currentEmissions - 1;
     const newEmissionsUsed = emissionsUsed + 1;
 
-    // Update subscription metadata
-    await stripe.subscriptions.update(subscription.id, {
-      metadata: {
-        ...subscription.metadata,
-        emissionsAvailable: newEmissionsAvailable.toString(),
-        emissionsUsed: newEmissionsUsed.toString(),
-      },
-    });
+    // Update platform_subscription
+    const { error: updateError } = await supabase
+      .from('platform_subscription')
+      .update({
+        emissions_available: newEmissionsAvailable,
+        emissions_used: newEmissionsUsed,
+      })
+      .eq('id', subscription.id);
+
+    if (updateError) {
+      console.error('[Use Emission] Error updating subscription:', updateError);
+      return NextResponse.json(
+        { success: false, error: 'Failed to update emissions' },
+        { status: 500 }
+      );
+    }
 
     console.log('[Use Emission] Updated emissions:', {
       previousAvailable: currentEmissions,

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe-server';
+import { createClient } from '@supabase/supabase-js';
 
-// POST - Verify a checkout session and update emissions/credits
+// POST - Verify a checkout session and update emissions/credits in platform_subscription
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -14,10 +15,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json(
+        { success: false, error: 'Supabase not configured' },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // If sessionId provided, verify the session
     if (sessionId) {
       const session = await stripe.checkout.sessions.retrieve(sessionId);
-      
+
       if (session.payment_status !== 'paid') {
         return NextResponse.json({
           success: false,
@@ -27,64 +40,108 @@ export async function POST(request: NextRequest) {
       }
 
       const metadata = session.metadata || {};
-      const customerEmail = session.customer_email || metadata.userEmail;
 
-      // Find customer and subscription
-      if (!customerEmail) {
+      // Check if this session was already processed (prevent double-counting)
+      const { data: existingSession } = await supabase
+        .from('processed_stripe_sessions')
+        .select('id')
+        .eq('session_id', sessionId)
+        .maybeSingle();
+
+      if (existingSession) {
+        console.log('[Verify Purchase] Session already processed:', sessionId);
+
+        // Get current emissions to return
+        const { data: subscription } = await supabase
+          .from('platform_subscription')
+          .select('emissions_available, credit_balance')
+          .in('subscription_status', ['active', 'trialing'])
+          .limit(1)
+          .single();
+
         return NextResponse.json({
-          success: false,
-          error: 'No customer email found',
+          success: true,
+          message: 'Session already processed',
+          emissionsAvailable: subscription?.emissions_available || 0,
+          creditBalance: subscription?.credit_balance || 0,
         });
       }
 
-      const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
-      if (customers.data.length === 0) {
-        return NextResponse.json({
-          success: false,
-          error: 'No customer found',
-        });
-      }
+      // Get platform subscription
+      const { data: subscription, error: subError } = await supabase
+        .from('platform_subscription')
+        .select('id, emissions_available, emissions_used, credit_balance, subscription_status')
+        .in('subscription_status', ['active', 'trialing'])
+        .limit(1)
+        .single();
 
-      const subscriptions = await stripe.subscriptions.list({
-        customer: customers.data[0].id,
-        limit: 1,
-      });
-
-      // Find active or paused subscription
-      const subscription = subscriptions.data.find(s => 
-        s.status === 'active' || s.pause_collection
-      );
-
-      if (!subscription) {
+      if (subError || !subscription) {
+        console.error('[Verify Purchase] No active subscription found:', subError);
         return NextResponse.json({
           success: false,
           error: 'No active subscription found',
         });
       }
 
+      // Mark session as processed FIRST (prevents race conditions)
+      const customerEmail = session.customer_email || metadata.userEmail;
+
+      // Get user ID from email if available
+      let userId = null;
+      if (customerEmail) {
+        const { data: user } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', customerEmail.toLowerCase())
+          .single();
+        userId = user?.id;
+      }
+
+      const { error: insertError } = await supabase
+        .from('processed_stripe_sessions')
+        .insert({
+          session_id: sessionId,
+          user_id: userId || subscription.managed_by_user_id
+        });
+
+      if (insertError) {
+        if (insertError.code === '23505') {
+          // Duplicate - already processed
+          return NextResponse.json({
+            success: true,
+            message: 'Session already processed (concurrent)',
+            emissionsAvailable: subscription.emissions_available,
+          });
+        }
+        console.error('[Verify Purchase] Error marking session as processed:', insertError);
+      }
+
       // Check session type and update accordingly
       if (metadata.type === 'emission_purchase') {
         const emissionsAdded = parseInt(metadata.emissionsAdded || '0');
-        const currentEmissions = parseInt(subscription.metadata.emissionsAvailable || '0');
-        
-        // Check if this session was already processed (prevent double-counting)
-        const processedSessions = subscription.metadata.processedSessions || '';
-        if (processedSessions.includes(sessionId)) {
+        const currentEmissions = subscription.emissions_available || 0;
+        const newEmissions = currentEmissions + emissionsAdded;
+
+        // Update platform_subscription
+        const { error: updateError } = await supabase
+          .from('platform_subscription')
+          .update({
+            emissions_available: newEmissions,
+          })
+          .eq('id', subscription.id);
+
+        if (updateError) {
+          console.error('[Verify Purchase] Error updating emissions:', updateError);
           return NextResponse.json({
-            success: true,
-            message: 'Session already processed',
-            emissionsAvailable: currentEmissions,
+            success: false,
+            error: 'Failed to update emissions',
           });
         }
 
-        const newEmissions = currentEmissions + emissionsAdded;
-
-        await stripe.subscriptions.update(subscription.id, {
-          metadata: {
-            ...subscription.metadata,
-            emissionsAvailable: newEmissions.toString(),
-            processedSessions: processedSessions + sessionId + ',',
-          },
+        console.log('[Verify Purchase] Added emissions:', {
+          previousEmissions: currentEmissions,
+          emissionsAdded,
+          newEmissions,
         });
 
         return NextResponse.json({
@@ -98,26 +155,29 @@ export async function POST(request: NextRequest) {
 
       if (metadata.type === 'credit_topup') {
         const amount = parseInt(metadata.amount || '0');
-        const currentBalance = parseInt(subscription.metadata.creditBalance || '0');
-        
-        // Check if this session was already processed
-        const processedSessions = subscription.metadata.processedSessions || '';
-        if (processedSessions.includes(sessionId)) {
+        const currentBalance = subscription.credit_balance || 0;
+        const newBalance = currentBalance + amount;
+
+        // Update platform_subscription
+        const { error: updateError } = await supabase
+          .from('platform_subscription')
+          .update({
+            credit_balance: newBalance,
+          })
+          .eq('id', subscription.id);
+
+        if (updateError) {
+          console.error('[Verify Purchase] Error updating credits:', updateError);
           return NextResponse.json({
-            success: true,
-            message: 'Session already processed',
-            creditBalance: currentBalance,
+            success: false,
+            error: 'Failed to update credits',
           });
         }
 
-        const newBalance = currentBalance + amount;
-
-        await stripe.subscriptions.update(subscription.id, {
-          metadata: {
-            ...subscription.metadata,
-            creditBalance: newBalance.toString(),
-            processedSessions: processedSessions + sessionId + ',',
-          },
+        console.log('[Verify Purchase] Added credits:', {
+          previousBalance: currentBalance,
+          amountAdded: amount,
+          newBalance,
         });
 
         return NextResponse.json({
