@@ -1,8 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe-server';
 import { updateUserSubscriptionStatus } from '@/lib/supabase-server';
+import { createClient } from '@supabase/supabase-js';
 
-// GET - Get current subscription
+// Helper to get platform subscription
+async function getPlatformSubscription() {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.log('[Stripe Subscription] Supabase not configured');
+      return null;
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get platform subscription (single subscription for entire platform)
+    const { data: subscription, error } = await supabase
+      .from('platform_subscription')
+      .select('*')
+      .in('subscription_status', ['active', 'trialing'])
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('[Stripe Subscription] Error fetching platform subscription:', error);
+    }
+
+    if (subscription) {
+      console.log('[Stripe Subscription] Found platform subscription:', subscription.id);
+    }
+
+    return subscription || null;
+  } catch (err) {
+    console.error('[Stripe Subscription] Error in getPlatformSubscription:', err);
+    return null;
+  }
+}
+
+// GET - Get current subscription (from platform_subscription table)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -17,15 +54,42 @@ export async function GET(request: NextRequest) {
     }
 
     let stripeCustomerId = customerId;
+    let subscriptionId: string | null = null;
+    let isOwner = false;
 
-    // If no customerId provided, look up by email
-    if (!stripeCustomerId && userEmail) {
+    // Get platform subscription (applies to all users)
+    const platformSub = await getPlatformSubscription();
+
+    if (platformSub && platformSub.stripe_customer_id) {
+      // Use platform subscription's Stripe customer
+      stripeCustomerId = platformSub.stripe_customer_id;
+      subscriptionId = platformSub.id;
+
+      // Check if current user is the manager
+      if (userEmail && platformSub.managed_by_user_id) {
+        // We need to check if this email belongs to the manager
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          const { data: manager } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', platformSub.managed_by_user_id)
+            .single();
+          isOwner = manager?.email?.toLowerCase() === userEmail?.toLowerCase();
+        }
+      }
+      console.log('[Stripe Subscription GET] Using platform subscription for user:', userEmail);
+    } else if (!stripeCustomerId && userEmail) {
+      // Fallback: If no platform subscription, look up by the user's email
       const customers = await stripe.customers.list({
         email: userEmail,
         limit: 1,
       });
       if (customers.data.length > 0) {
         stripeCustomerId = customers.data[0].id;
+        isOwner = true;
       } else {
         return NextResponse.json({
           success: true,
@@ -87,11 +151,13 @@ export async function GET(request: NextRequest) {
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         pauseCollection: subscription.pause_collection,
         isPaused: !!subscription.pause_collection,
-        planTier: subscription.metadata.planTier,
-        subscriptionModel: subscription.metadata.subscriptionModel,
-        emissionsAvailable,
-        emissionsUsed,
-        creditBalance,
+        planTier: platformSub?.subscription_tier || subscription.metadata.planTier,
+        subscriptionModel: platformSub?.subscription_model || subscription.metadata.subscriptionModel,
+        emissionsAvailable: platformSub?.emissions_available || emissionsAvailable,
+        emissionsUsed: platformSub?.emissions_used || emissionsUsed,
+        creditBalance: platformSub?.credit_balance || creditBalance,
+        maxInvestors: platformSub?.max_investors,
+        maxTotalCommitment: platformSub?.max_total_commitment,
         items: subscription.items.data.map((item) => ({
           id: item.id,
           priceId: item.price.id,
@@ -101,6 +167,8 @@ export async function GET(request: NextRequest) {
         })),
       },
       customerId: stripeCustomerId,
+      platformSubscriptionId: subscriptionId,
+      isOwner,
     });
   } catch (error: any) {
     console.error('[Stripe Subscription GET] Error:', error);
@@ -125,52 +193,46 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check 12-month minimum commitment
-    // Get the subscription to find the customer email
-    const currentSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const customer = await stripe.customers.retrieve(currentSubscription.customer as string);
-    const email = (!customer.deleted && customer.email) ? customer.email : userEmail;
+    // Check 12-month minimum commitment from platform_subscription
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
-    if (email) {
-      // Fetch subscription_start_date from Supabase
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+    // Get platform subscription
+    const { data: platformSub } = await supabase
+      .from('platform_subscription')
+      .select('subscription_start_date')
+      .in('subscription_status', ['active', 'trialing', 'canceling'])
+      .limit(1)
+      .single();
 
-      const { data: userData } = await supabase
-        .from('users')
-        .select('subscription_start_date')
-        .eq('email', email.toLowerCase())
-        .single();
+    console.log('[Stripe Subscription DELETE] Checking commitment:', { subscription_start_date: platformSub?.subscription_start_date });
 
-      console.log('[Stripe Subscription DELETE] Checking commitment:', { email, subscription_start_date: userData?.subscription_start_date });
+    if (platformSub?.subscription_start_date) {
+      const startDate = new Date(platformSub.subscription_start_date);
+      const now = new Date();
+      const monthsElapsed = (now.getFullYear() - startDate.getFullYear()) * 12 +
+                            (now.getMonth() - startDate.getMonth());
 
-      if (userData?.subscription_start_date) {
-        const startDate = new Date(userData.subscription_start_date);
-        const now = new Date();
-        const monthsElapsed = (now.getFullYear() - startDate.getFullYear()) * 12 +
-                              (now.getMonth() - startDate.getMonth());
+      const MINIMUM_MONTHS = 12;
 
-        const MINIMUM_MONTHS = 12;
+      console.log('[Stripe Subscription DELETE] Commitment check:', { monthsElapsed, MINIMUM_MONTHS, shouldBlock: monthsElapsed < MINIMUM_MONTHS });
 
-        console.log('[Stripe Subscription DELETE] Commitment check:', { monthsElapsed, MINIMUM_MONTHS, shouldBlock: monthsElapsed < MINIMUM_MONTHS });
+      if (monthsElapsed < MINIMUM_MONTHS) {
+        const remainingMonths = MINIMUM_MONTHS - monthsElapsed;
+        const canCancelDate = new Date(startDate);
+        canCancelDate.setMonth(canCancelDate.getMonth() + MINIMUM_MONTHS);
 
-        if (monthsElapsed < MINIMUM_MONTHS) {
-          const remainingMonths = MINIMUM_MONTHS - monthsElapsed;
-          const canCancelDate = new Date(startDate);
-          canCancelDate.setMonth(canCancelDate.getMonth() + MINIMUM_MONTHS);
-
-          return NextResponse.json({
-            success: false,
-            error: 'MINIMUM_COMMITMENT',
-            message: `Your subscription has a 12-month minimum commitment. You can cancel after ${canCancelDate.toLocaleDateString()}.`,
-            monthsElapsed,
-            remainingMonths,
-            canCancelDate: canCancelDate.toISOString()
-          }, { status: 403 });
-        }
+        return NextResponse.json({
+          success: false,
+          error: 'MINIMUM_COMMITMENT',
+          message: `Your subscription has a 12-month minimum commitment. You can cancel after ${canCancelDate.toLocaleDateString()}.`,
+          monthsElapsed,
+          remainingMonths,
+          canCancelDate: canCancelDate.toISOString()
+        }, { status: 403 });
       }
     }
 
@@ -180,16 +242,22 @@ export async function DELETE(request: NextRequest) {
       // Cancel immediately
       subscription = await stripe.subscriptions.cancel(subscriptionId);
 
-      // Sync with Supabase - update status to canceled
-      if (customer && !customer.deleted && customer.email) {
-        await updateUserSubscriptionStatus(customer.email, 'canceled', subscription.id);
-      }
+      // Update platform_subscription status to canceled
+      await supabase
+        .from('platform_subscription')
+        .update({ subscription_status: 'canceled' })
+        .eq('stripe_subscription_id', subscriptionId);
     } else {
       // Cancel at period end - status stays active until period ends
       subscription = await stripe.subscriptions.update(subscriptionId, {
         cancel_at_period_end: true,
       });
-      // Note: Don't update Supabase yet - webhook will handle when it actually cancels
+
+      // Update platform_subscription status to canceling
+      await supabase
+        .from('platform_subscription')
+        .update({ subscription_status: 'canceling' })
+        .eq('stripe_subscription_id', subscriptionId);
     }
 
     return NextResponse.json({
@@ -223,24 +291,26 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
     let subscription;
     let message = '';
+    let newStatus = '';
 
     switch (action) {
       case 'pause':
         // Pause subscription - stop collecting payments
         subscription = await stripe.subscriptions.update(subscriptionId, {
           pause_collection: {
-            behavior: 'mark_uncollectible', // or 'keep_as_draft' or 'void'
+            behavior: 'mark_uncollectible',
           },
         });
         message = 'Subscription paused';
-
-        // Sync with Supabase
-        const customerForPause = await stripe.customers.retrieve(subscription.customer as string);
-        if (customerForPause && !customerForPause.deleted && customerForPause.email) {
-          await updateUserSubscriptionStatus(customerForPause.email, 'paused' as any, subscription.id);
-        }
+        newStatus = 'paused';
         break;
 
       case 'resume':
@@ -249,12 +319,7 @@ export async function PATCH(request: NextRequest) {
           pause_collection: null,
         });
         message = 'Subscription resumed';
-
-        // Sync with Supabase
-        const customerForResume = await stripe.customers.retrieve(subscription.customer as string);
-        if (customerForResume && !customerForResume.deleted && customerForResume.email) {
-          await updateUserSubscriptionStatus(customerForResume.email, 'active', subscription.id);
-        }
+        newStatus = 'active';
         break;
 
       case 'reactivate':
@@ -264,14 +329,15 @@ export async function PATCH(request: NextRequest) {
           cancel_at_period_end: false,
         });
         message = 'Subscription reactivated';
-
-        // Sync with Supabase
-        const customerForReactivate = await stripe.customers.retrieve(subscription.customer as string);
-        if (customerForReactivate && !customerForReactivate.deleted && customerForReactivate.email) {
-          await updateUserSubscriptionStatus(customerForReactivate.email, 'active', subscription.id);
-        }
+        newStatus = 'active';
         break;
     }
+
+    // Update platform_subscription status
+    await supabase
+      .from('platform_subscription')
+      .update({ subscription_status: newStatus })
+      .eq('stripe_subscription_id', subscriptionId);
 
     return NextResponse.json({
       success: true,
