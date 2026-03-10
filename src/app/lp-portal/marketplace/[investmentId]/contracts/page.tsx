@@ -5,7 +5,7 @@ import { use, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, AlertCircle, Check, Loader2 } from "lucide-react"
+import { ArrowLeft, AlertCircle, Check, Loader2, CreditCard } from "lucide-react"
 import { getInvestmentById } from "@/lib/investments-storage"
 import type { Investment } from "@/lib/types"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
@@ -25,6 +25,16 @@ interface Props {
   params: Promise<{ investmentId: string }>
 }
 
+interface CreditCheckResult {
+  allowed: boolean
+  cost: number
+  balance: number
+  model: string | null
+  tier?: string
+  reason?: string
+  message?: string
+}
+
 export default function ContractsSigningPage({ params }: Props) {
   const { investmentId } = use(params)
   const searchParams = useSearchParams()
@@ -35,11 +45,86 @@ export default function ContractsSigningPage({ params }: Props) {
   const [isSigned, setIsSigned] = React.useState(false)
   const [isChecking, setIsChecking] = React.useState(false)
   const [isVerified, setIsVerified] = React.useState(false)
+  const [creditsChecked, setCreditsChecked] = React.useState(false)
+  const [creditsDeducted, setCreditsDeducted] = React.useState(false)
+  const [creditError, setCreditError] = React.useState<string | null>(null)
+  const [creditInfo, setCreditInfo] = React.useState<CreditCheckResult | null>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   const tokens = searchParams.get("tokens") || "0"
   const email = searchParams.get("email") || "investor@demo.polibit.io"
   const amount = searchParams.get("amount") || "0"
+
+  // Check credits on mount
+  React.useEffect(() => {
+    const checkCredits = async () => {
+      try {
+        const token = getAuthToken()
+        if (!token) return
+
+        const response = await fetch(getApiUrl(API_CONFIG.endpoints.checkSigningCredits), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        const data = await response.json()
+
+        console.log('[Contracts] Credit check result:', data)
+
+        if (data.success) {
+          setCreditInfo(data)
+          if (!data.allowed) {
+            setCreditError(data.message || 'Insufficient credits for document signing')
+          }
+        }
+        setCreditsChecked(true)
+      } catch (error) {
+        console.error('[Contracts] Error checking credits:', error)
+        setCreditsChecked(true) // Allow to proceed if check fails
+      }
+    }
+
+    checkCredits()
+  }, [])
+
+  // Deduct credits when DocuSeal form is loaded
+  const deductCredits = async () => {
+    if (creditsDeducted) return true // Already deducted
+
+    try {
+      const token = getAuthToken()
+      if (!token) return false
+
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.deductSigningCredits), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      const data = await response.json()
+
+      console.log('[Contracts] Credit deduction result:', data)
+
+      if (data.success && data.deducted) {
+        setCreditsDeducted(true)
+        console.log(`[Contracts] Deducted $${(data.cost / 100).toFixed(2)} for document signing. New balance: $${(data.newBalance / 100).toFixed(2)}`)
+        return true
+      } else if (data.success && !data.deducted) {
+        // No PAYG subscription, allow to proceed
+        setCreditsDeducted(true)
+        return true
+      } else {
+        setCreditError(data.message || 'Failed to deduct credits')
+        return false
+      }
+    } catch (error) {
+      console.error('[Contracts] Error deducting credits:', error)
+      return false
+    }
+  }
 
   React.useEffect(() => {
     const inv = getInvestmentById(investmentId)
@@ -47,30 +132,45 @@ export default function ContractsSigningPage({ params }: Props) {
     setLoading(false)
   }, [investmentId])
 
-  // Load DocuSeal script
+  // Load DocuSeal script and deduct credits
   useEffect(() => {
-    // Check if script is already loaded
-    if (document.querySelector('script[src="https://cdn.docuseal.com/js/form.js"]')) {
-      console.log("DocuSeal script already loaded")
-      return
+    const loadFormAndDeductCredits = async () => {
+      // Wait for credit check to complete
+      if (!creditsChecked) return
+
+      // Don't load if there's a credit error
+      if (creditError) return
+
+      // Deduct credits before loading the form
+      if (!creditsDeducted && creditInfo?.model === 'payg') {
+        const success = await deductCredits()
+        if (!success) {
+          console.log('[Contracts] Credit deduction failed, not loading form')
+          return
+        }
+      }
+
+      // Check if script is already loaded
+      if (document.querySelector('script[src="https://cdn.docuseal.com/js/form.js"]')) {
+        console.log("DocuSeal script already loaded")
+        return
+      }
+
+      // Load DocuSeal script to document head
+      const script = document.createElement("script")
+      script.src = "https://cdn.docuseal.com/js/form.js"
+      script.async = true
+      script.onload = () => {
+        console.log("DocuSeal script loaded successfully")
+      }
+      script.onerror = () => {
+        console.error("Failed to load DocuSeal script")
+      }
+      document.head.appendChild(script)
     }
 
-    // Load DocuSeal script to document head
-    const script = document.createElement("script")
-    script.src = "https://cdn.docuseal.com/js/form.js"
-    script.async = true
-    script.onload = () => {
-      console.log("DocuSeal script loaded successfully")
-    }
-    script.onerror = () => {
-      console.error("Failed to load DocuSeal script")
-    }
-    document.head.appendChild(script)
-
-    return () => {
-      // Don't remove the script to avoid reloading it on every render
-    }
-  }, [])
+    loadFormAndDeductCredits()
+  }, [creditsChecked, creditError, creditsDeducted, creditInfo])
 
   // Listen for DocuSeal completion
   useEffect(() => {
@@ -302,27 +402,61 @@ export default function ContractsSigningPage({ params }: Props) {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col flex-1 min-h-0 gap-3 pt-0 overflow-y-auto">
-              {/* DocuSeal Embed */}
-              <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
-                {/* @ts-ignore - DocuSeal is a custom web component */}
-                <docuseal-form
-                  data-src="https://docuseal.com/d/tmbNrqj1TzQoPR"
-                  data-email={email}
-                  data-language="es"
-                  data-values={JSON.stringify({
-                    Nombre2: "Martha Mena",
-                    Email: email,
-                    Email2: email,
-                    Nombre: "Martha Mena",
-                    Nombre4: "Martha Mena",
-                    Nombre3: "Martha Mena",
-                    Cantidad: tokens,
-                    Cantidad2: tokens,
-                  })}
-                  data-read-only-fields={JSON.stringify(["Nombre2", "Email", "Email2", "Nombre", "Nombre4", "Nombre3", "Cantidad2", "Cantidad"])}
-                  className="w-full h-full"
-                />
-              </div>
+              {/* Credit Error */}
+              {creditError && (
+                <div className="flex gap-3 p-4 border border-red-200 bg-red-50 rounded-lg">
+                  <CreditCard className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Insufficient Credits</p>
+                    <p className="text-xs text-red-700 mt-1">{creditError}</p>
+                    {creditInfo && (
+                      <p className="text-xs text-red-600 mt-2">
+                        Required: ${((creditInfo.cost || 0) / 100).toFixed(2)} |
+                        Available: ${((creditInfo.balance || 0) / 100).toFixed(2)}
+                      </p>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => router.push('/investment-manager/settings?tab=subscription')}
+                    >
+                      Add Credits
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* DocuSeal Embed - Only show if credits are OK */}
+              {!creditError && (
+                <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
+                  {!creditsChecked ? (
+                    <div className="flex items-center justify-center h-full">
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-muted-foreground">Checking credits...</span>
+                    </div>
+                  ) : (
+                    /* @ts-ignore - DocuSeal is a custom web component */
+                    <docuseal-form
+                      data-src="https://docuseal.com/d/tmbNrqj1TzQoPR"
+                      data-email={email}
+                      data-language="es"
+                      data-values={JSON.stringify({
+                        Nombre2: "Martha Mena",
+                        Email: email,
+                        Email2: email,
+                        Nombre: "Martha Mena",
+                        Nombre4: "Martha Mena",
+                        Nombre3: "Martha Mena",
+                        Cantidad: tokens,
+                        Cantidad2: tokens,
+                      })}
+                      data-read-only-fields={JSON.stringify(["Nombre2", "Email", "Email2", "Nombre", "Nombre4", "Nombre3", "Cantidad2", "Cantidad"])}
+                      className="w-full h-full"
+                    />
+                  )}
+                </div>
+              )}
 
               {/* Status Alert - Compact */}
               {!isSigned && (
