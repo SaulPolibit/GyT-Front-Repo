@@ -5,7 +5,7 @@ import { use, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, AlertCircle, Check, Loader2 } from "lucide-react"
+import { ArrowLeft, AlertCircle, Check, Loader2, CreditCard } from "lucide-react"
 import type { Structure } from "@/lib/structures-storage"
 import { getAuthToken } from "@/lib/auth-storage"
 import { API_CONFIG, getApiUrl } from "@/lib/api-config"
@@ -42,6 +42,8 @@ export default function ContractsSigningPage({ params }: Props) {
     message: string
   } | null>(null)
   const [checkingCredits, setCheckingCredits] = React.useState(true)
+  const [creditsDeducted, setCreditsDeducted] = React.useState(false)
+  const [creditError, setCreditError] = React.useState<string | null>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
   const tokens = searchParams.get("tokens") || "0"
@@ -170,6 +172,9 @@ export default function ContractsSigningPage({ params }: Props) {
           model: data.model,
           message: data.message || ''
         })
+        if (!data.allowed) {
+          setCreditError(data.message || 'Insufficient credits for document signing')
+        }
       } catch (err) {
         console.error('[Contracts] Error checking credits:', err)
         // On error, allow the operation (don't block due to check failure)
@@ -183,30 +188,83 @@ export default function ContractsSigningPage({ params }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Load DocuSeal script
+  // Deduct credits when DocuSeal form is loaded
+  const deductCredits = async () => {
+    if (creditsDeducted) return true // Already deducted
+
+    try {
+      const token = getAuthToken()
+      if (!token) return false
+
+      const response = await fetch(getApiUrl(API_CONFIG.endpoints.deductSigningCredits), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      const data = await response.json()
+
+      console.log('[Contracts] Credit deduction result:', data)
+
+      if (data.success && data.deducted) {
+        setCreditsDeducted(true)
+        console.log(`[Contracts] Deducted $${(data.cost / 100).toFixed(2)} for document signing. New balance: $${(data.newBalance / 100).toFixed(2)}`)
+        return true
+      } else if (data.success && !data.deducted) {
+        // No PAYG subscription, allow to proceed
+        setCreditsDeducted(true)
+        return true
+      } else {
+        setCreditError(data.message || 'Failed to deduct credits')
+        return false
+      }
+    } catch (error) {
+      console.error('[Contracts] Error deducting credits:', error)
+      return false
+    }
+  }
+
+  // Load DocuSeal script and deduct credits
   useEffect(() => {
-    // Check if script is already loaded
-    if (document.querySelector('script[src="https://cdn.docuseal.com/js/form.js"]')) {
-      console.log("DocuSeal script already loaded")
-      return
+    const loadFormAndDeductCredits = async () => {
+      // Wait for credit check to complete
+      if (checkingCredits) return
+
+      // Don't load if there's a credit error
+      if (creditError) return
+
+      // Deduct credits before loading the form (for PAYG model)
+      if (!creditsDeducted && creditCheck?.model === 'payg') {
+        const success = await deductCredits()
+        if (!success) {
+          console.log('[Contracts] Credit deduction failed, not loading form')
+          return
+        }
+      }
+
+      // Check if script is already loaded
+      if (document.querySelector('script[src="https://cdn.docuseal.com/js/form.js"]')) {
+        console.log("DocuSeal script already loaded")
+        return
+      }
+
+      // Load DocuSeal script to document head
+      const script = document.createElement("script")
+      script.src = "https://cdn.docuseal.com/js/form.js"
+      script.async = true
+      script.onload = () => {
+        console.log("DocuSeal script loaded successfully")
+      }
+      script.onerror = () => {
+        console.error("Failed to load DocuSeal script")
+      }
+      document.head.appendChild(script)
     }
 
-    // Load DocuSeal script to document head
-    const script = document.createElement("script")
-    script.src = "https://cdn.docuseal.com/js/form.js"
-    script.async = true
-    script.onload = () => {
-      console.log("DocuSeal script loaded successfully")
-    }
-    script.onerror = () => {
-      console.error("Failed to load DocuSeal script")
-    }
-    document.head.appendChild(script)
-
-    return () => {
-      // Don't remove the script to avoid reloading it on every render
-    }
-  }, [])
+    loadFormAndDeductCredits()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkingCredits, creditError, creditsDeducted, creditCheck])
 
   // Listen for DocuSeal completion
   useEffect(() => {
@@ -465,26 +523,37 @@ export default function ContractsSigningPage({ params }: Props) {
             </CardHeader>
             <CardContent className="flex flex-col flex-1 min-h-0 gap-3 pt-0 overflow-y-auto">
               {/* Insufficient Credits Error */}
-              {creditCheck && !creditCheck.allowed && (
+              {(creditCheck && !creditCheck.allowed) || creditError ? (
                 <div className="border rounded-lg bg-muted/30 flex-1 min-h-0 flex items-center justify-center">
                   <div className="text-center p-8 max-w-md">
-                    <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-amber-900 mb-2">Document Cannot Be Created</h3>
-                    <p className="text-sm text-muted-foreground mb-6">
-                      Please send an email to your administrator to proceed.
+                    <CreditCard className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-red-900 mb-2">Insufficient Credits</h3>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {creditError || creditCheck?.message || 'Your account does not have enough credits to create this document.'}
                     </p>
-                    <Button variant="outline" asChild>
-                      <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Checkout
-                      </a>
-                    </Button>
+                    {creditCheck && (
+                      <p className="text-xs text-red-600 mb-6">
+                        Required: ${((creditCheck.cost || 0) / 100).toFixed(2)} |
+                        Available: ${((creditCheck.balance || 0) / 100).toFixed(2)}
+                      </p>
+                    )}
+                    <div className="flex gap-3 justify-center">
+                      <Button variant="outline" asChild>
+                        <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
+                          <ArrowLeft className="h-4 w-4 mr-2" />
+                          Back to Checkout
+                        </a>
+                      </Button>
+                      <Button onClick={() => router.push('/investment-manager/settings?tab=subscription')}>
+                        Add Credits
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              )}
+              ) : null}
 
               {/* DocuSeal Embed */}
-              {creditCheck?.allowed && !hasTemplateError ? (
+              {creditCheck?.allowed && !hasTemplateError && !creditError ? (
                 <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
                   {/* @ts-expect-error - DocuSeal is a custom web component */}
 
@@ -508,7 +577,7 @@ export default function ContractsSigningPage({ params }: Props) {
                     className="w-full h-full"
                   />
                 </div>
-              ) : creditCheck?.allowed && hasTemplateError ? (
+              ) : creditCheck?.allowed && hasTemplateError && !creditError ? (
                 <div className="border rounded-lg bg-muted/30 flex-1 min-h-0 flex items-center justify-center">
                   <div className="text-center p-8 max-w-md">
                     <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
