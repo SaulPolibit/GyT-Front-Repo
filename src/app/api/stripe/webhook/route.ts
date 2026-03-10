@@ -46,6 +46,8 @@ export async function POST(request: NextRequest) {
         console.log('[Stripe Webhook] Session metadata:', session.metadata);
 
         const metadata = session.metadata || {};
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
         // Handle emission purchase
         if (metadata.type === 'emission_purchase') {
@@ -215,6 +217,59 @@ export async function POST(request: NextRequest) {
             subscriptionModel as 'tier_based' | 'payg' | undefined,
             planTier // This is the tier (starter, professional, enterprise, growth)
           );
+
+          // Create or update platform_subscription with subscription_start_date
+          if (supabaseUrl && supabaseKey && session.subscription) {
+            try {
+              const supabase = createClient(supabaseUrl, supabaseKey);
+
+              // Get the Stripe subscription to get the start date
+              const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string);
+              const subscriptionStartDate = new Date(stripeSubscription.start_date * 1000).toISOString();
+
+              // Get user ID from email
+              const { data: user } = await supabase
+                .from('users')
+                .select('id')
+                .eq('email', session.customer_email.toLowerCase())
+                .single();
+
+              // Check if platform_subscription already exists
+              const { data: existingSub } = await supabase
+                .from('platform_subscription')
+                .select('id')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              const platformSubData = {
+                stripe_subscription_id: session.subscription as string,
+                stripe_customer_id: session.customer as string,
+                subscription_model: subscriptionModel || 'payg',
+                subscription_tier: planTier || 'starter',
+                subscription_status: 'active',
+                subscription_start_date: subscriptionStartDate,
+                managed_by_user_id: user?.id || userId,
+              };
+
+              if (existingSub) {
+                // Update existing
+                await supabase
+                  .from('platform_subscription')
+                  .update(platformSubData)
+                  .eq('id', existingSub.id);
+                console.log('[Stripe Webhook] Updated platform_subscription with start_date:', subscriptionStartDate);
+              } else {
+                // Insert new
+                await supabase
+                  .from('platform_subscription')
+                  .insert(platformSubData);
+                console.log('[Stripe Webhook] Created platform_subscription with start_date:', subscriptionStartDate);
+              }
+            } catch (err) {
+              console.error('[Stripe Webhook] Error updating platform_subscription:', err);
+            }
+          }
         }
 
         console.log('[Stripe Webhook] Subscription created for user:', userId, {
