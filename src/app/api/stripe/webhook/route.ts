@@ -281,13 +281,20 @@ export async function POST(request: NextRequest) {
                 .eq('email', session.customer_email.toLowerCase())
                 .single();
 
-              // Check if platform_subscription already exists
-              const { data: existingSub } = await supabase
+              // Check if platform_subscription already exists by stripe_subscription_id first (prevents duplicates)
+              const { data: existingBySubId } = await supabase
+                .from('platform_subscription')
+                .select('id')
+                .eq('stripe_subscription_id', session.subscription as string)
+                .maybeSingle();
+
+              // Fall back to checking any existing subscription
+              const existingSub = existingBySubId || (await supabase
                 .from('platform_subscription')
                 .select('id')
                 .order('created_at', { ascending: false })
                 .limit(1)
-                .maybeSingle();
+                .maybeSingle()).data;
 
               // Use metadata model, or fall back to env var, then default to tier_based
               const finalModel = subscriptionModel || getSubscriptionModel();
