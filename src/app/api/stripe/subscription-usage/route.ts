@@ -16,11 +16,11 @@ export async function GET(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get platform subscription
+    // Get platform subscription (include 'incomplete' - subscription still valid, just pending payment)
     const { data: platformSub, error: subError } = await supabase
       .from('platform_subscription')
       .select('*')
-      .in('subscription_status', ['active', 'trialing', 'canceling'])
+      .in('subscription_status', ['active', 'trialing', 'canceling', 'incomplete'])
       .limit(1)
       .single();
 
