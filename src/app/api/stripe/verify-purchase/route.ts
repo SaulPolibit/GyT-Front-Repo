@@ -51,11 +51,11 @@ export async function POST(request: NextRequest) {
       if (existingSession) {
         console.log('[Verify Purchase] Session already processed:', sessionId);
 
-        // Get current emissions to return
+        // Get current emissions to return (any status)
         const { data: subscription } = await supabase
           .from('platform_subscription')
           .select('emissions_available, credit_balance')
-          .in('subscription_status', ['active', 'trialing'])
+          .order('created_at', { ascending: false })
           .limit(1)
           .single();
 
@@ -67,19 +67,19 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Get platform subscription
+      // Get platform subscription (any status - user can verify purchases even when canceling)
       const { data: subscription, error: subError } = await supabase
         .from('platform_subscription')
-        .select('id, emissions_available, emissions_used, credit_balance, subscription_status')
-        .in('subscription_status', ['active', 'trialing'])
+        .select('id, emissions_available, emissions_used, credit_balance, subscription_status, managed_by_user_id')
+        .order('created_at', { ascending: false })
         .limit(1)
         .single();
 
       if (subError || !subscription) {
-        console.error('[Verify Purchase] No active subscription found:', subError);
+        console.error('[Verify Purchase] No platform subscription found:', subError);
         return NextResponse.json({
           success: false,
-          error: 'No active subscription found',
+          error: 'No platform subscription found',
         });
       }
 

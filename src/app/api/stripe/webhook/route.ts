@@ -156,16 +156,16 @@ export async function POST(request: NextRequest) {
               break;
             }
 
-            // Get platform subscription
+            // Get platform subscription (any status - user can add credits even when canceling)
             const { data: platformSub, error: subError } = await supabase
               .from('platform_subscription')
               .select('id, credit_balance, managed_by_user_id')
-              .in('subscription_status', ['active', 'trialing'])
+              .order('created_at', { ascending: false })
               .limit(1)
               .single();
 
             if (subError || !platformSub) {
-              console.error('[Stripe Webhook] No active platform subscription found:', subError);
+              console.error('[Stripe Webhook] No platform subscription found:', subError);
               break;
             }
 
