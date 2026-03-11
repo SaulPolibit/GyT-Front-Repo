@@ -162,8 +162,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         console.log('[SubscriptionPricingView] Verifying credit top-up:', { sessionId, amount: urlParams.get('amount') });
         try {
           const token = getAuthToken();
-          const verifyUrl = getApiUrl(API_CONFIG.endpoints.verifyExtraPurchase);
-          const verifyResponse = await fetch(verifyUrl, {
+          // Call frontend API route directly
+          const verifyResponse = await fetch('/api/stripe/verify-purchase', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -190,8 +190,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         console.log('[SubscriptionPricingView] Verifying extra purchase:', { purchase, sessionId, quantity });
         try {
           const token = getAuthToken();
-          const verifyUrl = getApiUrl(API_CONFIG.endpoints.verifyExtraPurchase);
-          const verifyResponse = await fetch(verifyUrl, {
+          // Call frontend API route directly
+          const verifyResponse = await fetch('/api/stripe/verify-purchase', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

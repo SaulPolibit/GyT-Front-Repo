@@ -187,7 +187,7 @@ export const API_CONFIG = {
     subscriptionUsage: '/api/stripe/subscription-usage',
     purchaseExtraInvestors: '/api/stripe/purchase-extra-investors',
     purchaseExtraAum: '/api/stripe/purchase-extra-aum',
-    verifyExtraPurchase: '/api/stripe/verify-extra-purchase',
+    verifyExtraPurchase: '/api/stripe/verify-purchase',
     purchaseCredits: '/api/stripe/topup-credits',
 
     // Stripe Connect API (for Investors)
