@@ -165,7 +165,8 @@ export const fetchSubscriptionUsage = async (): Promise<SubscriptionUsage | null
       return null;
     }
 
-    const response = await fetch(getApiUrl('/api/stripe/subscription-usage'), {
+    // Call frontend API route directly (not through backend)
+    const response = await fetch('/api/stripe/subscription-usage', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,

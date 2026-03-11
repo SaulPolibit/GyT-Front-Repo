@@ -342,7 +342,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       const token = getAuthToken();
       console.log('[LoadSubscription] Loading usage, token exists:', !!token);
       if (token) {
-        const usageUrl = getApiUrl(API_CONFIG.endpoints.subscriptionUsage || '/stripe/subscription-usage');
+        // Call frontend API route directly (not through backend)
+        const usageUrl = '/api/stripe/subscription-usage';
         console.log('[LoadSubscription] Fetching from:', usageUrl);
         const usageResponse = await fetch(usageUrl, {
           headers: { 'Authorization': `Bearer ${token}` }
