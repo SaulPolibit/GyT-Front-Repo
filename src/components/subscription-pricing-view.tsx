@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,6 +86,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
   const [showExtraAumDialog, setShowExtraAumDialog] = useState(false);
   const [pendingExtraInvestors, setPendingExtraInvestors] = useState<number | null>(null);
   const [pendingExtraAum, setPendingExtraAum] = useState<number | null>(null);
+  const [extraInvestorsInput, setExtraInvestorsInput] = useState<number>(1);
+  const [extraAumInput, setExtraAumInput] = useState<number>(1);
   const [subscriptionUsage, setSubscriptionUsage] = useState<{
     investors: { current: number; limit: number; remaining: number };
     commitment: { current: number; limit: number; remaining: number } | null;
@@ -1070,17 +1073,29 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
                 />
               </div>
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex flex-col h-auto py-2 w-full"
-                  onClick={() => initiateExtraInvestorsPurchase(1)}
-                  disabled={processing}
-                >
-                  <span className="font-semibold">+1 Investor</span>
-                  <span className="text-xs text-muted-foreground">Add extra capacity</span>
-                </Button>
+              <div className="pt-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={extraInvestorsInput}
+                    onChange={(e) => setExtraInvestorsInput(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20 h-9 text-center"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-9"
+                    onClick={() => initiateExtraInvestorsPurchase(extraInvestorsInput)}
+                    disabled={processing}
+                  >
+                    <span className="font-semibold">+{extraInvestorsInput} Investor{extraInvestorsInput > 1 ? 's' : ''}</span>
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground text-center">
+                  ${(25 * extraInvestorsInput).toFixed(0)} total
+                </div>
               </div>
             </div>
 
@@ -1100,17 +1115,29 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                     style={{ width: `${Math.min(100, (subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%` }}
                   />
                 </div>
-                <div className="pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex flex-col h-auto py-2 w-full"
-                    onClick={() => initiateExtraAumPurchase(1)}
-                    disabled={processing}
-                  >
-                    <span className="font-semibold">+$1M AUM</span>
-                    <span className="text-xs text-muted-foreground">Add extra capacity</span>
-                  </Button>
+                <div className="pt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={extraAumInput}
+                      onChange={(e) => setExtraAumInput(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 h-9 text-center"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-9"
+                      onClick={() => initiateExtraAumPurchase(extraAumInput)}
+                      disabled={processing}
+                    >
+                      <span className="font-semibold">+${extraAumInput}M AUM</span>
+                    </Button>
+                  </div>
+                  <div className="text-xs text-muted-foreground text-center">
+                    ${(100 * extraAumInput).toFixed(0)} total
+                  </div>
                 </div>
               </div>
             )}
@@ -1387,17 +1414,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showExtraInvestorsDialog} onOpenChange={setShowExtraInvestorsDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Purchase Extra Investor Slot</AlertDialogTitle>
+              <AlertDialogTitle>Purchase Extra Investor Slot{pendingExtraInvestors && pendingExtraInvestors > 1 ? 's' : ''}</AlertDialogTitle>
               <AlertDialogDescription>
                 {pendingExtraInvestors
-                  ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''}. This will increase your maximum investor capacity.`
+                  ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''} for $${pendingExtraInvestors * 25}. This will increase your maximum investor capacity.`
                   : 'Confirm your purchase.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handlePurchaseExtraInvestors}>
-                Confirm Purchase
+                Purchase for ${pendingExtraInvestors ? pendingExtraInvestors * 25 : 0}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1417,7 +1444,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handlePurchaseExtraAum}>
-                Confirm Purchase
+                Purchase for ${pendingExtraAum ? pendingExtraAum * 100 : 0}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1728,17 +1755,29 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                     style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
                   />
                 </div>
-                <div className="pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex flex-col h-auto py-2 w-full"
-                    onClick={() => initiateExtraInvestorsPurchase(1)}
-                    disabled={processing}
-                  >
-                    <span className="font-semibold">+1 Investor</span>
-                    <span className="text-xs text-muted-foreground">Add extra capacity</span>
-                  </Button>
+                <div className="pt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={extraInvestorsInput}
+                      onChange={(e) => setExtraInvestorsInput(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 h-9 text-center"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-9"
+                      onClick={() => initiateExtraInvestorsPurchase(extraInvestorsInput)}
+                      disabled={processing}
+                    >
+                      <span className="font-semibold">+{extraInvestorsInput} Investor{extraInvestorsInput > 1 ? 's' : ''}</span>
+                    </Button>
+                  </div>
+                  <div className="text-xs text-muted-foreground text-center">
+                    ${(25 * extraInvestorsInput).toFixed(0)} total
+                  </div>
                 </div>
               </div>
 
@@ -1758,17 +1797,29 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                       style={{ width: `${Math.min(100, (subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%` }}
                     />
                   </div>
-                  <div className="pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex flex-col h-auto py-2 w-full"
-                      onClick={() => initiateExtraAumPurchase(1)}
-                      disabled={processing}
-                    >
-                      <span className="font-semibold">+$1M AUM</span>
-                      <span className="text-xs text-muted-foreground">Add extra capacity</span>
-                    </Button>
+                  <div className="pt-2 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={extraAumInput}
+                        onChange={(e) => setExtraAumInput(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-20 h-9 text-center"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-9"
+                        onClick={() => initiateExtraAumPurchase(extraAumInput)}
+                        disabled={processing}
+                      >
+                        <span className="font-semibold">+${extraAumInput}M AUM</span>
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground text-center">
+                      ${(100 * extraAumInput).toFixed(0)} total
+                    </div>
                   </div>
                 </div>
               )}
@@ -1782,17 +1833,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       <AlertDialog open={showExtraInvestorsDialog} onOpenChange={setShowExtraInvestorsDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Purchase Extra Investor Slot</AlertDialogTitle>
+            <AlertDialogTitle>Purchase Extra Investor Slot{pendingExtraInvestors && pendingExtraInvestors > 1 ? 's' : ''}</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingExtraInvestors
-                ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''}. This will increase your maximum investor capacity.`
+                ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''} for $${pendingExtraInvestors * 25}. This will increase your maximum investor capacity.`
                 : 'Confirm your purchase.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handlePurchaseExtraInvestors}>
-              Confirm Purchase
+              Purchase for ${pendingExtraInvestors ? pendingExtraInvestors * 25 : 0}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1812,7 +1863,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handlePurchaseExtraAum}>
-              Confirm Purchase
+              Purchase for ${pendingExtraAum ? pendingExtraAum * 100 : 0}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
