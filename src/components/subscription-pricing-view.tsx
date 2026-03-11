@@ -608,7 +608,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     if (useRealStripe) {
       try {
         const token = getAuthToken();
-        // Call frontend API route directly
+        // Call frontend API route directly (endpoint is in frontend, not backend)
         const url = '/api/stripe/topup-credits';
 
         console.log('[TopUp Credits] Calling API with:', { amount });
@@ -618,7 +618,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ amountInCents: amount }),
+          body: JSON.stringify({ amount }),
         });
 
         const data = await response.json();
