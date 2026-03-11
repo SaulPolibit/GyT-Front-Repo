@@ -608,7 +608,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     if (useRealStripe) {
       try {
         const token = getAuthToken();
-        const url = getApiUrl(API_CONFIG.endpoints.purchaseCredits);
+        // Call frontend API route directly
+        const url = '/api/stripe/topup-credits';
 
         console.log('[TopUp Credits] Calling API with:', { amount });
         const response = await fetch(url, {
