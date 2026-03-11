@@ -17,10 +17,11 @@ async function getPlatformSubscription() {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get platform subscription (single subscription for entire platform)
+    // Include 'canceling' - subscription still valid until period ends
     const { data: subscription, error } = await supabase
       .from('platform_subscription')
       .select('*')
-      .in('subscription_status', ['active', 'trialing'])
+      .in('subscription_status', ['active', 'trialing', 'canceling'])
       .limit(1)
       .single();
 
@@ -153,9 +154,9 @@ export async function GET(request: NextRequest) {
         isPaused: !!subscription.pause_collection,
         planTier: platformSub?.subscription_tier || subscription.metadata.planTier,
         subscriptionModel: platformSub?.subscription_model || subscription.metadata.subscriptionModel,
-        emissionsAvailable: platformSub?.emissions_available || emissionsAvailable,
-        emissionsUsed: platformSub?.emissions_used || emissionsUsed,
-        creditBalance: platformSub?.credit_balance || creditBalance,
+        emissionsAvailable: platformSub?.emissions_available ?? emissionsAvailable,
+        emissionsUsed: platformSub?.emissions_used ?? emissionsUsed,
+        creditBalance: platformSub?.credit_balance ?? creditBalance,
         maxInvestors: platformSub?.max_investors,
         maxTotalCommitment: platformSub?.max_total_commitment,
         items: subscription.items.data.map((item) => ({
