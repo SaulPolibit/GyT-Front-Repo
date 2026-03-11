@@ -7,8 +7,15 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 // Get subscription model from env
+// Check both SUBSCRIPTION_MODEL (server-side) and NEXT_PUBLIC_SUBSCRIPTION_MODEL (client-side)
 export const getSubscriptionModel = (): 'tier_based' | 'payg' => {
-  const model = process.env.NEXT_PUBLIC_SUBSCRIPTION_MODEL;
+  // Server-side env var takes priority, then fall back to NEXT_PUBLIC_ version
+  const model = process.env.SUBSCRIPTION_MODEL || process.env.NEXT_PUBLIC_SUBSCRIPTION_MODEL;
+  console.log('[Stripe Server] getSubscriptionModel:', {
+    SUBSCRIPTION_MODEL: process.env.SUBSCRIPTION_MODEL,
+    NEXT_PUBLIC_SUBSCRIPTION_MODEL: process.env.NEXT_PUBLIC_SUBSCRIPTION_MODEL,
+    resolved: model === 'payg' ? 'payg' : 'tier_based'
+  });
   return model === 'payg' ? 'payg' : 'tier_based';
 };
 
