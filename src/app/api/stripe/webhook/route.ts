@@ -261,9 +261,18 @@ export async function POST(request: NextRequest) {
             try {
               const supabase = createClient(supabaseUrl, supabaseKey);
 
-              // Get the Stripe subscription to get the start date
+              // Get the Stripe subscription to get the start date and actual status
               const stripeSubscription = await stripe.subscriptions.retrieve(session.subscription as string);
               const subscriptionStartDate = new Date(stripeSubscription.start_date * 1000).toISOString();
+              // Use the actual Stripe subscription status
+              const actualStatus = stripeSubscription.status;
+
+              console.log('[Stripe Webhook] Stripe subscription details:', {
+                id: stripeSubscription.id,
+                status: actualStatus,
+                startDate: subscriptionStartDate,
+                metadata: stripeSubscription.metadata
+              });
 
               // Get user ID from email
               const { data: user } = await supabase
@@ -289,9 +298,11 @@ export async function POST(request: NextRequest) {
               console.log('[Stripe Webhook] Setting subscription with:', {
                 model: finalModel,
                 tier: finalTier,
+                planTierFromMetadata: planTier,
                 limits,
                 fromMetadata: !!subscriptionModel,
-                envModel: getSubscriptionModel()
+                envModel: getSubscriptionModel(),
+                actualStripeStatus: actualStatus
               });
 
               const platformSubData: Record<string, any> = {
@@ -299,7 +310,7 @@ export async function POST(request: NextRequest) {
                 stripe_customer_id: session.customer as string,
                 subscription_model: finalModel,
                 subscription_tier: finalTier,
-                subscription_status: 'active',
+                subscription_status: actualStatus, // Use actual Stripe status
                 subscription_start_date: subscriptionStartDate,
                 managed_by_user_id: user?.id || userId,
                 max_investors: limits.maxInvestors,
@@ -355,6 +366,7 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         console.log('[Stripe Webhook] Subscription updated:', subscription.id, 'Status:', subscription.status);
+        console.log('[Stripe Webhook] Subscription metadata:', subscription.metadata);
 
         try {
           const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -363,13 +375,41 @@ export async function POST(request: NextRequest) {
           if (supabaseUrl && supabaseKey) {
             const supabase = createClient(supabaseUrl, supabaseKey);
 
-            // Update platform_subscription status
-            await supabase
+            // Build update data - always update status
+            const updateData: Record<string, any> = {
+              subscription_status: subscription.status
+            };
+
+            // If metadata has tier/model info, update those too
+            const { planTier, subscriptionModel } = subscription.metadata || {};
+            if (planTier || subscriptionModel) {
+              const finalModel = subscriptionModel || getSubscriptionModel();
+              const finalTier = normalizeTier(finalModel, planTier || 'starter');
+              const limits = getLimitsForTier(finalModel, finalTier);
+
+              updateData.subscription_model = finalModel;
+              updateData.subscription_tier = finalTier;
+              updateData.max_investors = limits.maxInvestors;
+              updateData.max_total_commitment = limits.maxTotalCommitment;
+
+              console.log('[Stripe Webhook] Also updating tier/model from metadata:', {
+                model: finalModel,
+                tier: finalTier,
+                limits
+              });
+            }
+
+            // Update platform_subscription
+            const { error } = await supabase
               .from('platform_subscription')
-              .update({ subscription_status: subscription.status })
+              .update(updateData)
               .eq('stripe_subscription_id', subscription.id);
 
-            console.log('[Stripe Webhook] Updated platform_subscription status to:', subscription.status);
+            if (error) {
+              console.error('[Stripe Webhook] Error updating platform_subscription:', error);
+            } else {
+              console.log('[Stripe Webhook] Updated platform_subscription:', updateData);
+            }
           }
         } catch (err) {
           console.error('[Stripe Webhook] Error updating platform_subscription:', err);
@@ -415,6 +455,7 @@ export async function POST(request: NextRequest) {
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
         console.log('[Stripe Webhook] Invoice paid:', invoice.id, 'Amount:', invoice.amount_paid);
+        console.log('[Stripe Webhook] Invoice subscription:', invoice.subscription);
 
         // Check if this is an emission purchase
         if (invoice.metadata?.type === 'emission_purchase') {
@@ -424,6 +465,65 @@ export async function POST(request: NextRequest) {
         // Check if this is a credit top-up
         if (invoice.metadata?.type === 'credit_topup') {
           console.log('[Stripe Webhook] Credit top-up completed:', invoice.metadata.amount);
+        }
+
+        // If this invoice is for a subscription, update status to active
+        if (invoice.subscription && invoice.billing_reason === 'subscription_create') {
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+            if (supabaseUrl && supabaseKey) {
+              const supabase = createClient(supabaseUrl, supabaseKey);
+
+              // Get the subscription to get its metadata
+              const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+              const { planTier, subscriptionModel } = stripeSubscription.metadata || {};
+
+              console.log('[Stripe Webhook] Invoice paid for subscription:', {
+                subscriptionId: invoice.subscription,
+                status: stripeSubscription.status,
+                planTier,
+                subscriptionModel
+              });
+
+              // Build update data
+              const updateData: Record<string, any> = {
+                subscription_status: stripeSubscription.status // Should be 'active' now
+              };
+
+              // Also update tier/model if available
+              if (planTier || subscriptionModel) {
+                const finalModel = subscriptionModel || getSubscriptionModel();
+                const finalTier = normalizeTier(finalModel, planTier || 'starter');
+                const limits = getLimitsForTier(finalModel, finalTier);
+
+                updateData.subscription_model = finalModel;
+                updateData.subscription_tier = finalTier;
+                updateData.max_investors = limits.maxInvestors;
+                updateData.max_total_commitment = limits.maxTotalCommitment;
+
+                console.log('[Stripe Webhook] Updating subscription from invoice.paid:', {
+                  model: finalModel,
+                  tier: finalTier,
+                  status: stripeSubscription.status
+                });
+              }
+
+              const { error } = await supabase
+                .from('platform_subscription')
+                .update(updateData)
+                .eq('stripe_subscription_id', invoice.subscription);
+
+              if (error) {
+                console.error('[Stripe Webhook] Error updating from invoice.paid:', error);
+              } else {
+                console.log('[Stripe Webhook] Updated platform_subscription from invoice.paid');
+              }
+            }
+          } catch (err) {
+            console.error('[Stripe Webhook] Error processing invoice.paid:', err);
+          }
         }
 
         break;
