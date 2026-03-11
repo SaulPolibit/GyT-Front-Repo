@@ -1,11 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe-server';
+import { stripe, getSubscriptionModel } from '@/lib/stripe-server';
 import { updateUserSubscriptionStatus } from '@/lib/supabase-server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 // Disable body parsing, we need raw body for webhook signature verification
 export const dynamic = 'force-dynamic';
+
+// Tier limits for subscription models
+const TIER_BASED_LIMITS: Record<string, { maxInvestors: number; maxTotalCommitment: number }> = {
+  starter: { maxTotalCommitment: 25000000, maxInvestors: 50 },
+  professional: { maxTotalCommitment: 50000000, maxInvestors: 100 },
+  enterprise: { maxTotalCommitment: 100000000, maxInvestors: 200 },
+};
+
+const PAYG_LIMITS: Record<string, { maxInvestors: number; maxTotalCommitment: number }> = {
+  starter: { maxInvestors: 1000, maxTotalCommitment: 999999999999 },
+  growth: { maxInvestors: 2000, maxTotalCommitment: 999999999999 },
+  enterprise: { maxInvestors: 4000, maxTotalCommitment: 999999999999 },
+};
+
+const getLimitsForTier = (model: string, tier: string) => {
+  if (model === 'payg') {
+    // PAYG tiers: starter, growth, enterprise
+    return PAYG_LIMITS[tier] || PAYG_LIMITS.starter;
+  }
+  // Tier-based tiers: starter, professional, enterprise
+  return TIER_BASED_LIMITS[tier] || TIER_BASED_LIMITS.starter;
+};
+
+// Normalize tier name based on model (handle tier name differences)
+const normalizeTier = (model: string, tier: string): string => {
+  // If tier is valid for the model, return as-is
+  if (model === 'payg') {
+    if (['starter', 'growth', 'enterprise'].includes(tier)) return tier;
+    // Map tier_based names to PAYG equivalents
+    if (tier === 'professional') return 'growth';
+    return 'starter';
+  } else {
+    if (['starter', 'professional', 'enterprise'].includes(tier)) return tier;
+    // Map PAYG names to tier_based equivalents
+    if (tier === 'growth') return 'professional';
+    return 'starter';
+  }
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -242,15 +280,37 @@ export async function POST(request: NextRequest) {
                 .limit(1)
                 .maybeSingle();
 
-              const platformSubData = {
+              // Use metadata model, or fall back to env var, then default to tier_based
+              const finalModel = subscriptionModel || getSubscriptionModel();
+              // Normalize tier name based on model (handles tier name differences between models)
+              const finalTier = normalizeTier(finalModel, planTier || 'starter');
+              const limits = getLimitsForTier(finalModel, finalTier);
+
+              console.log('[Stripe Webhook] Setting subscription with:', {
+                model: finalModel,
+                tier: finalTier,
+                limits,
+                fromMetadata: !!subscriptionModel,
+                envModel: getSubscriptionModel()
+              });
+
+              const platformSubData: Record<string, any> = {
                 stripe_subscription_id: session.subscription as string,
                 stripe_customer_id: session.customer as string,
-                subscription_model: subscriptionModel || 'payg',
-                subscription_tier: planTier || 'starter',
+                subscription_model: finalModel,
+                subscription_tier: finalTier,
                 subscription_status: 'active',
                 subscription_start_date: subscriptionStartDate,
                 managed_by_user_id: user?.id || userId,
+                max_investors: limits.maxInvestors,
+                max_total_commitment: limits.maxTotalCommitment,
+                emissions_available: parseInt(includedEmissions || '0'),
               };
+
+              // Initialize credit_balance for PAYG model (starts at 0, user tops up)
+              if (finalModel === 'payg') {
+                platformSubData.credit_balance = 0;
+              }
 
               if (existingSub) {
                 // Update existing
