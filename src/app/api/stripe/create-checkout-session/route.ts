@@ -60,8 +60,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. For PAYG model, add initial credit wallet deposit
-    // This would typically be handled separately, but for demo we'll track it in metadata
+    // 4. For PAYG model, add initial credit wallet deposit ($50)
+    const initialCreditDeposit = model === 'payg' ? 5000 : 0; // $50 in cents
+    if (model === 'payg' && initialCreditDeposit > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'Credit Wallet Deposit',
+            description: 'Initial credit balance for KYC and envelope costs',
+          },
+          unit_amount: initialCreditDeposit,
+        },
+        quantity: 1,
+      });
+    }
 
     // Check if customer already exists (unless forceNewCustomer is set)
     let customerId: string | undefined;
@@ -182,6 +195,7 @@ export async function POST(request: NextRequest) {
         emissionPackId: emissionPackId || '',
         includedEmissions: includedEmissions.toString(),
         subscriptionModel: model,
+        initialCreditDeposit: initialCreditDeposit.toString(),
       },
       subscription_data: {
         metadata: {

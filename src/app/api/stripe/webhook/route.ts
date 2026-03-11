@@ -320,7 +320,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Handle subscription checkout
-        const { userId, firmId, planTier, includedEmissions, subscriptionModel } = metadata;
+        const { userId, firmId, planTier, includedEmissions, subscriptionModel, initialCreditDeposit } = metadata;
 
         // Update user subscription status in Supabase (including model and tier)
         if (session.customer_email) {
@@ -401,9 +401,10 @@ export async function POST(request: NextRequest) {
                 emissions_available: parseInt(includedEmissions || '0'),
               };
 
-              // Initialize credit_balance for PAYG model (starts at 0, user tops up)
+              // Initialize credit_balance for PAYG model with initial deposit from checkout
               if (finalModel === 'payg') {
-                platformSubData.credit_balance = 0;
+                // Use initialCreditDeposit from checkout metadata (default $50 = 5000 cents)
+                platformSubData.credit_balance = parseInt(initialCreditDeposit || '0') || 5000;
               }
 
               if (existingSub) {
