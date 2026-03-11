@@ -5,14 +5,26 @@ import { createClient } from '@supabase/supabase-js';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { extraCommitment, userEmail } = body; // extraCommitment in dollars
+    const { extraCommitment, extraAumUnits = 1, userEmail } = body; // extraAumUnits = number of $1M units
 
-    console.log('[Stripe Extra AUM] Request:', { extraCommitment, userEmail });
+    // Support both extraCommitment (in dollars) and extraAumUnits (number of $1M units)
+    const unitsToAdd = extraCommitment ? Math.round(extraCommitment / 1000000) : extraAumUnits;
 
-    if (!extraCommitment || extraCommitment <= 0) {
+    console.log('[Stripe Extra AUM] Request:', { extraCommitment, extraAumUnits, unitsToAdd, userEmail });
+
+    if (!unitsToAdd || unitsToAdd < 1) {
       return NextResponse.json(
-        { success: false, error: 'extraCommitment must be greater than 0' },
+        { success: false, error: 'Must add at least $1M AUM' },
         { status: 400 }
+      );
+    }
+
+    // Get the Stripe price ID from env
+    const priceId = process.env.STRIPE_PRICE_EXTRA_AUM;
+    if (!priceId) {
+      return NextResponse.json(
+        { success: false, error: 'STRIPE_PRICE_EXTRA_AUM not configured' },
+        { status: 500 }
       );
     }
 
@@ -39,33 +51,22 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    // Calculate price: $100 per $1M AUM
-    const pricePerMillion = parseInt(process.env.STRIPE_EXTRA_AUM_PRICE_PER_MILLION || '10000'); // $100 in cents
-    const millionsAdded = extraCommitment / 1000000;
-    const totalAmount = Math.round(pricePerMillion * millionsAdded);
-
+    // Use the configured Stripe price ID (price is per $1M AUM unit)
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [
         {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: 'Extra AUM Capacity',
-              description: `Add $${millionsAdded}M additional AUM capacity to your subscription`,
-            },
-            unit_amount: totalAmount,
-          },
-          quantity: 1,
+          price: priceId,
+          quantity: unitsToAdd,
         },
       ],
       customer_email: userEmail,
-      success_url: baseUrl + `/investment-manager/settings?tab=subscription&purchase=extra_aum&success=true&quantity=${millionsAdded}&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: baseUrl + `/investment-manager/settings?tab=subscription&purchase=extra_aum&success=true&quantity=${unitsToAdd}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: baseUrl + '/investment-manager/settings?tab=subscription&canceled=true',
       metadata: {
         type: 'extra_aum',
-        extraCommitment: extraCommitment.toString(),
-        millionsAdded: millionsAdded.toString(),
+        extraCommitment: (unitsToAdd * 1000000).toString(),
+        millionsAdded: unitsToAdd.toString(),
         userEmail: userEmail || '',
       },
     });

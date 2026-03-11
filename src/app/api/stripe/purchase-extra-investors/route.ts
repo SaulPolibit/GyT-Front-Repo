@@ -16,6 +16,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the Stripe price ID from env
+    const priceId = process.env.STRIPE_PRICE_EXTRA_INVESTOR;
+    if (!priceId) {
+      return NextResponse.json(
+        { success: false, error: 'STRIPE_PRICE_EXTRA_INVESTOR not configured' },
+        { status: 500 }
+      );
+    }
+
     // Verify tier_based subscription
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -39,22 +48,12 @@ export async function POST(request: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-    // Price: $25 per extra investor
-    const pricePerInvestor = parseInt(process.env.STRIPE_EXTRA_INVESTOR_PRICE || '2500'); // in cents
-    const totalAmount = pricePerInvestor * extraInvestors;
-
+    // Use the configured Stripe price ID
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [
         {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `Extra Investor Slot${extraInvestors > 1 ? 's' : ''}`,
-              description: `Add ${extraInvestors} additional investor slot${extraInvestors > 1 ? 's' : ''} to your subscription`,
-            },
-            unit_amount: pricePerInvestor,
-          },
+          price: priceId,
           quantity: extraInvestors,
         },
       ],

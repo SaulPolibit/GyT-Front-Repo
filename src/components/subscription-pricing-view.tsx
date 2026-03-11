@@ -1104,7 +1104,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   </Button>
                 </div>
                 <div className="text-xs text-muted-foreground text-center">
-                  ${(25 * extraInvestorsInput).toFixed(0)} total
+                  ${(4 * extraInvestorsInput).toFixed(0)} total
                 </div>
               </div>
             </div>
@@ -1146,7 +1146,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                     </Button>
                   </div>
                   <div className="text-xs text-muted-foreground text-center">
-                    ${(100 * extraAumInput).toFixed(0)} total
+                    ${(110 * extraAumInput).toFixed(0)} total
                   </div>
                 </div>
               </div>
@@ -1427,14 +1427,14 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <AlertDialogTitle>Purchase Extra Investor Slot{pendingExtraInvestors && pendingExtraInvestors > 1 ? 's' : ''}</AlertDialogTitle>
               <AlertDialogDescription>
                 {pendingExtraInvestors
-                  ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''} for $${pendingExtraInvestors * 25}. This will increase your maximum investor capacity.`
+                  ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''} for $${pendingExtraInvestors * 4}. This will increase your maximum investor capacity.`
                   : 'Confirm your purchase.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handlePurchaseExtraInvestors}>
-                Purchase for ${pendingExtraInvestors ? pendingExtraInvestors * 25 : 0}
+                Purchase for ${pendingExtraInvestors ? pendingExtraInvestors * 4 : 0}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1447,14 +1447,14 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <AlertDialogTitle>Purchase Extra AUM Capacity</AlertDialogTitle>
               <AlertDialogDescription>
                 {pendingExtraAum
-                  ? `You are about to purchase $${pendingExtraAum}M additional AUM capacity for $${pendingExtraAum * 100}. This will increase your maximum total commitment limit.`
+                  ? `You are about to purchase $${pendingExtraAum}M additional AUM capacity for $${pendingExtraAum * 110}. This will increase your maximum total commitment limit.`
                   : 'Confirm your purchase.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>Cancel</AlertDialogCancel>
               <AlertDialogAction onClick={handlePurchaseExtraAum}>
-                Purchase for ${pendingExtraAum ? pendingExtraAum * 100 : 0}
+                Purchase for ${pendingExtraAum ? pendingExtraAum * 110 : 0}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1786,7 +1786,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                     </Button>
                   </div>
                   <div className="text-xs text-muted-foreground text-center">
-                    ${(25 * extraInvestorsInput).toFixed(0)} total
+                    ${(4 * extraInvestorsInput).toFixed(0)} total
                   </div>
                 </div>
               </div>
@@ -1828,7 +1828,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                       </Button>
                     </div>
                     <div className="text-xs text-muted-foreground text-center">
-                      ${(100 * extraAumInput).toFixed(0)} total
+                      ${(110 * extraAumInput).toFixed(0)} total
                     </div>
                   </div>
                 </div>
@@ -1846,14 +1846,14 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             <AlertDialogTitle>Purchase Extra Investor Slot{pendingExtraInvestors && pendingExtraInvestors > 1 ? 's' : ''}</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingExtraInvestors
-                ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''} for $${pendingExtraInvestors * 25}. This will increase your maximum investor capacity.`
+                ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''} for $${pendingExtraInvestors * 4}. This will increase your maximum investor capacity.`
                 : 'Confirm your purchase.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handlePurchaseExtraInvestors}>
-              Purchase for ${pendingExtraInvestors ? pendingExtraInvestors * 25 : 0}
+              Purchase for ${pendingExtraInvestors ? pendingExtraInvestors * 4 : 0}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1866,14 +1866,14 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             <AlertDialogTitle>Purchase Extra AUM Capacity</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingExtraAum
-                ? `You are about to purchase $${pendingExtraAum}M additional AUM capacity for $${pendingExtraAum * 100}. This will increase your maximum total commitment limit.`
+                ? `You are about to purchase $${pendingExtraAum}M additional AUM capacity for $${pendingExtraAum * 110}. This will increase your maximum total commitment limit.`
                 : 'Confirm your purchase.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handlePurchaseExtraAum}>
-              Purchase for ${pendingExtraAum ? pendingExtraAum * 100 : 0}
+              Purchase for ${pendingExtraAum ? pendingExtraAum * 110 : 0}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
