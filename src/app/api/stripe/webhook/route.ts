@@ -243,6 +243,82 @@ export async function POST(request: NextRequest) {
           break;
         }
 
+        // Handle extra investors purchase
+        if (metadata.type === 'extra_investors' && session.mode === 'payment') {
+          const extraInvestors = parseInt(metadata.extraInvestors || '0');
+          console.log('[Stripe Webhook] Extra investors purchase:', { extraInvestors });
+
+          if (extraInvestors > 0 && supabaseUrl && supabaseKey) {
+            try {
+              const supabase = createClient(supabaseUrl, supabaseKey);
+
+              // Get platform subscription
+              const { data: platformSub } = await supabase
+                .from('platform_subscription')
+                .select('id, max_investors, extra_investors_purchased')
+                .in('subscription_status', ['active', 'trialing', 'canceling', 'incomplete'])
+                .limit(1)
+                .single();
+
+              if (platformSub) {
+                const currentMax = platformSub.max_investors || 0;
+                const currentExtra = platformSub.extra_investors_purchased || 0;
+
+                await supabase
+                  .from('platform_subscription')
+                  .update({
+                    max_investors: currentMax + extraInvestors,
+                    extra_investors_purchased: currentExtra + extraInvestors
+                  })
+                  .eq('id', platformSub.id);
+
+                console.log('[Stripe Webhook] Updated max_investors:', currentMax, '->', currentMax + extraInvestors);
+              }
+            } catch (err) {
+              console.error('[Stripe Webhook] Failed to update extra investors:', err);
+            }
+          }
+          break;
+        }
+
+        // Handle extra AUM purchase
+        if (metadata.type === 'extra_aum' && session.mode === 'payment') {
+          const extraCommitment = parseInt(metadata.extraCommitment || '0');
+          console.log('[Stripe Webhook] Extra AUM purchase:', { extraCommitment });
+
+          if (extraCommitment > 0 && supabaseUrl && supabaseKey) {
+            try {
+              const supabase = createClient(supabaseUrl, supabaseKey);
+
+              // Get platform subscription
+              const { data: platformSub } = await supabase
+                .from('platform_subscription')
+                .select('id, max_total_commitment, extra_commitment_purchased')
+                .in('subscription_status', ['active', 'trialing', 'canceling', 'incomplete'])
+                .limit(1)
+                .single();
+
+              if (platformSub) {
+                const currentMax = parseFloat(platformSub.max_total_commitment) || 0;
+                const currentExtra = parseFloat(platformSub.extra_commitment_purchased) || 0;
+
+                await supabase
+                  .from('platform_subscription')
+                  .update({
+                    max_total_commitment: currentMax + extraCommitment,
+                    extra_commitment_purchased: currentExtra + extraCommitment
+                  })
+                  .eq('id', platformSub.id);
+
+                console.log('[Stripe Webhook] Updated max_total_commitment:', currentMax, '->', currentMax + extraCommitment);
+              }
+            } catch (err) {
+              console.error('[Stripe Webhook] Failed to update extra AUM:', err);
+            }
+          }
+          break;
+        }
+
         // Handle subscription checkout
         const { userId, firmId, planTier, includedEmissions, subscriptionModel } = metadata;
 

@@ -835,14 +835,19 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     setProcessing(true);
 
     try {
-      const url = getApiUrl(API_CONFIG.endpoints.purchaseExtraInvestors);
-      const response = await fetch(url, {
+      const authState = getAuthState();
+      const userEmail = authState.user?.email || authState.supabase?.email;
+
+      // Call frontend API route directly
+      const response = await fetch('/api/stripe/purchase-extra-investors', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
         },
-        body: JSON.stringify({ extraInvestors: pendingExtraInvestors }),
+        body: JSON.stringify({
+          extraInvestors: pendingExtraInvestors,
+          userEmail
+        }),
       });
 
       const data = await response.json();
@@ -875,15 +880,20 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
     setProcessing(true);
 
     try {
+      const authState = getAuthState();
+      const userEmail = authState.user?.email || authState.supabase?.email;
       const amountInDollars = pendingExtraAum * 1000000; // Convert millions to dollars
-      const url = getApiUrl(API_CONFIG.endpoints.purchaseExtraAum);
-      const response = await fetch(url, {
+
+      // Call frontend API route directly
+      const response = await fetch('/api/stripe/purchase-extra-aum', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${getAuthToken()}`
         },
-        body: JSON.stringify({ extraCommitment: amountInDollars }),
+        body: JSON.stringify({
+          extraCommitment: amountInDollars,
+          userEmail
+        }),
       });
 
       const data = await response.json();
