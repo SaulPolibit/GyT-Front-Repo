@@ -98,11 +98,31 @@ export async function GET(request: NextRequest) {
 
     // Calculate max commitment: base limit + extras purchased
     // Use DB value if set, otherwise fall back to tier default
+    // Note: DB field is 'total_max_commitment' not 'max_total_commitment'
     const baseCommitment = (platformSub.max_total_commitment || 0) > 0
       ? platformSub.max_total_commitment
       : tierLimits.maxTotalCommitment;
     const extraCommitmentPurchased = platformSub.extra_commitment_purchased || 0;
     const maxCommitment = baseCommitment + extraCommitmentPurchased;
+
+    // Debug logging
+    console.log('[Subscription Usage] Calculated values:', {
+      model,
+      tier,
+      dbModel: platformSub.subscription_model,
+      dbTier: platformSub.subscription_tier,
+      dbMaxInvestors: platformSub.max_investors,
+      dbExtraInvestors: platformSub.extra_investors_purchased,
+      dbMaxCommitment: platformSub.max_total_commitment,
+      dbExtraCommitment: platformSub.extra_commitment_purchased,
+      baseInvestors,
+      extraInvestorsPurchased,
+      maxInvestors,
+      baseCommitment,
+      extraCommitmentPurchased,
+      maxCommitment,
+      tierLimits,
+    });
 
     // Build usage response
     const usage = {
