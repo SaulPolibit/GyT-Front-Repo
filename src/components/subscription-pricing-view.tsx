@@ -1044,6 +1044,37 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           </Card>
         </div>
 
+        {/* Investor Capacity for PAYG */}
+        {subscriptionModel === 'payg' && subscriptionUsage && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Investor Capacity
+              </CardTitle>
+              <CardDescription>Current investor usage and limits</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Investors Added</span>
+                  <span className="font-medium">{subscriptionUsage.investors.current} / {subscriptionUsage.investors.limit}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{subscriptionUsage.investors.remaining} slots remaining</span>
+                  <span>{Math.round((subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}% used</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Extra AUM and Extra Investors (tier_based only) - only show when subscription exists */}
         {subscriptionModel === 'tier_based' && stripeSubscription && (
           <Card>
