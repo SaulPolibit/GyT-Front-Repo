@@ -1063,12 +1063,12 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <div className="w-full bg-muted rounded-full h-2">
                   <div
                     className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
+                    style={{ width: `${subscriptionUsage.investors.limit > 0 ? Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100) : 0}%` }}
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{subscriptionUsage.investors.remaining} slots remaining</span>
-                  <span>{Math.round((subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}% used</span>
+                  <span>{subscriptionUsage.investors.limit > 0 ? Math.round((subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100) : 0}% used</span>
                 </div>
               </div>
             </CardContent>
@@ -1111,7 +1111,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <div className="w-full bg-muted rounded-full h-2">
                 <div
                   className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
+                  style={{ width: `${subscriptionUsage.investors.limit > 0 ? Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100) : 0}%` }}
                 />
               </div>
               <div className="pt-2 space-y-2">
@@ -1206,12 +1206,12 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <div className="mb-3">
                   <div className="flex justify-between text-sm mb-1">
                     <span>Usage</span>
-                    <span>{Math.round((subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%</span>
+                    <span>{subscriptionUsage.investors.limit > 0 ? Math.round((subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100) : 0}%</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
                     <div
                       className="bg-primary h-2 rounded-full transition-all"
-                      style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
+                      style={{ width: `${subscriptionUsage.investors.limit > 0 ? Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100) : 0}%` }}
                     />
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
@@ -1793,7 +1793,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <div className="w-full bg-muted rounded-full h-2">
                   <div
                     className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100)}%` }}
+                    style={{ width: `${subscriptionUsage.investors.limit > 0 ? Math.min(100, (subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100) : 0}%` }}
                   />
                 </div>
                 <div className="pt-2 space-y-2">

@@ -252,27 +252,37 @@ export async function POST(request: NextRequest) {
             try {
               const supabase = createClient(supabaseUrl, supabaseKey);
 
-              // Get platform subscription
+              // Get platform subscription with model and tier info
               const { data: platformSub } = await supabase
                 .from('platform_subscription')
-                .select('id, max_investors, extra_investors_purchased')
+                .select('id, max_investors, extra_investors_purchased, subscription_model, subscription_tier')
                 .in('subscription_status', ['active', 'trialing', 'canceling', 'incomplete'])
                 .limit(1)
                 .single();
 
               if (platformSub) {
-                const currentMax = platformSub.max_investors || 0;
                 const currentExtra = platformSub.extra_investors_purchased || 0;
+                const updateData: Record<string, number> = {
+                  extra_investors_purchased: currentExtra + extraInvestors
+                };
+
+                // If max_investors is 0, initialize with tier default (one-time fix)
+                if (!platformSub.max_investors || platformSub.max_investors === 0) {
+                  const model = platformSub.subscription_model || 'tier_based';
+                  const tier = platformSub.subscription_tier || 'starter';
+                  const tierDefaults = model === 'payg'
+                    ? (PAYG_LIMITS[tier] || PAYG_LIMITS.starter)
+                    : (TIER_BASED_LIMITS[tier] || TIER_BASED_LIMITS.starter);
+                  updateData.max_investors = tierDefaults.maxInvestors;
+                  console.log('[Stripe Webhook] Initializing max_investors from tier default:', { model, tier, max: tierDefaults.maxInvestors });
+                }
 
                 await supabase
                   .from('platform_subscription')
-                  .update({
-                    max_investors: currentMax + extraInvestors,
-                    extra_investors_purchased: currentExtra + extraInvestors
-                  })
+                  .update(updateData)
                   .eq('id', platformSub.id);
 
-                console.log('[Stripe Webhook] Updated max_investors:', currentMax, '->', currentMax + extraInvestors);
+                console.log('[Stripe Webhook] Updated extra_investors_purchased:', currentExtra, '->', currentExtra + extraInvestors);
               }
             } catch (err) {
               console.error('[Stripe Webhook] Failed to update extra investors:', err);
@@ -290,27 +300,37 @@ export async function POST(request: NextRequest) {
             try {
               const supabase = createClient(supabaseUrl, supabaseKey);
 
-              // Get platform subscription
+              // Get platform subscription with model and tier info
               const { data: platformSub } = await supabase
                 .from('platform_subscription')
-                .select('id, max_total_commitment, extra_commitment_purchased')
+                .select('id, max_total_commitment, extra_commitment_purchased, subscription_model, subscription_tier')
                 .in('subscription_status', ['active', 'trialing', 'canceling', 'incomplete'])
                 .limit(1)
                 .single();
 
               if (platformSub) {
-                const currentMax = parseFloat(platformSub.max_total_commitment) || 0;
                 const currentExtra = parseFloat(platformSub.extra_commitment_purchased) || 0;
+                const updateData: Record<string, number> = {
+                  extra_commitment_purchased: currentExtra + extraCommitment
+                };
+
+                // If max_total_commitment is 0, initialize with tier default (one-time fix)
+                if (!platformSub.max_total_commitment || parseFloat(platformSub.max_total_commitment) === 0) {
+                  const model = platformSub.subscription_model || 'tier_based';
+                  const tier = platformSub.subscription_tier || 'starter';
+                  const tierDefaults = model === 'payg'
+                    ? (PAYG_LIMITS[tier] || PAYG_LIMITS.starter)
+                    : (TIER_BASED_LIMITS[tier] || TIER_BASED_LIMITS.starter);
+                  updateData.max_total_commitment = tierDefaults.maxTotalCommitment;
+                  console.log('[Stripe Webhook] Initializing max_total_commitment from tier default:', { model, tier, max: tierDefaults.maxTotalCommitment });
+                }
 
                 await supabase
                   .from('platform_subscription')
-                  .update({
-                    max_total_commitment: currentMax + extraCommitment,
-                    extra_commitment_purchased: currentExtra + extraCommitment
-                  })
+                  .update(updateData)
                   .eq('id', platformSub.id);
 
-                console.log('[Stripe Webhook] Updated max_total_commitment:', currentMax, '->', currentMax + extraCommitment);
+                console.log('[Stripe Webhook] Updated extra_commitment_purchased:', currentExtra, '->', currentExtra + extraCommitment);
               }
             } catch (err) {
               console.error('[Stripe Webhook] Failed to update extra AUM:', err);
