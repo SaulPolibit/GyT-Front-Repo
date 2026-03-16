@@ -89,15 +89,6 @@ const STRUCTURE_TYPES = {
     description: 'Bank trust structure with tax incentives, can hold multiple properties',
     subtypes: [],
     regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
-  },
-  'private-debt': {
-    label: 'Private Debt',
-    description: 'Promissory note structure with guarantor',
-    subtypes: [
-      { value: 'secured', label: 'Secured Debt', description: 'Backed by collateral' },
-      { value: 'unsecured', label: 'Unsecured Debt', description: 'Backed by guarantor only' },
-    ],
-    regions: ['United States', 'Mexico', 'Panama', 'El Salvador', 'Cayman Islands', 'British Virgin Islands']
   }
 }
 
@@ -117,11 +108,6 @@ const getTranslatedStructureTypes = (t: any) => ({
     ...STRUCTURE_TYPES.fideicomiso,
     label: t.structures.fideicomiso,
     description: t.onboarding.fideicomisoDescription,
-  },
-  'private-debt': {
-    ...STRUCTURE_TYPES['private-debt'],
-    label: t.structures.privateDebt,
-    description: t.onboarding.privateDebtDescription,
   }
 })
 
@@ -178,17 +164,6 @@ const getStructureFeatures = (structureType: string, subtype: string): Structure
       supportsCarriedInterest: false,
       supportsManagementFees: false,
       distributionType: 'simple'
-    }
-  }
-
-  // Private Debt: Interest payments only (no capital calls, no waterfall)
-  if (structureType === 'private-debt') {
-    return {
-      supportsCapitalCalls: false,
-      supportsWaterfallDistribution: false,
-      supportsCarriedInterest: false,
-      supportsManagementFees: false,
-      distributionType: 'interest-only'
     }
   }
 
@@ -399,6 +374,7 @@ export default function OnboardingPage() {
     economicTermsApplication: 'all-investors', // NEW: all-investors or per-investor
     distributionModel: 'waterfall', // NEW: waterfall, simple, or interest-only
     managementFee: '2',
+    managementFeeOffset: false, // ILPA: Offset management fees against carried interest
     performanceFee: '20',
     hurdleRate: '8',
     preferredReturn: '8',
@@ -445,6 +421,7 @@ export default function OnboardingPage() {
     capitalCallNoticePeriod: '10', // Days notice before capital call
     capitalCallDefaultPercentage: '25', // Default % of commitment to call
     capitalCallPaymentDeadline: '15', // Days to wire funds
+    commitmentPeriod: '', // ILPA: Duration in months during which capital can be called
 
     // Auto-calculated fields
     determinedTier: null,
@@ -510,6 +487,8 @@ export default function OnboardingPage() {
     paymentCryptoEnabled: false,
     paymentCryptoBlockchain: 'Polygon' as 'Polygon' | 'Arbitrum',
     paymentCryptoWalletAddress: '',
+    paymentPolibitEnabled: false,
+    paymentCardEnabled: false,
   })
 
   const totalSteps = 8
@@ -738,16 +717,6 @@ export default function OnboardingPage() {
     generateTokenConfig()
   }, [formData.structureName, formData.totalCapitalCommitment, formData.minCheckSize, formData.maxCheckSize])
 
-  // Auto-set distribution model based on structure type
-  useEffect(() => {
-    if (formData.structureType === 'private-debt') {
-      setFormData(prev => ({ ...prev, distributionModel: 'interest-only' }))
-    } else if (formData.distributionModel === 'interest-only') {
-      // If switching from private-debt to another type, reset to waterfall
-      setFormData(prev => ({ ...prev, distributionModel: 'waterfall' }))
-    }
-  }, [formData.structureType])
-
   // Listen for visibility settings changes
   useEffect(() => {
     // Initialize visibility settings on mount
@@ -954,7 +923,9 @@ export default function OnboardingPage() {
         // Validate that at least one payment method is enabled
         if (!formData.paymentLocalBankEnabled &&
             !formData.paymentIntlBankEnabled &&
-            !formData.paymentCryptoEnabled) {
+            !formData.paymentCryptoEnabled &&
+            !formData.paymentPolibitEnabled &&
+            !formData.paymentCardEnabled) {
           errors.push('Please select at least one payment method to continue')
         }
 
@@ -1094,7 +1065,7 @@ export default function OnboardingPage() {
       // Save the structure to localStorage
       const newStructure = saveStructure({
         name: formData.structureName,
-        type: formData.structureType as 'fund' | 'sa' | 'fideicomiso' | 'private-debt',
+        type: formData.structureType as 'fund' | 'sa' | 'fideicomiso',
         subtype: formData.structureSubtype,
         jurisdiction: formData.jurisdiction,
         totalCommitment: parseFloat(formData.totalCapitalCommitment),
@@ -4283,9 +4254,55 @@ export default function OnboardingPage() {
                   )}
                 </div>
 
+                {/* PoliBit Payment */}
+                <div className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="paymentPolibit"
+                      checked={formData.paymentPolibitEnabled}
+                      onCheckedChange={(checked) => updateFormData('paymentPolibitEnabled', checked)}
+                    />
+                    <Label htmlFor="paymentPolibit" className="cursor-pointer font-medium">
+                      PoliBit
+                    </Label>
+                  </div>
+
+                  {formData.paymentPolibitEnabled && (
+                    <div className="ml-7 p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        PoliBit integration will be configured automatically. Investors will be able to make payments through the PoliBit platform with reduced transaction fees.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Credit/Debit Card Payment */}
+                <div className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="paymentCard"
+                      checked={formData.paymentCardEnabled}
+                      onCheckedChange={(checked) => updateFormData('paymentCardEnabled', checked)}
+                    />
+                    <Label htmlFor="paymentCard" className="cursor-pointer font-medium">
+                      Credit / Debit Card
+                    </Label>
+                  </div>
+
+                  {formData.paymentCardEnabled && (
+                    <div className="ml-7 p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        Card payment processing will be configured through Stripe. Standard card processing fees apply (2.9% + $0.30 per transaction).
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {!formData.paymentLocalBankEnabled &&
                   !formData.paymentIntlBankEnabled &&
-                  !formData.paymentCryptoEnabled && (
+                  !formData.paymentCryptoEnabled &&
+                  !formData.paymentPolibitEnabled &&
+                  !formData.paymentCardEnabled && (
                     <Alert className="border-yellow-200 bg-yellow-50">
                       <AlertCircle className="h-4 w-4 text-yellow-600" />
                       <AlertDescription className="text-yellow-700 text-sm">
@@ -4348,6 +4365,21 @@ export default function OnboardingPage() {
                             Number of days investors have to pay after notice
                           </p>
                         </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="commitmentPeriod">Commitment Period (Months)</Label>
+                        <Input
+                          id="commitmentPeriod"
+                          type="number"
+                          min="1"
+                          placeholder="e.g., 60"
+                          value={formData.commitmentPeriod || ''}
+                          onChange={(e) => updateFormData('commitmentPeriod', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Duration during which capital can be called from investors (ILPA standard)
+                        </p>
                       </div>
                     </div>
 
@@ -5223,6 +5255,24 @@ export default function OnboardingPage() {
                     />
                     <p className="text-xs text-gray-500">Annual % of AUM - applies to all tiers</p>
                   </div>
+
+                  {formData.structureType === 'fund' && (
+                    <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
+                      <Checkbox
+                        id="managementFeeOffset"
+                        checked={formData.managementFeeOffset || false}
+                        onCheckedChange={(checked) => updateFormData('managementFeeOffset', checked)}
+                      />
+                      <div className="flex-1">
+                        <Label htmlFor="managementFeeOffset" className="cursor-pointer font-medium text-sm">
+                          Management Fee Offset
+                        </Label>
+                        <p className="text-xs text-gray-600">
+                          Offset management fees paid against carried interest (ILPA standard for Fund structures)
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {formData.waterfallScenarios.map((scenario, index) => (
                     <div key={scenario.id} className="border border-gray-200 rounded-lg">

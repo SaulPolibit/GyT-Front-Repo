@@ -445,11 +445,10 @@ export function LPChartBuilderDialog({ open, onOpenChange, onChartAdded, editing
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue={editingWidget ? (editingWidget.type === 'metric' ? 'metrics' : 'custom') : 'templates'} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue={editingWidget ? (editingWidget.type === 'metric' ? 'metrics' : 'templates') : 'templates'} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="metrics">Metrics</TabsTrigger>
-            <TabsTrigger value="custom">Custom Chart</TabsTrigger>
           </TabsList>
 
           <TabsContent value="templates" className="space-y-4">
@@ -667,9 +666,9 @@ export function LPChartBuilderDialog({ open, onOpenChange, onChartAdded, editing
             </DialogFooter>
           </TabsContent>
 
-          <TabsContent value="custom" className="space-y-6">
+          {/* Custom Chart tab hidden as per Phase 1 requirements */}
+          {/* <TabsContent value="custom" className="space-y-6">
             <div className="grid grid-cols-2 gap-6">
-              {/* Left column: Configuration */}
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="chart-title">Chart Title</Label>
@@ -787,7 +786,6 @@ export function LPChartBuilderDialog({ open, onOpenChange, onChartAdded, editing
                 </div>
               </div>
 
-              {/* Right column: Preview */}
               <div className="space-y-2">
                 <Label>Preview</Label>
                 <Card>
@@ -817,7 +815,7 @@ export function LPChartBuilderDialog({ open, onOpenChange, onChartAdded, editing
                 Add Chart
               </Button>
             </DialogFooter>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
       </DialogContent>
     </Dialog>

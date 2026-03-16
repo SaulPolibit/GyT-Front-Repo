@@ -1,682 +1,307 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { use, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft, AlertCircle, Check, Loader2, CreditCard } from "lucide-react"
-import type { Structure } from "@/lib/structures-storage"
-import { getAuthToken } from "@/lib/auth-storage"
-import { API_CONFIG, getApiUrl } from "@/lib/api-config"
-import { useAuth } from "@/hooks/useAuth"
+import { useState, useEffect, use } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { IconCheck, IconAlertCircle, IconFileText, IconChevronRight } from '@tabler/icons-react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "docuseal-form": any
-    }
-  }
+interface ContractAssignment {
+  id: string
+  templateId: string
+  templateName: string
+  docusealUrl: string
+  required: boolean
+  blocking: boolean
+  signed: boolean
 }
 
-interface Props {
+interface ContractsPageProps {
   params: Promise<{ structureId: string }>
 }
 
-export default function ContractsSigningPage({ params }: Props) {
-  const { structureId } = use(params)
-  const searchParams = useSearchParams()
+export default function ContractsPage({ params }: ContractsPageProps) {
   const router = useRouter()
-  const { user, logout } = useAuth()
-  const [structure, setStructure] = React.useState<Structure | null>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [isSigned, setIsSigned] = React.useState(false)
-  const [isChecking, setIsChecking] = React.useState(false)
-  const [isVerified, setIsVerified] = React.useState(false)
-  const [creditCheck, setCreditCheck] = React.useState<{
-    allowed: boolean
-    cost: number
-    balance: number
-    model: string | null
-    message: string
-  } | null>(null)
-  const [checkingCredits, setCheckingCredits] = React.useState(true)
-  const [creditsDeducted, setCreditsDeducted] = React.useState(false)
-  const [creditError, setCreditError] = React.useState<string | null>(null)
-  const containerRef = React.useRef<HTMLDivElement>(null)
+  const resolvedParams = use(params)
+  const structureId = resolvedParams.structureId
 
-  const tokens = searchParams.get("tokens") || "0"
-  const amount = searchParams.get("amount") || "0"
+  const [contracts, setContracts] = useState<ContractAssignment[]>([])
+  const [currentContractIndex, setCurrentContractIndex] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  // Get user full name from localStorage
-  const userFullName = user ? `${user.firstName} ${user.lastName}` : "Investor Name"
-  const email = user ? user.email : "investor@demo.polibit.io"
-
-  // Determine which contract template to use based on user country
-  const isMexico = user?.country?.toLowerCase() === 'mexico' ||
-                   user?.country?.toLowerCase() === 'méxico' ||
-                   user?.country?.toLowerCase() === 'mex' ||
-                   user?.country?.toLowerCase() === 'mx'
-
-  // Get contract template URL from structure (required - no fallback to env vars)
-  const contractTemplateUrl = isMexico
-    ? structure?.contractTemplateUrlNational
-    : structure?.contractTemplateUrlInternational
-
-  // Check if template URL is missing
-  const hasTemplateError = !contractTemplateUrl || contractTemplateUrl.trim() === ''
-
-  React.useEffect(() => {
-    const fetchStructure = async () => {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const token = getAuthToken()
-
-        if (!token) {
-          setError('No authentication token found')
-          setLoading(false)
-          return
-        }
-
-        const response = await fetch(getApiUrl(API_CONFIG.endpoints.getSingleStructure(structureId)), {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-
-        // Handle 401 Unauthorized - session expired or invalid
-        if (response.status === 401) {
-
-          // Check if it's an expired token error
-          try {
-            const errorData = await response.json()
-            if (errorData.error === "Invalid or expired token") {
-              console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
-              logout()
-              router.push('/lp-portal/login')
-              return
-            }
-          } catch (e) {
-            console.log('Error: ', e)
-          }
-        }
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch structure: ${response.statusText}`)
-        }
-
-        const data = await response.json()
-        console.log('[Contracts] API Response:', data)
-
-        // Map API fields to existing structure format
-        const mappedStructure = {
-          ...data.data,
-          currency: data.data.baseCurrency,
-          jurisdiction: data.data.taxJurisdiction,
-          fundTerm: data.data.finalDate,
-          contractTemplateUrlNational: data.data.contractTemplateUrlNational, // National template URL
-          contractTemplateUrlInternational: data.data.contractTemplateUrlInternational, // International template URL
-        }
-
-        setStructure(mappedStructure)
-      } catch (err) {
-        console.error('[Contracts] Error fetching structure:', err)
-        setError(err instanceof Error ? err.message : 'Failed to fetch structure')
-        setStructure(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchStructure()
+  useEffect(() => {
+    loadContracts()
   }, [structureId])
 
-  // Check credits for document signing (PAYG model)
-  // Credits are deducted when user clicks "Verify Signature" after signing
-  React.useEffect(() => {
-    const checkCredits = async () => {
-      setCheckingCredits(true)
-      try {
-        const token = getAuthToken()
-        if (!token) {
-          setCreditCheck({ allowed: true, cost: 0, balance: 0, model: null, message: '' })
-          setCheckingCredits(false)
-          return
-        }
+  const loadContracts = () => {
+    const storedAssignments = localStorage.getItem('contract_assignments')
 
-        const response = await fetch(getApiUrl(API_CONFIG.endpoints.checkSigningCredits), {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
+    if (storedAssignments) {
+      const allAssignments = JSON.parse(storedAssignments)
+      const structureContracts = allAssignments
+        .filter((a: any) => a.structureId === structureId && a.triggerPoint === 'post_payment')
+        .map((a: any) => {
+          const templates = JSON.parse(localStorage.getItem('contract_templates') || '[]')
+          const template = templates.find((t: any) => t.id === a.templateId)
+          const signedContracts = JSON.parse(localStorage.getItem(`signed_contracts_${structureId}`) || '[]')
+          const isSigned = signedContracts.includes(a.templateId)
 
-        if (response.status === 401) {
-          setCheckingCredits(false)
-          return
-        }
-
-        const data = await response.json()
-        console.log('[Contracts] Credit check response:', data)
-
-        setCreditCheck({
-          allowed: data.allowed,
-          cost: data.cost || 0,
-          balance: data.balance || 0,
-          model: data.model,
-          message: data.message || ''
-        })
-        if (!data.allowed) {
-          setCreditError(data.message || 'Insufficient credits for document signing')
-        }
-      } catch (err) {
-        console.error('[Contracts] Error checking credits:', err)
-        // On error, allow the operation (don't block due to check failure)
-        setCreditCheck({ allowed: true, cost: 0, balance: 0, model: null, message: '' })
-      } finally {
-        setCheckingCredits(false)
-      }
-    }
-
-    checkCredits()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // Deduct credits when DocuSeal form is loaded
-  const deductCredits = async () => {
-    if (creditsDeducted) return true // Already deducted
-
-    try {
-      const token = getAuthToken()
-      if (!token) return false
-
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.deductSigningCredits), {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-      const data = await response.json()
-
-      console.log('[Contracts] Credit deduction result:', data)
-
-      if (data.success && data.deducted) {
-        setCreditsDeducted(true)
-        console.log(`[Contracts] Deducted $${(data.cost / 100).toFixed(2)} for document signing. New balance: $${(data.newBalance / 100).toFixed(2)}`)
-        return true
-      } else if (data.success && !data.deducted) {
-        // No PAYG subscription, allow to proceed
-        setCreditsDeducted(true)
-        return true
-      } else {
-        setCreditError(data.message || 'Failed to deduct credits')
-        return false
-      }
-    } catch (error) {
-      console.error('[Contracts] Error deducting credits:', error)
-      return false
-    }
-  }
-
-  // Load DocuSeal script and deduct credits
-  useEffect(() => {
-    const loadFormAndDeductCredits = async () => {
-      // Wait for credit check to complete
-      if (checkingCredits) return
-
-      // Don't load if there's a credit error
-      if (creditError) return
-
-      // Deduct credits before loading the form (for PAYG model)
-      if (!creditsDeducted && creditCheck?.model === 'payg') {
-        const success = await deductCredits()
-        if (!success) {
-          console.log('[Contracts] Credit deduction failed, not loading form')
-          return
-        }
-      }
-
-      // Check if script is already loaded
-      if (document.querySelector('script[src="https://cdn.docuseal.com/js/form.js"]')) {
-        console.log("DocuSeal script already loaded")
-        return
-      }
-
-      // Load DocuSeal script to document head
-      const script = document.createElement("script")
-      script.src = "https://cdn.docuseal.com/js/form.js"
-      script.async = true
-      script.onload = () => {
-        console.log("DocuSeal script loaded successfully")
-      }
-      script.onerror = () => {
-        console.error("Failed to load DocuSeal script")
-      }
-      document.head.appendChild(script)
-    }
-
-    loadFormAndDeductCredits()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkingCredits, creditError, creditsDeducted, creditCheck])
-
-  // Listen for DocuSeal completion
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      console.log("Message event received:", event.data, event.origin)
-
-      // Log all messages for debugging
-      if (event.origin && event.origin.includes("docuseal")) {
-        console.log("DocuSeal message:", JSON.stringify(event.data))
-      }
-
-      // Check if message is from DocuSeal
-      if (event.origin && event.origin.includes("docuseal")) {
-        if (event.data?.status === "completed" ||
-            event.data?.type === "completed" ||
-            event.data?.completed ||
-            event.data?.submission_completed ||
-            event.data?.form === "completed" ||
-            (typeof event.data === "string" && event.data.includes("completed"))) {
-          console.log("Document signed via postMessage!")
-          setIsSigned(true)
-        }
-      }
-    }
-
-    // Expose a manual trigger for testing - can be called from browser console
-    // Type this in the browser console: window.markAsSigned()
-    (window as any).markAsSigned = () => {
-      console.log("Manually marked as signed - Status updated!")
-      setIsSigned(true)
-    }
-
-    window.addEventListener("message", handleMessage, false)
-
-    // Watch for DOM mutations that indicate signing is complete
-    const observer = new MutationObserver((mutations) => {
-      // Check if the form shows a completion/thank you message
-      const formContainer = containerRef.current
-      if (formContainer) {
-        const text = formContainer.innerText || formContainer.textContent || ""
-        const lowerText = text.toLowerCase()
-
-        // Check for completion indicators
-        const completionIndicators = [
-          "thank you",
-          "completado",
-          "firmado",
-          "ya ha sido enviado",
-          "formulario ya ha sido",
-          "documento",
-          "listo",
-          "enviar",
-          "completed",
-          "signed",
-          "success"
-        ]
-
-        const isCompleted = completionIndicators.some(indicator => lowerText.includes(indicator))
-
-        if (text && isCompleted) {
-          console.log("Detected signing completion in DOM:", text.substring(0, 100))
-          setIsSigned(true)
-        }
-      }
-    })
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      })
-    }
-
-    return () => {
-      window.removeEventListener("message", handleMessage)
-      observer.disconnect()
-    }
-  }, [])
-
-  const handleProceedToPayment = () => {
-    setIsChecking(true)
-    // Redirect to payment page
-    setTimeout(() => {
-      window.location.href = `/lp-portal/marketplace/structure/${structureId}/payment?tokens=${tokens}&email=${encodeURIComponent(email)}&amount=${amount}`
-    }, 500)
-  }
-
-  const handleCheckSigningStatus = async () => {
-    setIsChecking(true)
-    try {
-      // Get auth token from localStorage
-      const token = getAuthToken()
-
-      if (!token) {
-        console.log("No auth token found, logging out...")
-        logout()
-        router.push('/lp-portal/login')
-        return
-      }
-
-      // Call API to verify signature
-      const response = await fetch(getApiUrl(API_CONFIG.endpoints.verifyUserSignature), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      // Handle 401 Unauthorized - session expired or invalid
-      if (response.status === 401) {
-
-        // Check if it's an expired token error
-          try {
-            const errorData = await response.json()
-            if (errorData.error === "Invalid or expired token") {
-              console.log('[Account] 401 Unauthorized - clearing session and redirecting to login')
-              logout()
-              router.push('/lp-portal/login')
-              return
-            }
-          } catch (e) {
-            console.log('Error: ', e)
+          return {
+            id: a.id,
+            templateId: a.templateId,
+            templateName: template?.name || a.templateName,
+            docusealUrl: template?.docusealUrl || '',
+            required: a.required,
+            blocking: a.blocking,
+            signed: isSigned,
           }
+        })
+
+      setContracts(structureContracts)
+      const firstUnsigned = structureContracts.findIndex((c: ContractAssignment) => !c.signed)
+      if (firstUnsigned !== -1) {
+        setCurrentContractIndex(firstUnsigned)
       }
+    }
 
-      const data = await response.json()
+    setLoading(false)
+  }
 
-      console.log("Signature verification response:", data)
+  const handleContractSigned = (contractIndex: number) => {
+    const contract = contracts[contractIndex]
+    const signedContracts = JSON.parse(localStorage.getItem(`signed_contracts_${structureId}`) || '[]')
+    signedContracts.push(contract.templateId)
+    localStorage.setItem(`signed_contracts_${structureId}`, JSON.stringify(signedContracts))
 
-      // Check for invalid or expired token error
-      if (data.error === "Invalid or expired token" || data.message === "Please provide a valid authentication token") {
-        console.log("Token invalid or expired, logging out...")
-        logout()
-        router.push('/lp-portal/login')
-        return
-      }
+    const updatedContracts = [...contracts]
+    updatedContracts[contractIndex].signed = true
+    setContracts(updatedContracts)
+    toast.success(`${contract.templateName} signed successfully`)
 
-      // Check if signature is verified
-      if (data.passed === true) {
-        console.log("Signature verified!")
-        setIsVerified(true)
-        setIsSigned(true) // Mark as signed when API confirms verification
-      } else {
-        console.log("Signature not verified yet")
-        setIsVerified(false)
-      }
-    } catch (error) {
-      console.error("Failed to verify signature:", error)
-      setIsVerified(false)
-    } finally {
-      setIsChecking(false)
+    const nextUnsigned = updatedContracts.findIndex((c, i) => i > contractIndex && !c.signed)
+    if (nextUnsigned !== -1) {
+      setCurrentContractIndex(nextUnsigned)
+    } else {
+      checkAndProceed(updatedContracts)
     }
   }
 
-  if (loading || checkingCredits) {
-    return (
-      <div className="space-y-6 p-4 md:p-6">
-        <Button variant="ghost" asChild>
-          <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </a>
-        </Button>
-        <div className="text-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">
-            {checkingCredits ? 'Checking account credits...' : 'Loading...'}
-          </p>
-        </div>
-      </div>
-    )
+  const handleSkipOptional = () => {
+    const currentContract = contracts[currentContractIndex]
+    if (currentContract.required && currentContract.blocking) {
+      toast.error('This contract is required and cannot be skipped')
+      return
+    }
+
+    const nextUnsigned = contracts.findIndex((c, i) => i > currentContractIndex && !c.signed)
+    if (nextUnsigned !== -1) {
+      setCurrentContractIndex(nextUnsigned)
+    } else {
+      checkAndProceed(contracts)
+    }
   }
 
-  if (!structure) {
+  const checkAndProceed = (contractList: ContractAssignment[]) => {
+    const unsignedBlocking = contractList.filter(c => c.blocking && c.required && !c.signed)
+    if (unsignedBlocking.length > 0) {
+      toast.error('Please sign all required contracts before proceeding')
+      return
+    }
+    router.push(`/lp-portal/marketplace/structure/${structureId}/checkout`)
+  }
+
+  if (loading) {
     return (
-      <div className="space-y-6 p-4 md:p-6">
-        <Button variant="ghost" asChild>
-          <a href="/lp-portal/marketplace">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Marketplace
-          </a>
-        </Button>
+      <div className="container mx-auto p-6">
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-            <p className="text-lg font-semibold mb-2">
-              {error ? 'Error loading structure' : 'Structure not found'}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {error || 'The structure you are looking for could not be found.'}
-            </p>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Loading contracts...</p>
           </CardContent>
         </Card>
       </div>
     )
   }
 
+  if (contracts.length === 0) {
+    router.push(`/lp-portal/marketplace/structure/${structureId}/checkout`)
+    return null
+  }
+
+  const currentContract = contracts[currentContractIndex]
+  const requiredContracts = contracts.filter(c => c.required)
+  const optionalContracts = contracts.filter(c => !c.required)
+  const signedCount = contracts.filter(c => c.signed).length
+  const progress = (signedCount / contracts.length) * 100
+
   return (
-    <div className="p-4 md:p-6 h-screen flex flex-col overflow-hidden">
-      <div className="grid gap-6 md:grid-cols-4 flex-1 overflow-hidden">
-        {/* Left Column - Summary */}
-        <div className="md:col-span-1 flex flex-col min-h-0">
-          <Card className="flex flex-col h-fit">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-lg">Contract Summary</CardTitle>
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Contract Signing</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Please review and sign the required documents before proceeding to checkout
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Progress</span>
+                <span className="font-medium">{signedCount} of {contracts.length} signed</span>
               </div>
-              <Button variant="ghost" asChild className="w-full justify-start -ml-4 mt-2">
-                <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Checkout
-                </a>
-              </Button>
+              <Progress value={progress} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {requiredContracts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Required Contracts</CardTitle>
+                <CardDescription>Must be signed to proceed</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {requiredContracts.map((contract) => (
+                    <li key={contract.id} className="flex items-center gap-2 text-sm">
+                      {contract.signed ? (
+                        <IconCheck className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-muted" />
+                      )}
+                      <span className={contract.signed ? 'text-muted-foreground line-through' : ''}>
+                        {contract.templateName}
+                      </span>
+                      {contract.blocking && <Badge variant="destructive" className="ml-auto text-xs">Blocking</Badge>}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {optionalContracts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Optional Contracts</CardTitle>
+                <CardDescription>Can be skipped</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {optionalContracts.map((contract) => (
+                    <li key={contract.id} className="flex items-center gap-2 text-sm">
+                      {contract.signed ? (
+                        <IconCheck className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-muted" />
+                      )}
+                      <span className={contract.signed ? 'text-muted-foreground line-through' : ''}>
+                        {contract.templateName}
+                      </span>
+                      <Badge variant="secondary" className="ml-auto text-xs">Optional</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {!contracts.every(c => c.signed) && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>{currentContract.templateName}</CardTitle>
+                  <CardDescription>
+                    Contract {currentContractIndex + 1} of {contracts.length}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {currentContract.required ? (
+                    <Badge variant="default">Required</Badge>
+                  ) : (
+                    <Badge variant="secondary">Optional</Badge>
+                  )}
+                  {currentContract.blocking && <Badge variant="destructive">Blocking</Badge>}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Fund Structure</p>
-                <p className="font-semibold text-sm">{structure?.name}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Tokens</p>
-                <p className="text-2xl font-bold text-primary">{tokens}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Total Amount</p>
-                <p className="text-xl font-bold">${amount}</p>
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Status</p>
-                {isSigned ? (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <Check className="h-4 w-4" />
-                    <span className="text-sm font-semibold">Signed</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-amber-600">
-                    <AlertCircle className="h-4 w-4" />
-                    <span className="text-sm font-semibold">Pending</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - DocuSeal Form */}
-        <div className="md:col-span-3 flex flex-col min-h-0 overflow-hidden">
-          <Card className="flex flex-col flex-1 min-h-0">
-            <CardHeader className="pb-3">
-              <CardTitle>Sign Fund Agreement</CardTitle>
-              <CardDescription>
-                Please review and sign the fund agreement using the form below
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col flex-1 min-h-0 gap-3 pt-0 overflow-y-auto">
-              {/* Insufficient Credits Error */}
-              {(creditCheck && !creditCheck.allowed) || creditError ? (
-                <div className="border rounded-lg bg-muted/30 flex-1 min-h-0 flex items-center justify-center">
-                  <div className="text-center p-8 max-w-md">
-                    <CreditCard className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-red-900 mb-2">Insufficient Credits</h3>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {creditError || creditCheck?.message || 'Your account does not have enough credits to create this document.'}
+              {currentContract.signed ? (
+                <Alert>
+                  <IconCheck className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-700">
+                    This contract has been signed
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  <div className="bg-muted rounded-lg p-8 text-center">
+                    <IconFileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-sm text-muted-foreground mb-4">
+                      DocuSeal embed integration will be displayed here
                     </p>
-                    {creditCheck && (
-                      <p className="text-xs text-red-600 mb-6">
-                        Required: ${((creditCheck.cost || 0) / 100).toFixed(2)} |
-                        Available: ${((creditCheck.balance || 0) / 100).toFixed(2)}
-                      </p>
-                    )}
-                    <div className="flex gap-3 justify-center">
-                      <Button variant="outline" asChild>
-                        <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
-                          <ArrowLeft className="h-4 w-4 mr-2" />
-                          Back to Checkout
-                        </a>
+                    <p className="text-xs text-muted-foreground">
+                      Template URL: {currentContract.docusealUrl}
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    {!currentContract.required && !currentContract.blocking && (
+                      <Button variant="outline" onClick={handleSkipOptional}>
+                        Skip (Optional)
                       </Button>
-                      <Button onClick={() => router.push('/investment-manager/settings?tab=subscription')}>
-                        Add Credits
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* DocuSeal Embed */}
-              {creditCheck?.allowed && !hasTemplateError && !creditError ? (
-                <div ref={containerRef} className="border rounded-lg overflow-y-auto bg-muted/30 flex-1 min-h-0">
-                  {/* @ts-expect-error - DocuSeal is a custom web component */}
-
-                  <docuseal-form
-                    data-src={contractTemplateUrl}
-                    data-email={email}
-                    data-role="Client"
-                    data-language="es"
-                    data-values={JSON.stringify({
-                      Nombre2: userFullName,
-                      Email: email,
-                      Email2: email,
-                      Nombre: userFullName,
-                      Nombre4: userFullName,
-                      Nombre3: userFullName,
-                      Cantidad: tokens,
-                      Cantidad2: tokens,
-                    })}
-                    data-read-only-fields={JSON.stringify(["Nombre2", "Email", "Email2", "Nombre", "Nombre4", "Nombre3", "Cantidad2", "Cantidad"])}
-                    data-external-id={`user_${user?.id || 'unknown'}`}
-                    className="w-full h-full"
-                  />
-                </div>
-              ) : creditCheck?.allowed && hasTemplateError && !creditError ? (
-                <div className="border rounded-lg bg-muted/30 flex-1 min-h-0 flex items-center justify-center">
-                  <div className="text-center p-8 max-w-md">
-                    <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-red-900 mb-2">Contract Template Unavailable</h3>
-                    <p className="text-sm text-muted-foreground">
-                      The contract template for {isMexico ? 'national (Mexico)' : 'international'} investors has not been configured for this structure.
-                      Please contact support for assistance.
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Status Alert - Compact */}
-              {creditCheck?.allowed && hasTemplateError && (
-                <div className="flex gap-2 p-3 border border-red-200 bg-red-50 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-red-900 mb-1">Contract Template Not Configured</p>
-                    <p className="text-xs text-red-800">
-                      This structure does not have a contract template configured for {isMexico ? 'national (Mexico)' : 'international'} investors.
-                      Please contact support to configure the template before proceeding.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {creditCheck?.allowed && !hasTemplateError && !isSigned && (
-                <div className="flex gap-2 p-3 border border-amber-200 bg-amber-50 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-800">
-                    Complete signing the agreement to proceed to payment.
-                  </p>
-                </div>
-              )}
-
-              {creditCheck?.allowed && !hasTemplateError && isSigned && (
-                <div className="flex gap-2 p-3 border border-green-200 bg-green-50 rounded-lg">
-                  <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-green-800">
-                    Document signed! Ready to proceed to payment.
-                  </p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              {creditCheck?.allowed && (
-              <div className="flex flex-col gap-3 pt-4">
-                {!hasTemplateError && !isSigned ? (
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    disabled={isChecking}
-                    onClick={handleCheckSigningStatus}
-                  >
-                    {isChecking ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Verifying Signature...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Verify Signature
-                      </>
                     )}
-                  </Button>
-                ) : null}
-                <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1" asChild>
-                    <a href={`/lp-portal/marketplace/structure/${structureId}/checkout`}>
-                      Cancel
-                    </a>
-                  </Button>
-                  {!hasTemplateError && (
-                    <Button
-                      className="flex-1"
-                      size="lg"
-                      disabled={!isSigned || !isVerified || isChecking}
-                      onClick={handleProceedToPayment}
-                    >
-                      {isChecking ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="h-4 w-4 mr-2" />
-                          Proceed to Payment
-                        </>
-                      )}
+                    <Button className="flex-1" onClick={() => handleContractSigned(currentContractIndex)}>
+                      Mark as Signed
+                      <IconChevronRight className="w-4 h-4 ml-2" />
                     </Button>
+                  </div>
+
+                  {currentContract.blocking && currentContract.required && (
+                    <Alert>
+                      <IconAlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        This contract is required and must be signed before you can proceed to checkout
+                      </AlertDescription>
+                    </Alert>
                   )}
-                </div>
-              </div>
+                </>
               )}
             </CardContent>
           </Card>
-        </div>
+        )}
+
+        {contracts.every(c => c.signed) && (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-green-600 flex items-center justify-center">
+                    <IconCheck className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-green-900">All Contracts Signed!</h3>
+                  <p className="text-sm text-green-700">
+                    You can now proceed to complete your checkout
+                  </p>
+                </div>
+                <Button onClick={() => checkAndProceed(contracts)}>
+                  Proceed to Checkout
+                  <IconChevronRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

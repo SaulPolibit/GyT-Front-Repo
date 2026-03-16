@@ -1,8 +1,8 @@
 import ExcelJS from 'exceljs'
 import type { CapitalCall } from './types'
-import { getStructureById } from './structures-storage'
+import type { Structure } from './structures-storage'
 
-export async function generateILPACapitalCallTemplate(capitalCall: CapitalCall, firmName: string = 'Investment Manager'): Promise<Buffer> {
+export async function generateILPACapitalCallTemplate(capitalCall: CapitalCall, firmName: string = 'Investment Manager', structures: Structure[] = []): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
 
   workbook.creator = firmName
@@ -10,7 +10,7 @@ export async function generateILPACapitalCallTemplate(capitalCall: CapitalCall, 
   workbook.modified = new Date()
   workbook.lastModifiedBy = firmName
 
-  const fund = getStructureById(capitalCall.fundId)
+  const fund = structures.find(s => s.id === capitalCall.fundId) || null
   if (!fund) {
     throw new Error('Fund not found')
   }
@@ -89,7 +89,7 @@ export async function generateILPACapitalCallTemplate(capitalCall: CapitalCall, 
     ['Notice Period (Days)', capitalCall.noticePeriodDays.toString()],
     ['Total Call Amount', `${capitalCall.currency} ${capitalCall.totalCallAmount.toLocaleString()}`],
     ['Purpose', capitalCall.purpose],
-    ['Transaction Type (ILPA)', capitalCall.transactionType],
+    ['Transaction Type', capitalCall.transactionType],
     ['Use of Proceeds', capitalCall.useOfProceeds],
   ]
 
@@ -259,8 +259,8 @@ export async function generateILPACapitalCallTemplate(capitalCall: CapitalCall, 
   return Buffer.from(buffer)
 }
 
-export function downloadILPACapitalCall(capitalCall: CapitalCall) {
-  generateILPACapitalCallTemplate(capitalCall).then((buffer) => {
+export function downloadILPACapitalCall(capitalCall: CapitalCall, structures: Structure[] = []) {
+  generateILPACapitalCallTemplate(capitalCall, 'Investment Manager', structures).then((buffer) => {
     const blob = new Blob([buffer as BlobPart], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     })

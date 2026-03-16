@@ -156,12 +156,6 @@ export function AppSidebar({ onSearchClick, ...props }: AppSidebarProps) {
         url: "/investment-manager/approvals",
         icon: CheckCircle,
       },
-      // Settings - root and admin have access to subscription tab
-      ...(isAdminOrRoot ? [{
-        title: "Settings",
-        url: "/investment-manager/settings?tab=subscription",
-        icon: Settings,
-      }] : []),
       // Reports - root only
       ...(isRootUser ? [{
         title: t.nav.reports,

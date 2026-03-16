@@ -17,6 +17,10 @@ export interface FeatureFlags {
   complianceInfo: boolean           // LP Settings — Tax/KYC/Accreditation cards
   advancedNotificationsIM: boolean  // IM Settings — SMS, Portal Notifs, Comm Prefs
   contractSigning: boolean          // LP Marketplace — contract signing workflow
+  parentStructure: boolean          // Structure Setup — Enable parent structure selection in wizard
+  capitalCallsFeature: boolean      // Structure Setup — Show capital calls step in structure wizard
+  waterfallsFeature: boolean        // Structure Setup — Enable waterfall distribution model
+  approvalWorkflows: boolean        // Structure Setup — Enable multi-level approval workflows
 }
 
 export interface NavVisibilityConfig {
@@ -31,6 +35,10 @@ export const DEFAULT_FEATURE_FLAGS: FeatureFlags = {
   complianceInfo: true,
   advancedNotificationsIM: true,
   contractSigning: true,
+  parentStructure: false,
+  capitalCallsFeature: true,
+  waterfallsFeature: true,
+  approvalWorkflows: false,
 }
 
 export interface FeatureFlagMeta {
@@ -45,6 +53,10 @@ export const FEATURE_FLAGS_META: FeatureFlagMeta[] = [
   { key: 'complianceInfo', label: 'Compliance Info', description: 'Show Tax, KYC, and Accreditation cards in LP Settings' },
   { key: 'advancedNotificationsIM', label: 'Advanced Notifications (IM)', description: 'Show SMS, Portal Notifications, and Communication Preferences in IM Settings' },
   { key: 'contractSigning', label: 'Contract Signing', description: 'Enable the contract signing workflow in LP Marketplace checkout' },
+  { key: 'parentStructure', label: 'Parent Structure', description: 'Enable parent structure selection in wizard' },
+  { key: 'capitalCallsFeature', label: 'Capital Calls (Setup)', description: 'Show capital calls step in structure wizard' },
+  { key: 'waterfallsFeature', label: 'Waterfall Distributions', description: 'Enable waterfall distribution model' },
+  { key: 'approvalWorkflows', label: 'Approval Workflows', description: 'Enable multi-level approval workflows' },
 ]
 
 // Nav item metadata for rendering settings tables
@@ -104,7 +116,7 @@ export const DEFAULT_NAV_VISIBILITY: NavVisibilityConfig = {
     activity:            { admin: true,  operations: true,  readOnly: true },
     capitalCalls:        { admin: true,  operations: true,  readOnly: false },
     distributions:       { admin: true,  operations: true,  readOnly: false },
-    contractsManagement: { admin: false, operations: false, readOnly: false },
+    contractsManagement: { admin: true, operations: true, readOnly: false },
     settings:            { admin: true,  operations: false, readOnly: false },
   },
   lpPortal: {

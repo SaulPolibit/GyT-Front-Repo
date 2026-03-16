@@ -86,7 +86,19 @@ export default function CreateCapitalCallPage() {
           fundInvestors = getInvestorsByFundId(fund.id)
         }
 
-        setInvestors(fundInvestors)
+        // Filter to only show investors with commitments > 0
+        const investorsWithCommitments = fundInvestors.filter(inv => {
+          if (isHierarchyMaster) {
+            // For hierarchical structures, check _hierarchyOwnership.commitment
+            return (inv._hierarchyOwnership?.commitment || 0) > 0
+          } else {
+            // For single-level structures, check fundOwnerships
+            const ownership = inv.fundOwnerships?.find((fo: any) => fo.fundId === fund.id)
+            return (ownership?.commitment || 0) > 0
+          }
+        })
+
+        setInvestors(investorsWithCommitments)
 
         setFormData(prev => ({
           ...prev,
@@ -615,10 +627,10 @@ export default function CreateCapitalCallPage() {
                     <strong>Two-Stage Capital Call:</strong>
                     <div className="mt-2 space-y-1">
                       <div className="font-medium text-blue-900">
-                        • Level 2 (Investment Trust): Called first based on ownership of Master
+                        Level 2 (Investment Trust): Called first based on ownership of Master
                       </div>
                       <div className="font-medium text-purple-900">
-                        • Level 1 (Master Trust): Receives remainder of capital call
+                        Level 1 (Master Trust): Receives remainder of capital call
                       </div>
                     </div>
                     <div className="mt-2 font-semibold">

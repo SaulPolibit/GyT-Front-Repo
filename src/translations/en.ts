@@ -245,6 +245,559 @@ export const en = {
     contactSupport: "Contact support",
     viewDocumentation: "view documentation",
   },
+
+  // LP Dashboard Page
+  lpDashboard: {
+    loading: "Loading dashboard...",
+    noData: "No data available",
+    authRequired: "Authentication required",
+    filterByFund: "Filter by Fund:",
+    allFunds: "All Funds",
+    addGraph: "Add a Graph",
+    totalCommitment: "Total Commitment",
+    activeFund: "fund",
+    activeFunds: "funds",
+    across: "Across",
+    active: "active",
+    currentValue: "Current Value",
+    calledCapital: "called capital",
+    totalReturn: "Total Return",
+    totalDistributed: "Total Distributed",
+    lifetimeDistributions: "Lifetime distributions received",
+    capitalDeployment: "Capital Deployment",
+    commitmentVsCalled: "Your commitment vs. called capital",
+    calledCapitalLabel: "Called Capital",
+    uncalledCapital: "Uncalled Capital",
+    deploymentRate: "Deployment Rate",
+    portfolioBreakdown: "Portfolio Breakdown",
+    investmentsAcrossFunds: "Your investments across all funds",
+    viewAll: "View All",
+    noActiveInvestments: "No active investments yet",
+    commitment: "Commitment",
+    called: "Called",
+    unrealizedGain: "Unrealized Gain",
+    chartComingSoon: "Portfolio Value Chart - Coming Soon",
+    portfolioPerformance: "Portfolio Performance",
+    capitalFlowOverTime: "Capital calls and distributions over time",
+    allTime: "All Time",
+    last12Months: "Last 12 Months",
+    last6Months: "Last 6 Months",
+    noActivityData: "No activity data available",
+    cumulativeCalledCapital: "Cumulative Called Capital",
+    cumulativeDistributions: "Cumulative Distributions",
+    recentActivity: "Recent Activity",
+    latestTransactions: "Your latest capital calls and distributions",
+    noRecentActivity: "No recent activity",
+    capitalCall: "Capital Call",
+    distribution: "Distribution",
+    ownership: "Ownership",
+    capitalDeployed: "Capital Deployed",
+    emptyTitle: "Your dashboard is empty",
+    emptyDescription: "Click \"Add a Graph\" to add metrics, charts, and templates to your dashboard.",
+  },
+
+  // Structure Setup Wizard
+  structureSetup: {
+    // Common
+    title: "Structure Setup",
+    subtitle: "Create and configure your investment structure",
+    step: "Step",
+    of: "of",
+    previous: "Previous",
+    next: "Next",
+    finish: "Finish",
+    cancel: "Cancel",
+    save: "Save",
+    saveDraft: "Save Draft",
+    saveAndContinue: "Save & Continue",
+    required: "Required",
+    optional: "Optional",
+    loading: "Loading...",
+    saving: "Saving...",
+
+    // Validation
+    validation: {
+      required: "This field is required",
+      invalidEmail: "Please enter a valid email address",
+      invalidNumber: "Please enter a valid number",
+      minValue: "Value must be at least",
+      maxValue: "Value cannot exceed",
+      minLength: "Must be at least {min} characters",
+      maxLength: "Cannot exceed {max} characters",
+      invalidPercentage: "Percentage must be between 0 and 100",
+      invalidDate: "Please enter a valid date",
+      futureDate: "Date must be in the future",
+      pastDate: "Date must be in the past",
+    },
+
+    // Step 1: Basic Information
+    step1: {
+      title: "Basic Information",
+      subtitle: "Set up the fundamental details of your structure",
+      structureType: "Structure Type",
+      structureTypeLabel: "Select structure type",
+      structureTypeDescription: "Choose the legal structure that best fits your investment strategy",
+
+      // Structure Types (Private Debt removed)
+      fund: "Fund",
+      fundDescription: "Investment fund for single or multiple projects with capital calls",
+      saLLC: "SA / LLC",
+      saLLCDescription: "Single-property legal entity for isolated risk",
+      trust: "Trust / Fideicomiso",
+      trustDescription: "Bank trust structure with tax incentives, can hold multiple properties",
+
+      // Basic Fields
+      structureName: "Structure Name",
+      structureNamePlaceholder: "Enter structure name",
+      structureNameDescription: "The legal name of your investment structure",
+
+      description: "Description",
+      descriptionPlaceholder: "Enter a brief description",
+      descriptionDescription: "A brief description of the investment structure and its purpose",
+
+      inceptionDate: "Inception Date",
+      inceptionDateDescription: "The date when the structure was legally established",
+
+      currency: "Currency",
+      currencyDescription: "The primary currency for financial reporting",
+
+      fiscalYearEnd: "Fiscal Year End",
+      fiscalYearEndDescription: "The month when the fiscal year ends",
+
+      // Parent Structure
+      parentStructure: "Parent Structure",
+      parentStructureDescription: "Select a parent structure if this is a subsidiary",
+      noParent: "None (Top-level structure)",
+      hierarchyLevel: "Hierarchy Level",
+    },
+
+    // Step 2: Jurisdiction
+    step2: {
+      title: "Jurisdiction & Legal Details",
+      subtitle: "Configure jurisdiction and legal information",
+
+      jurisdiction: "Jurisdiction",
+      jurisdictionDescription: "The country where the structure is registered",
+
+      state: "State / Province",
+      stateDescription: "The state or province (if applicable)",
+
+      city: "City",
+      cityDescription: "The city where the structure is registered",
+
+      legalEntityId: "Legal Entity ID",
+      legalEntityIdPlaceholder: "Enter tax ID or registration number",
+      legalEntityIdDescription: "Tax ID, EIN, or registration number",
+
+      registrationDate: "Registration Date",
+      registrationDateDescription: "The date when the structure was registered with authorities",
+
+      regulatoryBody: "Regulatory Body",
+      regulatoryBodyDescription: "The primary regulatory authority overseeing this structure",
+
+      complianceNotes: "Compliance Notes",
+      complianceNotesPlaceholder: "Enter any compliance notes",
+      complianceNotesDescription: "Any special compliance requirements or notes",
+    },
+
+    // Step 3: Limited Partners / Investors
+    step3: {
+      title: "Limited Partners",
+      subtitle: "Configure investor requirements and restrictions",
+
+      minInvestors: "Minimum Investors",
+      minInvestorsDescription: "Minimum number of investors required",
+
+      maxInvestors: "Maximum Investors",
+      maxInvestorsDescription: "Maximum number of investors allowed",
+
+      minTicketSize: "Minimum Ticket Size",
+      minTicketSizeDescription: "Minimum investment amount per investor",
+
+      maxTicketSize: "Maximum Ticket Size",
+      maxTicketSizeDescription: "Maximum investment amount per investor (0 = no limit)",
+
+      accreditationRequired: "Accreditation Required",
+      accreditationRequiredDescription: "Only allow accredited investors",
+
+      kycRequired: "KYC Required",
+      kycRequiredDescription: "Require KYC verification for all investors",
+
+      investorTypes: "Allowed Investor Types",
+      investorTypesDescription: "Select which investor types are allowed",
+      individual: "Individual",
+      institution: "Institution",
+      familyOffice: "Family Office",
+      fundOfFunds: "Fund of Funds",
+
+      geographicRestrictions: "Geographic Restrictions",
+      geographicRestrictionsDescription: "Restrict investors by country",
+      allowedCountries: "Allowed Countries",
+      blockedCountries: "Blocked Countries",
+
+      // CSV Import
+      csvImport: "CSV Import",
+      csvImportDescription: "Import investors from a CSV file",
+      uploadCSV: "Upload CSV",
+      downloadTemplate: "Download Template",
+      csvInstructions: "Download the template, fill in investor details, and upload",
+
+      // Investor Table
+      investorList: "Current Investors",
+      addInvestor: "Add Investor",
+      editInvestor: "Edit Investor",
+      removeInvestor: "Remove Investor",
+      noInvestors: "No investors added yet",
+      investorName: "Name",
+      investorEmail: "Email",
+      investorCommitment: "Commitment",
+      investorOwnership: "Ownership %",
+    },
+
+    // Step 4: Capital Calls
+    step4: {
+      title: "Capital Calls",
+      subtitle: "Configure capital call schedule and terms",
+
+      hasCapitalCalls: "Enable Capital Calls",
+      hasCapitalCallsDescription: "This structure will use capital calls to fund investments",
+
+      totalCommitment: "Total Commitment",
+      totalCommitmentDescription: "Total capital committed by all investors",
+
+      commitmentPeriod: "Commitment Period",
+      commitmentPeriodDescription: "Duration during which capital can be called (in months)",
+      commitmentPeriodMonths: "months",
+
+      defaultNoticePeriod: "Default Notice Period",
+      defaultNoticePeriodDescription: "Standard number of days notice for capital calls",
+      defaultNoticePeriodDays: "days",
+
+      callSchedule: "Call Schedule",
+      callScheduleDescription: "How capital will be called",
+      asNeeded: "As Needed",
+      asNeededDescription: "Call capital as investment opportunities arise",
+      scheduled: "Scheduled",
+      scheduledDescription: "Pre-determined call schedule",
+
+      numberOfCalls: "Number of Planned Calls",
+      numberOfCallsDescription: "Expected number of capital calls over the commitment period",
+
+      callFrequency: "Call Frequency",
+      callFrequencyDescription: "How often capital calls will be made",
+      monthly: "Monthly",
+      quarterly: "Quarterly",
+      semiAnnually: "Semi-Annually",
+      annually: "Annually",
+
+      // Payment Terms
+      paymentTerms: "Payment Terms",
+      paymentTermsDescription: "Standard payment terms for capital calls",
+      paymentDueDays: "Payment Due (Days)",
+      paymentDueDaysDescription: "Number of days from call date to payment due date",
+
+      lateFeePercentage: "Late Fee (%)",
+      lateFeePercentageDescription: "Percentage charged for late payments",
+
+      defaultPaymentMethod: "Default Payment Method",
+      wire: "Wire Transfer",
+      ach: "ACH",
+      check: "Check",
+      polibit: "PoliBit",
+      card: "Credit/Debit Card",
+    },
+
+    // Step 5: Economic Terms
+    step5: {
+      title: "Economic Terms",
+      subtitle: "Configure fees, carried interest, and waterfall structure",
+
+      // Management Fees
+      managementFee: "Management Fee",
+      managementFeeRate: "Management Fee Rate (%)",
+      managementFeeRateDescription: "Annual management fee as percentage of committed capital",
+      managementFeeCalculation: "Fee Calculation Basis",
+      onCommitted: "On Committed Capital",
+      onInvested: "On Invested Capital",
+      onNAV: "On Net Asset Value",
+
+      managementFeeOffset: "Management Fee Offset",
+      managementFeeOffsetDescription: "Offset management fees against carried interest",
+
+      // Performance Fees
+      carriedInterest: "Carried Interest",
+      carriedInterestRate: "Carried Interest Rate (%)",
+      carriedInterestRateDescription: "GP share of profits after preferred return",
+
+      // Waterfall Structure (ILPA Standard)
+      waterfallStructure: "Waterfall Structure",
+      waterfallDescription: "Distribution waterfall tiers (ILPA standard)",
+
+      tier1: "Tier 1: Return of Capital",
+      tier1Description: "100% to LPs until all capital is returned",
+
+      tier2: "Tier 2: Preferred Return",
+      tier2Description: "100% to LPs until preferred return hurdle is met",
+      preferredReturnRate: "Preferred Return Rate (%)",
+      preferredReturnRateDescription: "Annual preferred return hurdle rate",
+
+      tier3: "Tier 3: GP Catch-Up",
+      tier3Description: "Distribution to GP to equalize profit share",
+      catchUpRate: "GP Catch-Up Rate (%)",
+      catchUpRateDescription: "Percentage of distributions to GP during catch-up",
+
+      tier4: "Tier 4: Carried Interest",
+      tier4Description: "Profit split according to carried interest rate",
+      carriedInterestSplit: "Carried Interest Split",
+      lpShare: "LP Share (%)",
+      gpShare: "GP Share (%)",
+
+      // Other Fees
+      setupFee: "Setup Fee",
+      setupFeeAmount: "Setup Fee Amount",
+      setupFeeDescription: "One-time fee charged at structure inception",
+
+      transactionFees: "Transaction Fees",
+      transactionFeeRate: "Transaction Fee Rate (%)",
+      transactionFeeDescription: "Fee charged on each transaction",
+
+      performanceFee: "Performance Fee",
+      performanceFeeRate: "Performance Fee Rate (%)",
+      performanceFeeDescription: "Additional fee based on performance",
+
+      // Fee Periods
+      feePaymentFrequency: "Fee Payment Frequency",
+      feePaymentFrequencyDescription: "How often management fees are paid",
+
+      // Hurdle Rates
+      hurdleRate: "Hurdle Rate",
+      hurdleRateDescription: "Minimum return before performance fees apply",
+      hurdleType: "Hurdle Type",
+      hard: "Hard Hurdle",
+      soft: "Soft Hurdle",
+    },
+
+    // Step 6: Documents & Payment
+    step6: {
+      title: "Documents & Payment Methods",
+      subtitle: "Configure payment methods and governing documents",
+
+      // Payment Methods
+      paymentMethods: "Accepted Payment Methods",
+      paymentMethodsDescription: "Select all payment methods you want to accept",
+      paymentMethodWire: "Wire Transfer",
+      paymentMethodInternational: "International Wire",
+      paymentMethodCrypto: "Cryptocurrency",
+      paymentMethodPoliBit: "PoliBit",
+      paymentMethodCard: "Credit/Debit Card",
+
+      // Bank Details
+      bankDetails: "Bank Account Details",
+      bankName: "Bank Name",
+      bankNameDescription: "Name of the receiving bank",
+      accountName: "Account Name",
+      accountNameDescription: "Name on the account",
+      accountNumber: "Account Number",
+      accountNumberDescription: "Bank account number",
+      routingNumber: "Routing Number",
+      routingNumberDescription: "Bank routing number (ABA/ACH)",
+      swiftCode: "SWIFT/BIC Code",
+      swiftCodeDescription: "International bank identifier",
+      iban: "IBAN",
+      ibanDescription: "International Bank Account Number",
+
+      // Crypto Wallet
+      cryptoWallet: "Cryptocurrency Wallet",
+      cryptoWalletAddress: "Wallet Address",
+      cryptoWalletAddressDescription: "Cryptocurrency wallet address for receiving payments",
+      cryptoNetwork: "Network",
+      cryptoNetworkDescription: "Blockchain network (e.g., Ethereum, Bitcoin)",
+
+      // Governing Documents
+      governingDocuments: "Governing Documents",
+      governingDocumentsDescription: "Upload or link to key governing documents",
+
+      ppm: "Private Placement Memorandum (PPM)",
+      ppmDescription: "Main offering document",
+      uploadPPM: "Upload PPM",
+
+      lpa: "Limited Partnership Agreement (LPA)",
+      lpaDescription: "Partnership agreement",
+      uploadLPA: "Upload LPA",
+
+      subscription: "Subscription Agreement",
+      subscriptionDescription: "Investor subscription document",
+      uploadSubscription: "Upload Subscription Agreement",
+
+      sideLetters: "Side Letters",
+      sideLettersDescription: "Any side letter agreements",
+      uploadSideLetter: "Upload Side Letter",
+
+      // Document Management
+      documentName: "Document Name",
+      documentType: "Document Type",
+      uploadDate: "Upload Date",
+      uploadedBy: "Uploaded By",
+      actions: "Actions",
+      download: "Download",
+      delete: "Delete",
+      view: "View",
+    },
+
+    // Step 7: Review & Submit
+    step7: {
+      title: "Review & Submit",
+      subtitle: "Review all details before creating your structure",
+
+      reviewInstructions: "Please review all information carefully. You can go back to edit any section.",
+
+      // Section Headers
+      basicInfo: "Basic Information",
+      jurisdictionInfo: "Jurisdiction & Legal",
+      investorInfo: "Limited Partners",
+      capitalCallsInfo: "Capital Calls",
+      economicTermsInfo: "Economic Terms",
+      documentsInfo: "Documents & Payment",
+
+      // Actions
+      createStructure: "Create Structure",
+      goBack: "Go Back to Edit",
+
+      // Confirmation
+      confirmTitle: "Confirm Structure Creation",
+      confirmMessage: "Are you sure you want to create this structure? This action cannot be undone.",
+      confirmYes: "Yes, Create Structure",
+      confirmNo: "Cancel",
+
+      // Success
+      successTitle: "Structure Created Successfully!",
+      successMessage: "Your structure has been created and is ready to use.",
+      viewStructure: "View Structure",
+      createAnother: "Create Another Structure",
+      goToDashboard: "Go to Dashboard",
+
+      // Error
+      errorTitle: "Error Creating Structure",
+      errorMessage: "There was an error creating your structure. Please try again.",
+      tryAgain: "Try Again",
+    },
+
+    // Progress Indicator
+    progress: {
+      notStarted: "Not Started",
+      inProgress: "In Progress",
+      completed: "Completed",
+      current: "Current Step",
+    },
+
+    // Help Text
+    help: {
+      needHelp: "Need help?",
+      contactSupport: "Contact support",
+      viewDocumentation: "View documentation",
+      chatWithUs: "Chat with us",
+    },
+  },
+
+  // Contract Management
+  contracts: {
+    title: "Contract Management",
+    subtitle: "Manage contract templates, structure assignments, and countersignatures",
+
+    // Tabs
+    templatesTab: "Templates",
+    assignmentsTab: "Structure Assignments",
+    countersignaturesTab: "Countersignatures",
+
+    // Templates
+    createTemplate: "Create Template",
+    editTemplate: "Edit Template",
+    deleteTemplate: "Delete Template",
+    noTemplates: "No Templates",
+    noTemplatesDescription: "Get started by creating your first contract template",
+    templateName: "Template Name",
+    templateNamePlaceholder: "e.g., Standard Subscription Agreement",
+    docusealUrl: "DocuSeal Template URL",
+    docusealUrlPlaceholder: "https://docuseal.co/templates/...",
+    templateType: "Template Type",
+    templateTypes: {
+      subscription: "Subscription",
+      lpa: "LPA",
+      sideLetter: "Side Letter",
+      other: "Other",
+    },
+    jurisdiction: "Jurisdiction",
+    category: "Category",
+    categories: {
+      investor: "Investor",
+      fund: "Fund",
+      general: "General",
+    },
+    status: "Status",
+    statuses: {
+      active: "Active",
+      inactive: "Inactive",
+      draft: "Draft",
+    },
+    templateCreated: "Template created successfully",
+    templateUpdated: "Template updated successfully",
+    templateDeleted: "Template deleted successfully",
+
+    // Assignments
+    assignContract: "Assign Contract",
+    assignContractTo: "Assign Contract to Structure",
+    assignContractDescription: "Select a structure and contract template to create an assignment",
+    noAssignments: "No Assignments",
+    noAssignmentsDescription: "Assign contracts to structures to automate the signing workflow",
+    structure: "Structure",
+    selectStructure: "Select structure",
+    contractTemplate: "Contract Template",
+    selectTemplate: "Select template",
+    triggerPoint: "Trigger Point",
+    triggerPoints: {
+      prePayment: "Pre-Payment",
+      postPayment: "Post-Payment",
+      postClosing: "Post-Closing",
+      onDemand: "On Demand",
+    },
+    required: "Required",
+    requiredDescription: "Investor must sign this contract",
+    optional: "Optional",
+    blocking: "Blocking",
+    blockingDescription: "Block checkout until signed",
+    nonBlocking: "Non-blocking",
+    assignmentCreated: "Contract assigned to structure successfully",
+    assignmentDeleted: "Assignment removed successfully",
+
+    // Countersignatures
+    noCountersignatures: "No Countersignatures",
+    noCountersignaturesDescription: "Investor signatures requiring countersignature will appear here",
+    investor: "Investor",
+    contract: "Contract",
+    signedAt: "Signed At",
+    approve: "Approve",
+    reject: "Reject",
+    countersignatureApproved: "Countersignature approved",
+    countersignatureRejected: "Countersignature rejected",
+    viewDocument: "View Document",
+
+    // Common
+    actions: "Actions",
+    cancel: "Cancel",
+    create: "Create",
+    update: "Update",
+    delete: "Delete",
+    assign: "Assign",
+    fillRequired: "Please fill in all required fields",
+    selectBoth: "Please select both structure and template",
+    invalidSelection: "Invalid structure or template",
+
+    // Table Headers
+    name: "Name",
+    type: "Type",
+    createdAt: "Created At",
+    updatedAt: "Updated At",
+  },
 }
 
 export type TranslationKeys = typeof en

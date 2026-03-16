@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,10 +15,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { IconPlus, IconTrendingDown, IconEdit, IconTrash, IconFileText, IconSend, IconClock, IconCircleCheck, IconAlertCircle, IconCircleX } from '@tabler/icons-react'
 import { getCapitalCalls, getCapitalCallSummary, deleteCapitalCall, type CapitalCall } from '@/lib/capital-calls-storage'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { formatCurrency as formatCurrencyUtil } from '@/lib/format-utils'
+
+// Interface for grouping capital calls by structure
+interface StructureGroup {
+  structureId: string
+  structureName: string
+  structureType?: string
+  calls: CapitalCall[]
+  totalDue: number
+  totalPaid: number
+  totalOutstanding: number
+}
 
 export default function CapitalCallsPage() {
   const router = useRouter()
@@ -36,6 +49,7 @@ export default function CapitalCallsPage() {
   })
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleteCallId, setDeleteCallId] = useState<string | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<StructureGroup | null>(null)
 
   useEffect(() => {
     loadData()
@@ -60,6 +74,36 @@ export default function CapitalCallsPage() {
       setDeleteCallId(null)
     }
   }
+
+  // Group capital calls by structure
+  const structureGroups = useMemo(() => {
+    const groupMap = new Map<string, StructureGroup>()
+
+    for (const call of capitalCalls) {
+      // Use fundId as structureId for now (can be updated when structure field is added)
+      const structureId = call.fundId || 'unknown'
+      const structureName = call.fundName || 'Unknown Structure'
+
+      if (!groupMap.has(structureId)) {
+        groupMap.set(structureId, {
+          structureId,
+          structureName,
+          calls: [],
+          totalDue: 0,
+          totalPaid: 0,
+          totalOutstanding: 0,
+        })
+      }
+
+      const group = groupMap.get(structureId)!
+      group.calls.push(call)
+      group.totalDue += call.totalCallAmount || 0
+      group.totalPaid += call.totalPaidAmount || 0
+      group.totalOutstanding += call.totalOutstandingAmount || 0
+    }
+
+    return Array.from(groupMap.values())
+  }, [capitalCalls])
 
   const getStatusBadge = (status: string) => {
     // Typed status mapping for CapitalCallStatus: 'Draft' | 'Sent' | 'Partially Paid' | 'Fully Paid' | 'Overdue' | 'Cancelled'
@@ -156,8 +200,8 @@ export default function CapitalCallsPage() {
         </Card>
       </div>
 
-      {/* Capital Calls Grid */}
-      {capitalCalls.length === 0 ? (
+      {/* Capital Calls Grid - Grouped by Structure */}
+      {structureGroups.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <IconTrendingDown className="w-12 h-12 text-muted-foreground mb-4" />
@@ -173,64 +217,54 @@ export default function CapitalCallsPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {capitalCalls.map((call) => (
-            <Card key={call.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push(`/investment-manager/operations/capital-calls/${call.id}`)}>
+          {structureGroups.map((group) => (
+            <Card
+              key={group.structureId}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => setSelectedGroup(group)}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <CardTitle className="text-lg font-semibold">
-                      {call.fundName}
+                      {group.structureName}
                     </CardTitle>
                     <CardDescription className="text-sm">
-                      Call #{call.callNumber}
+                      {group.calls.length} capital call{group.calls.length !== 1 ? 's' : ''}
                     </CardDescription>
                   </div>
-                  {getStatusBadge(call.status)}
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    {group.calls.length}
+                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Call Date</p>
-                    <p className="text-sm font-medium">{formatDate(call.callDate)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Due Date</p>
-                    <p className="text-sm font-medium">{formatDate(call.dueDate)}</p>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Amount</span>
-                    <span className="text-sm font-semibold">{formatCurrency(call.totalCallAmount, call.currency)}</span>
+                    <span className="text-sm text-muted-foreground">Total Due</span>
+                    <span className="text-sm font-semibold">{formatCurrency(group.totalDue)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Paid</span>
-                    <span className="text-sm font-medium text-green-600">{formatCurrency(call.totalPaidAmount, call.currency)}</span>
+                    <span className="text-sm font-medium text-green-600">{formatCurrency(group.totalPaid)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Outstanding</span>
-                    <span className="text-sm font-medium text-orange-600">{formatCurrency(call.totalOutstandingAmount, call.currency)}</span>
+                    <span className="text-sm font-medium text-orange-600">{formatCurrency(group.totalOutstanding)}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
+                <div className="pt-2 border-t">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
-                    onClick={() => router.push(`/investment-manager/operations/capital-calls/${call.id}`)}
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedGroup(group)
+                    }}
                   >
-                    <IconEdit className="w-3 h-3 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(call.id)}
-                  >
-                    <IconTrash className="w-3 h-3" />
+                    View Details
                   </Button>
                 </div>
               </CardContent>
@@ -238,6 +272,85 @@ export default function CapitalCallsPage() {
           ))}
         </div>
       )}
+
+      {/* Sheet for individual call details */}
+      <Sheet open={!!selectedGroup} onOpenChange={(open) => !open && setSelectedGroup(null)}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{selectedGroup?.structureName}</SheetTitle>
+            <SheetDescription>
+              {selectedGroup?.calls.length} capital call{selectedGroup?.calls.length !== 1 ? 's' : ''} for this structure
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6">
+            {selectedGroup && selectedGroup.calls.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Call #</TableHead>
+                    <TableHead>Call Date</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Paid</TableHead>
+                    <TableHead className="text-right">Outstanding</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedGroup.calls.map((call) => (
+                    <TableRow key={call.id}>
+                      <TableCell className="font-medium">#{call.callNumber}</TableCell>
+                      <TableCell>{formatDate(call.callDate)}</TableCell>
+                      <TableCell>{formatDate(call.dueDate)}</TableCell>
+                      <TableCell>{getStatusBadge(call.status)}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(call.totalCallAmount, call.currency)}
+                      </TableCell>
+                      <TableCell className="text-right text-green-600">
+                        {formatCurrency(call.totalPaidAmount, call.currency)}
+                      </TableCell>
+                      <TableCell className="text-right text-orange-600">
+                        {formatCurrency(call.totalOutstandingAmount, call.currency)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedGroup(null)
+                              router.push(`/investment-manager/operations/capital-calls/${call.id}`)
+                            }}
+                          >
+                            <IconEdit className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedGroup(null)
+                              handleDelete(call.id)
+                            }}
+                          >
+                            <IconTrash className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No capital calls found for this structure
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

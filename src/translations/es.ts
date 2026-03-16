@@ -247,4 +247,557 @@ export const es: TranslationKeys = {
     contactSupport: "Contactar soporte",
     viewDocumentation: "ver documentación",
   },
+
+  // LP Dashboard Page
+  lpDashboard: {
+    loading: "Cargando panel...",
+    noData: "No hay datos disponibles",
+    authRequired: "Autenticación requerida",
+    filterByFund: "Filtrar por Fondo:",
+    allFunds: "Todos los Fondos",
+    addGraph: "Agregar Gráfico",
+    totalCommitment: "Compromiso Total",
+    activeFund: "fondo",
+    activeFunds: "fondos",
+    across: "En",
+    active: "activo(s)",
+    currentValue: "Valor Actual",
+    calledCapital: "capital llamado",
+    totalReturn: "Retorno Total",
+    totalDistributed: "Total Distribuido",
+    lifetimeDistributions: "Distribuciones recibidas de por vida",
+    capitalDeployment: "Despliegue de Capital",
+    commitmentVsCalled: "Tu compromiso vs. capital llamado",
+    calledCapitalLabel: "Capital Llamado",
+    uncalledCapital: "Capital No Llamado",
+    deploymentRate: "Tasa de Despliegue",
+    portfolioBreakdown: "Desglose del Portafolio",
+    investmentsAcrossFunds: "Tus inversiones en todos los fondos",
+    viewAll: "Ver Todo",
+    noActiveInvestments: "Sin inversiones activas aún",
+    commitment: "Compromiso",
+    called: "Llamado",
+    unrealizedGain: "Ganancia No Realizada",
+    chartComingSoon: "Gráfico de Valor del Portafolio - Próximamente",
+    portfolioPerformance: "Rendimiento del Portafolio",
+    capitalFlowOverTime: "Llamadas de capital y distribuciones a lo largo del tiempo",
+    allTime: "Todo el Tiempo",
+    last12Months: "Últimos 12 Meses",
+    last6Months: "Últimos 6 Meses",
+    noActivityData: "No hay datos de actividad disponibles",
+    cumulativeCalledCapital: "Capital Llamado Acumulado",
+    cumulativeDistributions: "Distribuciones Acumuladas",
+    recentActivity: "Actividad Reciente",
+    latestTransactions: "Tus últimas llamadas de capital y distribuciones",
+    noRecentActivity: "Sin actividad reciente",
+    capitalCall: "Llamada de Capital",
+    distribution: "Distribución",
+    ownership: "Participación",
+    capitalDeployed: "Capital Desplegado",
+    emptyTitle: "Tu panel está vacío",
+    emptyDescription: "Haz clic en \"Agregar Gráfico\" para añadir métricas, gráficos y plantillas a tu panel.",
+  },
+
+  // Structure Setup Wizard
+  structureSetup: {
+    // Common
+    title: "Configuración de Estructura",
+    subtitle: "Crea y configura tu estructura de inversión",
+    step: "Paso",
+    of: "de",
+    previous: "Anterior",
+    next: "Siguiente",
+    finish: "Finalizar",
+    cancel: "Cancelar",
+    save: "Guardar",
+    saveDraft: "Guardar Borrador",
+    saveAndContinue: "Guardar y Continuar",
+    required: "Requerido",
+    optional: "Opcional",
+    loading: "Cargando...",
+    saving: "Guardando...",
+
+    // Validation
+    validation: {
+      required: "Este campo es requerido",
+      invalidEmail: "Por favor ingresa un correo electrónico válido",
+      invalidNumber: "Por favor ingresa un número válido",
+      minValue: "El valor debe ser al menos",
+      maxValue: "El valor no puede exceder",
+      minLength: "Debe tener al menos {min} caracteres",
+      maxLength: "No puede exceder {max} caracteres",
+      invalidPercentage: "El porcentaje debe estar entre 0 y 100",
+      invalidDate: "Por favor ingresa una fecha válida",
+      futureDate: "La fecha debe ser futura",
+      pastDate: "La fecha debe ser pasada",
+    },
+
+    // Step 1: Basic Information
+    step1: {
+      title: "Información Básica",
+      subtitle: "Configura los detalles fundamentales de tu estructura",
+      structureType: "Tipo de Estructura",
+      structureTypeLabel: "Selecciona el tipo de estructura",
+      structureTypeDescription: "Elige la estructura legal que mejor se adapte a tu estrategia de inversión",
+
+      // Structure Types (Private Debt removed)
+      fund: "Fondo",
+      fundDescription: "Fondo de inversión para uno o múltiples proyectos con llamadas de capital",
+      saLLC: "SA / SRL",
+      saLLCDescription: "Entidad legal de una sola propiedad para riesgo aislado",
+      trust: "Fideicomiso / Trust",
+      trustDescription: "Estructura de fideicomiso bancario con incentivos fiscales, puede contener múltiples propiedades",
+
+      // Basic Fields
+      structureName: "Nombre de la Estructura",
+      structureNamePlaceholder: "Ingresa el nombre de la estructura",
+      structureNameDescription: "El nombre legal de tu estructura de inversión",
+
+      description: "Descripción",
+      descriptionPlaceholder: "Ingresa una breve descripción",
+      descriptionDescription: "Una breve descripción de la estructura de inversión y su propósito",
+
+      inceptionDate: "Fecha de Inicio",
+      inceptionDateDescription: "La fecha en que se estableció legalmente la estructura",
+
+      currency: "Moneda",
+      currencyDescription: "La moneda principal para reportes financieros",
+
+      fiscalYearEnd: "Cierre de Año Fiscal",
+      fiscalYearEndDescription: "El mes en que termina el año fiscal",
+
+      // Parent Structure
+      parentStructure: "Estructura Padre",
+      parentStructureDescription: "Selecciona una estructura padre si esta es una subsidiaria",
+      noParent: "Ninguna (Estructura de nivel superior)",
+      hierarchyLevel: "Nivel de Jerarquía",
+    },
+
+    // Step 2: Jurisdiction
+    step2: {
+      title: "Jurisdicción y Detalles Legales",
+      subtitle: "Configura la jurisdicción e información legal",
+
+      jurisdiction: "Jurisdicción",
+      jurisdictionDescription: "El país donde está registrada la estructura",
+
+      state: "Estado / Provincia",
+      stateDescription: "El estado o provincia (si aplica)",
+
+      city: "Ciudad",
+      cityDescription: "La ciudad donde está registrada la estructura",
+
+      legalEntityId: "ID de Entidad Legal",
+      legalEntityIdPlaceholder: "Ingresa RFC o número de registro",
+      legalEntityIdDescription: "RFC, EIN o número de registro",
+
+      registrationDate: "Fecha de Registro",
+      registrationDateDescription: "La fecha en que se registró la estructura con las autoridades",
+
+      regulatoryBody: "Organismo Regulador",
+      regulatoryBodyDescription: "La autoridad reguladora principal que supervisa esta estructura",
+
+      complianceNotes: "Notas de Cumplimiento",
+      complianceNotesPlaceholder: "Ingresa notas de cumplimiento",
+      complianceNotesDescription: "Cualquier requisito especial de cumplimiento o notas",
+    },
+
+    // Step 3: Limited Partners / Investors
+    step3: {
+      title: "Socios Limitados",
+      subtitle: "Configura requisitos y restricciones de inversionistas",
+
+      minInvestors: "Inversionistas Mínimos",
+      minInvestorsDescription: "Número mínimo de inversionistas requerido",
+
+      maxInvestors: "Inversionistas Máximos",
+      maxInvestorsDescription: "Número máximo de inversionistas permitido",
+
+      minTicketSize: "Monto Mínimo de Inversión",
+      minTicketSizeDescription: "Monto mínimo de inversión por inversionista",
+
+      maxTicketSize: "Monto Máximo de Inversión",
+      maxTicketSizeDescription: "Monto máximo de inversión por inversionista (0 = sin límite)",
+
+      accreditationRequired: "Acreditación Requerida",
+      accreditationRequiredDescription: "Solo permitir inversionistas acreditados",
+
+      kycRequired: "KYC Requerido",
+      kycRequiredDescription: "Requerir verificación KYC para todos los inversionistas",
+
+      investorTypes: "Tipos de Inversionistas Permitidos",
+      investorTypesDescription: "Selecciona qué tipos de inversionistas están permitidos",
+      individual: "Individual",
+      institution: "Institución",
+      familyOffice: "Oficina Familiar",
+      fundOfFunds: "Fondo de Fondos",
+
+      geographicRestrictions: "Restricciones Geográficas",
+      geographicRestrictionsDescription: "Restringir inversionistas por país",
+      allowedCountries: "Países Permitidos",
+      blockedCountries: "Países Bloqueados",
+
+      // CSV Import
+      csvImport: "Importar CSV",
+      csvImportDescription: "Importar inversionistas desde un archivo CSV",
+      uploadCSV: "Subir CSV",
+      downloadTemplate: "Descargar Plantilla",
+      csvInstructions: "Descarga la plantilla, completa los detalles de los inversionistas y sube",
+
+      // Investor Table
+      investorList: "Inversionistas Actuales",
+      addInvestor: "Agregar Inversionista",
+      editInvestor: "Editar Inversionista",
+      removeInvestor: "Eliminar Inversionista",
+      noInvestors: "No se han agregado inversionistas aún",
+      investorName: "Nombre",
+      investorEmail: "Correo Electrónico",
+      investorCommitment: "Compromiso",
+      investorOwnership: "Participación %",
+    },
+
+    // Step 4: Capital Calls
+    step4: {
+      title: "Llamadas de Capital",
+      subtitle: "Configura el calendario y términos de llamadas de capital",
+
+      hasCapitalCalls: "Habilitar Llamadas de Capital",
+      hasCapitalCallsDescription: "Esta estructura usará llamadas de capital para financiar inversiones",
+
+      totalCommitment: "Compromiso Total",
+      totalCommitmentDescription: "Capital total comprometido por todos los inversionistas",
+
+      commitmentPeriod: "Período de Compromiso",
+      commitmentPeriodDescription: "Duración durante la cual se puede llamar capital (en meses)",
+      commitmentPeriodMonths: "meses",
+
+      defaultNoticePeriod: "Período de Aviso Predeterminado",
+      defaultNoticePeriodDescription: "Número estándar de días de aviso para llamadas de capital",
+      defaultNoticePeriodDays: "días",
+
+      callSchedule: "Calendario de Llamadas",
+      callScheduleDescription: "Cómo se llamará el capital",
+      asNeeded: "Según Necesidad",
+      asNeededDescription: "Llamar capital cuando surjan oportunidades de inversión",
+      scheduled: "Programado",
+      scheduledDescription: "Calendario de llamadas predeterminado",
+
+      numberOfCalls: "Número de Llamadas Planificadas",
+      numberOfCallsDescription: "Número esperado de llamadas de capital durante el período de compromiso",
+
+      callFrequency: "Frecuencia de Llamadas",
+      callFrequencyDescription: "Con qué frecuencia se realizarán las llamadas de capital",
+      monthly: "Mensual",
+      quarterly: "Trimestral",
+      semiAnnually: "Semestral",
+      annually: "Anual",
+
+      // Payment Terms
+      paymentTerms: "Términos de Pago",
+      paymentTermsDescription: "Términos de pago estándar para llamadas de capital",
+      paymentDueDays: "Vencimiento de Pago (Días)",
+      paymentDueDaysDescription: "Número de días desde la fecha de llamada hasta la fecha de vencimiento del pago",
+
+      lateFeePercentage: "Cargo por Mora (%)",
+      lateFeePercentageDescription: "Porcentaje cobrado por pagos tardíos",
+
+      defaultPaymentMethod: "Método de Pago Predeterminado",
+      wire: "Transferencia Bancaria",
+      ach: "ACH",
+      check: "Cheque",
+      polibit: "PoliBit",
+      card: "Tarjeta de Crédito/Débito",
+    },
+
+    // Step 5: Economic Terms
+    step5: {
+      title: "Términos Económicos",
+      subtitle: "Configura comisiones, interés diferido y estructura de cascada",
+
+      // Management Fees
+      managementFee: "Comisión de Administración",
+      managementFeeRate: "Tasa de Comisión de Administración (%)",
+      managementFeeRateDescription: "Comisión de administración anual como porcentaje del capital comprometido",
+      managementFeeCalculation: "Base de Cálculo de Comisión",
+      onCommitted: "Sobre Capital Comprometido",
+      onInvested: "Sobre Capital Invertido",
+      onNAV: "Sobre Valor Neto de Activos",
+
+      managementFeeOffset: "Compensación de Comisión de Administración",
+      managementFeeOffsetDescription: "Compensar comisiones de administración contra interés diferido",
+
+      // Performance Fees
+      carriedInterest: "Interés Diferido",
+      carriedInterestRate: "Tasa de Interés Diferido (%)",
+      carriedInterestRateDescription: "Participación del GP en utilidades después del retorno preferente",
+
+      // Waterfall Structure (ILPA Standard)
+      waterfallStructure: "Estructura de Cascada",
+      waterfallDescription: "Niveles de cascada de distribución (estándar ILPA)",
+
+      tier1: "Nivel 1: Retorno de Capital",
+      tier1Description: "100% a LPs hasta que se devuelva todo el capital",
+
+      tier2: "Nivel 2: Retorno Preferente",
+      tier2Description: "100% a LPs hasta que se alcance el umbral de retorno preferente",
+      preferredReturnRate: "Tasa de Retorno Preferente (%)",
+      preferredReturnRateDescription: "Tasa de umbral de retorno preferente anual",
+
+      tier3: "Nivel 3: Alcance del GP",
+      tier3Description: "Distribución al GP para igualar la participación de utilidades",
+      catchUpRate: "Tasa de Alcance del GP (%)",
+      catchUpRateDescription: "Porcentaje de distribuciones al GP durante el alcance",
+
+      tier4: "Nivel 4: Interés Diferido",
+      tier4Description: "División de utilidades según tasa de interés diferido",
+      carriedInterestSplit: "División de Interés Diferido",
+      lpShare: "Participación LP (%)",
+      gpShare: "Participación GP (%)",
+
+      // Other Fees
+      setupFee: "Comisión de Configuración",
+      setupFeeAmount: "Monto de Comisión de Configuración",
+      setupFeeDescription: "Comisión única cobrada al inicio de la estructura",
+
+      transactionFees: "Comisiones de Transacción",
+      transactionFeeRate: "Tasa de Comisión de Transacción (%)",
+      transactionFeeDescription: "Comisión cobrada en cada transacción",
+
+      performanceFee: "Comisión de Rendimiento",
+      performanceFeeRate: "Tasa de Comisión de Rendimiento (%)",
+      performanceFeeDescription: "Comisión adicional basada en el rendimiento",
+
+      // Fee Periods
+      feePaymentFrequency: "Frecuencia de Pago de Comisiones",
+      feePaymentFrequencyDescription: "Con qué frecuencia se pagan las comisiones de administración",
+
+      // Hurdle Rates
+      hurdleRate: "Tasa de Umbral",
+      hurdleRateDescription: "Retorno mínimo antes de que apliquen comisiones de rendimiento",
+      hurdleType: "Tipo de Umbral",
+      hard: "Umbral Duro",
+      soft: "Umbral Blando",
+    },
+
+    // Step 6: Documents & Payment
+    step6: {
+      title: "Documentos y Métodos de Pago",
+      subtitle: "Configura métodos de pago y documentos rectores",
+
+      // Payment Methods
+      paymentMethods: "Métodos de Pago Aceptados",
+      paymentMethodsDescription: "Selecciona todos los métodos de pago que deseas aceptar",
+      paymentMethodWire: "Transferencia Bancaria",
+      paymentMethodInternational: "Transferencia Internacional",
+      paymentMethodCrypto: "Criptomoneda",
+      paymentMethodPoliBit: "PoliBit",
+      paymentMethodCard: "Tarjeta de Crédito/Débito",
+
+      // Bank Details
+      bankDetails: "Detalles de Cuenta Bancaria",
+      bankName: "Nombre del Banco",
+      bankNameDescription: "Nombre del banco receptor",
+      accountName: "Nombre de la Cuenta",
+      accountNameDescription: "Nombre en la cuenta",
+      accountNumber: "Número de Cuenta",
+      accountNumberDescription: "Número de cuenta bancaria",
+      routingNumber: "Número de Ruta",
+      routingNumberDescription: "Número de ruta bancaria (ABA/ACH)",
+      swiftCode: "Código SWIFT/BIC",
+      swiftCodeDescription: "Identificador bancario internacional",
+      iban: "IBAN",
+      ibanDescription: "Número de Cuenta Bancaria Internacional",
+
+      // Crypto Wallet
+      cryptoWallet: "Billetera de Criptomoneda",
+      cryptoWalletAddress: "Dirección de Billetera",
+      cryptoWalletAddressDescription: "Dirección de billetera de criptomoneda para recibir pagos",
+      cryptoNetwork: "Red",
+      cryptoNetworkDescription: "Red blockchain (ej. Ethereum, Bitcoin)",
+
+      // Governing Documents
+      governingDocuments: "Documentos Rectores",
+      governingDocumentsDescription: "Sube o enlaza documentos rectores clave",
+
+      ppm: "Memorándum de Colocación Privada (PPM)",
+      ppmDescription: "Documento principal de oferta",
+      uploadPPM: "Subir PPM",
+
+      lpa: "Acuerdo de Sociedad Limitada (LPA)",
+      lpaDescription: "Acuerdo de asociación",
+      uploadLPA: "Subir LPA",
+
+      subscription: "Acuerdo de Suscripción",
+      subscriptionDescription: "Documento de suscripción del inversionista",
+      uploadSubscription: "Subir Acuerdo de Suscripción",
+
+      sideLetters: "Cartas Laterales",
+      sideLettersDescription: "Cualquier acuerdo de carta lateral",
+      uploadSideLetter: "Subir Carta Lateral",
+
+      // Document Management
+      documentName: "Nombre del Documento",
+      documentType: "Tipo de Documento",
+      uploadDate: "Fecha de Subida",
+      uploadedBy: "Subido por",
+      actions: "Acciones",
+      download: "Descargar",
+      delete: "Eliminar",
+      view: "Ver",
+    },
+
+    // Step 7: Review & Submit
+    step7: {
+      title: "Revisar y Enviar",
+      subtitle: "Revisa todos los detalles antes de crear tu estructura",
+
+      reviewInstructions: "Por favor revisa toda la información cuidadosamente. Puedes regresar para editar cualquier sección.",
+
+      // Section Headers
+      basicInfo: "Información Básica",
+      jurisdictionInfo: "Jurisdicción y Legal",
+      investorInfo: "Socios Limitados",
+      capitalCallsInfo: "Llamadas de Capital",
+      economicTermsInfo: "Términos Económicos",
+      documentsInfo: "Documentos y Pago",
+
+      // Actions
+      createStructure: "Crear Estructura",
+      goBack: "Volver para Editar",
+
+      // Confirmation
+      confirmTitle: "Confirmar Creación de Estructura",
+      confirmMessage: "¿Estás seguro de que deseas crear esta estructura? Esta acción no se puede deshacer.",
+      confirmYes: "Sí, Crear Estructura",
+      confirmNo: "Cancelar",
+
+      // Success
+      successTitle: "¡Estructura Creada Exitosamente!",
+      successMessage: "Tu estructura ha sido creada y está lista para usar.",
+      viewStructure: "Ver Estructura",
+      createAnother: "Crear Otra Estructura",
+      goToDashboard: "Ir al Panel",
+
+      // Error
+      errorTitle: "Error al Crear Estructura",
+      errorMessage: "Hubo un error al crear tu estructura. Por favor intenta de nuevo.",
+      tryAgain: "Intentar de Nuevo",
+    },
+
+    // Progress Indicator
+    progress: {
+      notStarted: "No Iniciado",
+      inProgress: "En Progreso",
+      completed: "Completado",
+      current: "Paso Actual",
+    },
+
+    // Help Text
+    help: {
+      needHelp: "¿Necesitas ayuda?",
+      contactSupport: "Contactar soporte",
+      viewDocumentation: "Ver documentación",
+      chatWithUs: "Chatea con nosotros",
+    },
+  },
+
+  // Contract Management
+  contracts: {
+    title: "Administración de Contratos",
+    subtitle: "Administra plantillas de contratos, asignaciones de estructuras y contrafirmas",
+
+    // Tabs
+    templatesTab: "Plantillas",
+    assignmentsTab: "Asignaciones de Estructura",
+    countersignaturesTab: "Contrafirmas",
+
+    // Templates
+    createTemplate: "Crear Plantilla",
+    editTemplate: "Editar Plantilla",
+    deleteTemplate: "Eliminar Plantilla",
+    noTemplates: "Sin Plantillas",
+    noTemplatesDescription: "Comienza creando tu primera plantilla de contrato",
+    templateName: "Nombre de Plantilla",
+    templateNamePlaceholder: "ej., Acuerdo de Suscripción Estándar",
+    docusealUrl: "URL de Plantilla DocuSeal",
+    docusealUrlPlaceholder: "https://docuseal.co/templates/...",
+    templateType: "Tipo de Plantilla",
+    templateTypes: {
+      subscription: "Suscripción",
+      lpa: "LPA",
+      sideLetter: "Carta Lateral",
+      other: "Otro",
+    },
+    jurisdiction: "Jurisdicción",
+    category: "Categoría",
+    categories: {
+      investor: "Inversionista",
+      fund: "Fondo",
+      general: "General",
+    },
+    status: "Estado",
+    statuses: {
+      active: "Activo",
+      inactive: "Inactivo",
+      draft: "Borrador",
+    },
+    templateCreated: "Plantilla creada exitosamente",
+    templateUpdated: "Plantilla actualizada exitosamente",
+    templateDeleted: "Plantilla eliminada exitosamente",
+
+    // Assignments
+    assignContract: "Asignar Contrato",
+    assignContractTo: "Asignar Contrato a Estructura",
+    assignContractDescription: "Selecciona una estructura y plantilla de contrato para crear una asignación",
+    noAssignments: "Sin Asignaciones",
+    noAssignmentsDescription: "Asigna contratos a estructuras para automatizar el flujo de firma",
+    structure: "Estructura",
+    selectStructure: "Seleccionar estructura",
+    contractTemplate: "Plantilla de Contrato",
+    selectTemplate: "Seleccionar plantilla",
+    triggerPoint: "Punto de Activación",
+    triggerPoints: {
+      prePayment: "Pre-Pago",
+      postPayment: "Post-Pago",
+      postClosing: "Post-Cierre",
+      onDemand: "Bajo Demanda",
+    },
+    required: "Requerido",
+    requiredDescription: "El inversionista debe firmar este contrato",
+    optional: "Opcional",
+    blocking: "Bloqueante",
+    blockingDescription: "Bloquear pago hasta que se firme",
+    nonBlocking: "No Bloqueante",
+    assignmentCreated: "Contrato asignado a estructura exitosamente",
+    assignmentDeleted: "Asignación eliminada exitosamente",
+
+    // Countersignatures
+    noCountersignatures: "Sin Contrafirmas",
+    noCountersignaturesDescription: "Las firmas de inversionistas que requieren contrafirma aparecerán aquí",
+    investor: "Inversionista",
+    contract: "Contrato",
+    signedAt: "Firmado el",
+    approve: "Aprobar",
+    reject: "Rechazar",
+    countersignatureApproved: "Contrafirma aprobada",
+    countersignatureRejected: "Contrafirma rechazada",
+    viewDocument: "Ver Documento",
+
+    // Common
+    actions: "Acciones",
+    cancel: "Cancelar",
+    create: "Crear",
+    update: "Actualizar",
+    delete: "Eliminar",
+    assign: "Asignar",
+    fillRequired: "Por favor completa todos los campos requeridos",
+    selectBoth: "Por favor selecciona tanto estructura como plantilla",
+    invalidSelection: "Estructura o plantilla inválida",
+
+    // Table Headers
+    name: "Nombre",
+    type: "Tipo",
+    createdAt: "Creado el",
+    updatedAt: "Actualizado el",
+  },
 }
