@@ -922,6 +922,20 @@ export default function OnboardingPage() {
         break
 
       case 4:
+        // Validate capital calls if enabled
+        if (formData.enableCapitalCalls) {
+          if (formData.capitalCalls.length === 0) {
+            errors.push('Please add at least one capital call')
+          } else {
+            const totalCallPercent = formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)
+            if (Math.abs(totalCallPercent - 100) > 0.01) { // Allow for small floating point differences
+              errors.push(`Capital call percentages must total 100% (currently ${totalCallPercent}%)`)
+            }
+          }
+        }
+        break
+
+      case 7:
         // Validate that at least one payment method is enabled
         if (!formData.paymentLocalBankEnabled &&
             !formData.paymentIntlBankEnabled &&
@@ -982,21 +996,7 @@ export default function OnboardingPage() {
         }
         break
 
-      case 5:
-        // Validate capital calls if enabled
-        if (formData.enableCapitalCalls) {
-          if (formData.capitalCalls.length === 0) {
-            errors.push('Please add at least one capital call')
-          } else {
-            const totalCallPercent = formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)
-            if (Math.abs(totalCallPercent - 100) > 0.01) { // Allow for small floating point differences
-              errors.push(`Capital call percentages must total 100% (currently ${totalCallPercent}%)`)
-            }
-          }
-        }
-        break
-
-      // Step 7 has no required fields (Document Upload is optional)
+      // Step 8 has no required fields (Document Upload is optional)
       default:
         break
     }
@@ -3129,20 +3129,20 @@ export default function OnboardingPage() {
               {currentStep === 1 && t.onboarding.selectStructureType}
               {currentStep === 2 && 'Basic Information'}
               {currentStep === 3 && 'Capital Structure & Issuances'}
-              {currentStep === 4 && 'Payment Configurations'}
-              {currentStep === 5 && 'Capital Calls Configuration'}
-              {currentStep === 6 && 'Economic Terms'}
-              {currentStep === 7 && 'Distribution & Tax Settings'}
+              {currentStep === 4 && 'Capital Calls Configuration'}
+              {currentStep === 5 && 'Economic Terms'}
+              {currentStep === 6 && 'Distribution & Tax Settings'}
+              {currentStep === 7 && 'Payment Configurations'}
               {currentStep === 8 && 'Document Upload'}
             </CardTitle>
             <CardDescription>
               {currentStep === 1 && t.onboarding.selectStructureSubtitle}
               {currentStep === 2 && 'Provide essential information about your structure'}
               {currentStep === 3 && 'Define capital requirements, financing strategy, and investor parameters'}
-              {currentStep === 4 && 'Configure payment methods for investor contributions'}
-              {currentStep === 5 && 'Set up capital call schedule and payment requirements'}
-              {currentStep === 6 && 'Set up fee structures and distribution terms'}
-              {currentStep === 7 && 'Configure distribution schedule and tax settings'}
+              {currentStep === 4 && 'Set up capital call schedule and payment requirements'}
+              {currentStep === 5 && 'Set up fee structures and distribution terms'}
+              {currentStep === 6 && 'Configure distribution schedule and tax settings'}
+              {currentStep === 7 && 'Configure payment methods for investor contributions'}
               {currentStep === 8 && 'Upload fund and investor documents'}
             </CardDescription>
           </CardHeader>
@@ -4157,8 +4157,8 @@ export default function OnboardingPage() {
               )
             })()}
 
-            {/* STEP 4: Payment Configurations */}
-            {currentStep === 4 && (
+            {/* STEP 7: Payment Configurations */}
+            {currentStep === 7 && (
               <div className="space-y-6">
                 {/* Local Bank Transfer */}
                 <div className="border rounded-lg p-4 space-y-4">
@@ -4410,8 +4410,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* STEP 5: Capital Calls Configuration */}
-            {currentStep === 5 && (
+            {/* STEP 4: Capital Calls Configuration */}
+            {currentStep === 4 && (
               <div className="space-y-6">
                 <h3 className="text-lg font-bold text-gray-900">Capital calls configuration</h3>
 
@@ -4662,7 +4662,7 @@ export default function OnboardingPage() {
             )}
 
             {/* STEP 5: Economic Terms (V3 ENHANCED) */}
-            {currentStep === 6 && (() => {
+            {currentStep === 5 && (() => {
               // Calculate structure features based on type and subtype
               const features = getStructureFeatures(formData.structureType, (formData as any).subtype || formData.structureSubtype)
 
@@ -5445,7 +5445,7 @@ export default function OnboardingPage() {
             })()}
 
             {/* STEP 6: Distribution & Tax */}
-            {currentStep === 7 && (
+            {currentStep === 6 && (
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="distributionFrequency">Distribution Frequency</Label>
