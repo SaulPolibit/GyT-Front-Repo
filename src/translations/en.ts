@@ -258,6 +258,13 @@ export const en = {
     ticketAdjustSizes: "Please adjust your ticket sizes or investor limit to resolve",
     theseIssuesPlural: "these issues",
     thisIssueSingular: "this issue",
+    recallableDistributions: "Recallable Distributions",
+    recallableDistributionsDesc: "Allow the fund manager to recall distributed capital under certain conditions",
+    recallableLimit: "Recallable Limit",
+    noLimit: "No limit",
+    percentOfCommitment: "% of Commitment",
+    fixedAmount: "Fixed Amount",
+    recallableLimitValue: "Limit Value",
   },
 
   // LP Dashboard Page

@@ -260,6 +260,13 @@ export const es: TranslationKeys = {
     ticketAdjustSizes: "Por favor ajusta los tamaños de ticket o el límite de inversionistas para resolver",
     theseIssuesPlural: "estos problemas",
     thisIssueSingular: "este problema",
+    recallableDistributions: "Distribuciones Revocables",
+    recallableDistributionsDesc: "Permitir al gestor del fondo revocar capital distribuido bajo ciertas condiciones",
+    recallableLimit: "Límite de Revocación",
+    noLimit: "Sin límite",
+    percentOfCommitment: "% del Compromiso",
+    fixedAmount: "Monto Fijo",
+    recallableLimitValue: "Valor del Límite",
   },
 
   // LP Dashboard Page

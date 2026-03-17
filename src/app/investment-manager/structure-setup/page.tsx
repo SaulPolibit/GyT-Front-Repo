@@ -425,6 +425,11 @@ export default function OnboardingPage() {
     capitalCallPaymentDeadline: '15', // Days to wire funds
     commitmentPeriod: '', // ILPA: Duration in months during which capital can be called
 
+    // Spec V2: Recallable Distributions (Step 4)
+    recallableDistributionsEnabled: false,
+    recallableLimitType: 'no_limit' as 'no_limit' | 'percent_of_commitment' | 'fixed_amount',
+    recallableLimitValue: '' as string,
+
     // Auto-calculated fields
     determinedTier: null,
     calculatedIssuances: 1,
@@ -1104,6 +1109,10 @@ export default function OnboardingPage() {
         capitalCallNoticePeriod: formData.capitalCallNoticePeriod,
         capitalCallDefaultPercentage: formData.capitalCallDefaultPercentage || undefined,
         capitalCallPaymentDeadline: formData.capitalCallPaymentDeadline,
+        // Spec V2: Recallable Distributions
+        recallableDistributionsEnabled: formData.recallableDistributionsEnabled,
+        recallableLimitType: formData.recallableDistributionsEnabled ? formData.recallableLimitType : undefined,
+        recallableLimitValue: formData.recallableDistributionsEnabled && formData.recallableLimitType !== 'no_limit' ? parseFloat(formData.recallableLimitValue) || undefined : undefined,
         determinedTier: formData.determinedTier || undefined,
         calculatedIssuances: formData.calculatedIssuances,
         tokenName: formData.tokenName,
@@ -4578,6 +4587,68 @@ export default function OnboardingPage() {
                     )}
                   </div>
                 )}
+
+                {/* Recallable Distributions — always visible (outside capital calls conditional) */}
+                <Separator className="my-4" />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="recallableDistributionsEnabled"
+                      type="checkbox"
+                      checked={formData.recallableDistributionsEnabled}
+                      onChange={(e) => updateFormData('recallableDistributionsEnabled', e.target.checked)}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <Label htmlFor="recallableDistributionsEnabled" className="cursor-pointer font-medium">
+                      {t.onboarding.recallableDistributions || 'Recallable Distributions'}
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-7">
+                    {t.onboarding.recallableDistributionsDesc || 'Allow the fund manager to recall distributed capital under certain conditions'}
+                  </p>
+
+                  {formData.recallableDistributionsEnabled && (
+                    <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
+                      <Label className="text-sm font-medium">{t.onboarding.recallableLimit || 'Recallable Limit'}</Label>
+                      <RadioGroup
+                        value={formData.recallableLimitType}
+                        onValueChange={(value) => updateFormData('recallableLimitType', value)}
+                        className="space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="no_limit" id="recallable-no-limit" />
+                          <Label htmlFor="recallable-no-limit" className="cursor-pointer">{t.onboarding.noLimit || 'No limit'}</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="percent_of_commitment" id="recallable-percent" />
+                          <Label htmlFor="recallable-percent" className="cursor-pointer">{t.onboarding.percentOfCommitment || '% of Commitment'}</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="fixed_amount" id="recallable-fixed" />
+                          <Label htmlFor="recallable-fixed" className="cursor-pointer">{t.onboarding.fixedAmount || 'Fixed Amount'}</Label>
+                        </div>
+                      </RadioGroup>
+
+                      {(formData.recallableLimitType === 'percent_of_commitment' || formData.recallableLimitType === 'fixed_amount') && (
+                        <div className="space-y-2">
+                          <Label htmlFor="recallableLimitValue">
+                            {t.onboarding.recallableLimitValue || 'Limit Value'}
+                            {formData.recallableLimitType === 'percent_of_commitment' ? ' (%)' : ` (${formData.currency || 'USD'})`}
+                          </Label>
+                          <Input
+                            id="recallableLimitValue"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder={formData.recallableLimitType === 'percent_of_commitment' ? '25' : '100000'}
+                            value={formData.recallableLimitValue}
+                            onChange={(e) => updateFormData('recallableLimitValue', e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <div className="space-y-6">
                   <h3 className="text-lg font-bold text-gray-900">Reporting configuration</h3>
