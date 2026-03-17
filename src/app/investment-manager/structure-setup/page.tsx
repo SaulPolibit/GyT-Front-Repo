@@ -369,6 +369,8 @@ export default function OnboardingPage() {
     totalInvestors: '',
     minCheckSize: '',
     maxCheckSize: '',
+    maxInvestorRestrictionEnabled: false,
+    maxInvestorCount: '',
 
     // Step 4: Economic Terms (V3 ENHANCED)
     economicTermsApplication: 'all-investors', // NEW: all-investors or per-investor
@@ -1078,6 +1080,8 @@ export default function OnboardingPage() {
         fundType: formData.fundType,
         minCheckSize: parseFloat(formData.minCheckSize),
         maxCheckSize: parseFloat(formData.maxCheckSize),
+        maxInvestorRestriction: formData.maxInvestorRestrictionEnabled && formData.maxInvestorCount
+          ? parseInt(formData.maxInvestorCount) : null,
         economicTermsApplication: formData.economicTermsApplication,
         distributionModel: formData.distributionModel,
         managementFee: formData.managementFee,
@@ -1568,6 +1572,9 @@ export default function OnboardingPage() {
       // Ticket Sizes
       formDataPayload.append('minimumTicket', formData.minCheckSize)
       formDataPayload.append('maximumTicket', formData.maxCheckSize)
+      if (formData.maxInvestorRestrictionEnabled && formData.maxInvestorCount) {
+        formDataPayload.append('maxInvestorRestriction', formData.maxInvestorCount)
+      }
       formDataPayload.append('strategyInstrumentType', formData.equitySubtype || formData.debtSubtype || '')
 
       // Legal Terms (placeholder - not captured in form)
@@ -3955,78 +3962,134 @@ export default function OnboardingPage() {
                   const totalCommitment = parseFloat(formData.totalCapitalCommitment) || 0
                   const minCheck = parseFloat(formData.minCheckSize) || 0
                   const maxCheck = parseFloat(formData.maxCheckSize) || 0
+                  const maxInvestors = formData.maxInvestorRestrictionEnabled ? (parseInt(formData.maxInvestorCount) || 0) : 0
 
                   // Check both validations
                   const calculatedTokens = totalCommitment / minCheck
                   const isTokensInteger = Number.isInteger(calculatedTokens)
                   const isMaxMultipleOfMin = minCheck > 0 && maxCheck > 0 ? maxCheck % minCheck === 0 : true
 
+                  // Max ticket cannot exceed total capital
+                  const maxTicketExceedsTotal = maxCheck > 0 && totalCommitment > 0 && maxCheck > totalCommitment
+
+                  // Investor restriction validations
+                  const maxTicketsPerInvestor = maxCheck > 0 && minCheck > 0 ? Math.floor(maxCheck / minCheck) : 0
+                  const effectiveMaxCheck = maxTicketExceedsTotal ? totalCommitment : maxCheck
+                  const maxRaise = maxInvestors > 0 && effectiveMaxCheck > 0 ? maxInvestors * effectiveMaxCheck : 0
+                  const investorCapBelowTarget = maxInvestors > 0 && effectiveMaxCheck > 0 && maxRaise < totalCommitment
+                  const minRaise = maxInvestors > 0 && minCheck > 0 ? maxInvestors * minCheck : 0
+                  const investorMinExceedsTarget = maxInvestors > 0 && minCheck > 0 && minRaise > totalCommitment
+                  const canFulfillTarget = maxInvestors > 0 && effectiveMaxCheck > 0 && maxRaise >= totalCommitment
+
                   const hasErrors = (totalCommitment > 0 && minCheck > 0 && !isTokensInteger) ||
-                                   (minCheck > 0 && maxCheck > 0 && !isMaxMultipleOfMin)
+                                   (minCheck > 0 && maxCheck > 0 && !isMaxMultipleOfMin) ||
+                                   investorMinExceedsTarget ||
+                                   maxTicketExceedsTotal
+                  const hasWarning = investorCapBelowTarget && !hasErrors
                   const showValidation = totalCommitment > 0 && minCheck > 0
 
                   if (!showValidation) return null
 
-                  if (hasErrors) {
-                    return (
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div className="flex gap-3">
-                          <div className="flex-shrink-0">
-                            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-medium text-red-800">Invalid Ticket Configuration</h3>
+                  return (
+                    <div className="space-y-3">
+                      {hasErrors && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <div className="flex gap-3">
+                            <div className="flex-shrink-0">
+                              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-sm font-medium text-red-800">Invalid Ticket Configuration</h3>
 
-                            {!isTokensInteger && (
-                              <>
+                              {!isTokensInteger && (
+                                <>
+                                  <p className="text-sm text-red-700 mt-2">
+                                    <strong>{t.onboarding.ticketIssueNum.replace('{num}', '1')}</strong> Total commitment ({formData.currency} {totalCommitment.toLocaleString()}) must be evenly divisible by minimum ticket size ({formData.currency} {minCheck.toLocaleString()}).
+                                  </p>
+                                  <p className="text-sm text-red-700 mt-1">
+                                    Current calculation: {totalCommitment.toLocaleString()} ÷ {minCheck.toLocaleString()} = <strong>{calculatedTokens.toFixed(2)} tickets</strong> (must be a whole number)
+                                  </p>
+                                </>
+                              )}
+
+                              {!isMaxMultipleOfMin && maxCheck > 0 && (
                                 <p className="text-sm text-red-700 mt-2">
-                                  <strong>Issue 1:</strong> Total commitment ({formData.currency} {totalCommitment.toLocaleString()}) must be evenly divisible by minimum ticket size ({formData.currency} {minCheck.toLocaleString()}).
+                                  <strong>{t.onboarding.ticketIssueNum.replace('{num}', String((!isTokensInteger ? 1 : 0) + 1))}</strong> Maximum ticket size ({formData.currency} {maxCheck.toLocaleString()}) must be a multiple of minimum ticket size ({formData.currency} {minCheck.toLocaleString()}).
                                 </p>
-                                <p className="text-sm text-red-700 mt-1">
-                                  Current calculation: {totalCommitment.toLocaleString()} ÷ {minCheck.toLocaleString()} = <strong>{calculatedTokens.toFixed(2)} tickets</strong> (must be a whole number)
-                                </p>
-                              </>
-                            )}
+                              )}
 
-                            {!isMaxMultipleOfMin && maxCheck > 0 && (
-                              <p className="text-sm text-red-700 mt-2">
-                                <strong>Issue {!isTokensInteger ? '2' : '1'}:</strong> Maximum ticket size ({formData.currency} {maxCheck.toLocaleString()}) must be a multiple of minimum ticket size ({formData.currency} {minCheck.toLocaleString()}).
+                              {maxTicketExceedsTotal && (
+                                <p className="text-sm text-red-700 mt-2">
+                                  <strong>{t.onboarding.ticketIssueNum.replace('{num}', String(((!isTokensInteger ? 1 : 0) + (!isMaxMultipleOfMin ? 1 : 0)) + 1))}</strong> {t.onboarding.ticketMaxExceedsError.replace('{currency}', formData.currency).replace('{max}', maxCheck.toLocaleString()).replace('{currency}', formData.currency).replace('{total}', totalCommitment.toLocaleString())}
+                                </p>
+                              )}
+
+                              {investorMinExceedsTarget && (
+                                <p className="text-sm text-red-700 mt-2">
+                                  <strong>{t.onboarding.ticketIssueNum.replace('{num}', String(((!isTokensInteger ? 1 : 0) + (!isMaxMultipleOfMin ? 1 : 0) + (maxTicketExceedsTotal ? 1 : 0)) + 1))}</strong> {t.onboarding.ticketInvestorMinExceeds.replace('{investors}', String(maxInvestors)).replace('{currency}', formData.currency).replace('{min}', minCheck.toLocaleString()).replace('{currency}', formData.currency).replace('{minRaise}', minRaise.toLocaleString()).replace('{currency}', formData.currency).replace('{total}', totalCommitment.toLocaleString())}
+                                </p>
+                              )}
+
+                              <p className="text-sm font-semibold text-red-800 mt-3">
+                                {t.onboarding.ticketAdjustSizes} {((!isTokensInteger ? 1 : 0) + (!isMaxMultipleOfMin ? 1 : 0) + (maxTicketExceedsTotal ? 1 : 0) + (investorMinExceedsTarget ? 1 : 0)) > 1 ? t.onboarding.theseIssuesPlural : t.onboarding.thisIssueSingular}.
                               </p>
-                            )}
-
-                            <p className="text-sm font-semibold text-red-800 mt-3">
-                              Please adjust your ticket sizes to resolve {(!isTokensInteger && !isMaxMultipleOfMin) ? 'these issues' : 'this issue'}.
-                            </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  } else {
-                    return (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="flex gap-3">
-                          <div className="flex-shrink-0">
-                            <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
+                      )}
+
+                      {hasWarning && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                          <div className="flex gap-3">
+                            <div className="flex-shrink-0">
+                              <svg className="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-sm font-medium text-amber-800">{t.onboarding.investorRestrictionWarning}</h3>
+                              <p className="text-sm text-amber-700 mt-1">
+                                {t.onboarding.investorRestrictionMsg.replace('{investors}', String(maxInvestors)).replace('{currency}', formData.currency).replace('{max}', maxCheck.toLocaleString()).replace('{currency}', formData.currency).replace('{maxRaise}', maxRaise.toLocaleString()).replace('{currency}', formData.currency).replace('{target}', totalCommitment.toLocaleString())}
+                              </p>
+                              <p className="text-sm text-amber-700 mt-1">
+                                {t.onboarding.shortfallMsg.replace('{currency}', formData.currency).replace('{shortfall}', (totalCommitment - maxRaise).toLocaleString())}
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="text-sm font-medium text-green-800">Ticket Configuration Valid</h3>
-                            <p className="text-sm text-green-700 mt-1">
-                              Your structure will have <strong>{calculatedTokens.toLocaleString()} tickets</strong> at {formData.currency} {minCheck.toLocaleString()} each.
-                            </p>
-                            {maxCheck > 0 && (
+                        </div>
+                      )}
+
+                      {!hasErrors && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <div className="flex gap-3">
+                            <div className="flex-shrink-0">
+                              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-sm font-medium text-green-800">Ticket Configuration Valid</h3>
                               <p className="text-sm text-green-700 mt-1">
-                                Maximum investment: <strong>{Math.floor(maxCheck / minCheck)} tickets</strong> ({formData.currency} {maxCheck.toLocaleString()})
+                                Your structure will have <strong>{calculatedTokens.toLocaleString()} tickets</strong> at {formData.currency} {minCheck.toLocaleString()} each.
                               </p>
-                            )}
+                              {maxCheck > 0 && (
+                                <p className="text-sm text-green-700 mt-1">
+                                  Maximum investment: <strong>{Math.floor(maxCheck / minCheck)} tickets</strong> ({formData.currency} {maxCheck.toLocaleString()})
+                                </p>
+                              )}
+                              {canFulfillTarget && (
+                                <p className="text-sm text-green-700 mt-1">
+                                  {t.onboarding.ticketCanFulfill.replace('{investors}', String(maxInvestors)).replace('{currency}', formData.currency).replace('{total}', totalCommitment.toLocaleString())}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  }
+                      )}
+                    </div>
+                  )
                 })()}
 
                 {/* Token Name and Symbol */}
@@ -4055,6 +4118,40 @@ export default function OnboardingPage() {
                       required
                     />
                   </div>
+                </div>
+
+                {/* Maximum Investor Restriction */}
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="maxInvestorRestriction"
+                      checked={formData.maxInvestorRestrictionEnabled}
+                      onCheckedChange={(checked) => updateFormData('maxInvestorRestrictionEnabled', checked)}
+                    />
+                    <div>
+                      <Label htmlFor="maxInvestorRestriction" className="cursor-pointer font-medium">
+                        {t.onboarding.maxInvestorRestriction}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t.onboarding.maxInvestorRestrictionDesc}
+                      </p>
+                    </div>
+                  </div>
+
+                  {formData.maxInvestorRestrictionEnabled && (
+                    <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-2">
+                      <Label htmlFor="maxInvestorCount">{t.onboarding.maxInvestorCount} *</Label>
+                      <Input
+                        id="maxInvestorCount"
+                        type="number"
+                        min="1"
+                        placeholder={t.onboarding.placeholderMaxInvestors}
+                        value={formData.maxInvestorCount}
+                        onChange={(e) => updateFormData('maxInvestorCount', e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
               )
