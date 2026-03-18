@@ -32,27 +32,6 @@ import { getAuthState, logout } from '@/lib/auth-storage'
 import { canCreateStructure, canCreateStructureAsync, getEmulatedSubscription, saveEmulatedSubscription, hasActiveSubscription, refreshSubscriptionCache, EmulatedSubscription } from '@/lib/stripe-products'
 import { validateStructureCreation, getLimitExceededMessage, formatCurrency } from '@/lib/subscription-limits'
 
-// V3.1: Investor Pre-Registration Interface
-interface InvestorPreRegistration {
-  firstName: string
-  lastName: string
-  email: string
-  taxId?: string
-  entityName?: string
-  entityType?: string
-  contactFirstName?: string
-  contactLastName?: string
-  investorType?: 'Individual' | 'Institution' | 'Family Office' | 'Fund of Funds'
-  hierarchyLevel?: number  // Which level (1-N) investor participates in
-  customTerms?: {
-    managementFee?: number
-    performanceFee?: number
-    hurdleRate?: number
-    preferredReturn?: number
-  }
-  source: 'manual' | 'csv'
-  addedAt: Date
-}
 
 // Pricing tier interface
 interface PricingTier {
@@ -316,8 +295,6 @@ export default function OnboardingPage() {
   const [currentSubscription, setCurrentSubscription] = useState<EmulatedSubscription | null>(null)
 
   // V3.1: Investor Pre-Registration State
-  const [showInvestorForm, setShowInvestorForm] = useState(false)
-  const [editingInvestor, setEditingInvestor] = useState<InvestorPreRegistration | null>(null)
   const [selectedInvestorType, setSelectedInvestorType] = useState<'individual' | 'institution' | 'fund-of-funds' | 'family-office'>('individual')
   const csvFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -372,11 +349,14 @@ export default function OnboardingPage() {
     maxInvestorRestrictionEnabled: false,
     maxInvestorCount: '',
 
-    // Step 4: Economic Terms (V3 ENHANCED)
-    economicTermsApplication: 'all-investors', // NEW: all-investors or per-investor
+    // Step 4: Capital Calls (already defined above)
+    // enableCapitalCalls: false is defined below
+
+    // Step 5: Economic Terms (V3 ENHANCED)
     distributionModel: 'waterfall', // NEW: waterfall, simple, or interest-only
     managementFee: '2',
     managementFeeOffset: false, // ILPA: Offset management fees against carried interest
+    feeOffsetRate: '',
     performanceFee: '20',
     hurdleRate: '8',
     preferredReturn: '8',
@@ -393,29 +373,52 @@ export default function OnboardingPage() {
       }
     ] as Array<{id: string; name: string; managementFee: string; gpSplit: string; irrHurdle: string; preferredReturn: string; isExpanded: boolean}>,
 
-    // Step 5: Distribution & Tax
+    // Step 5: Fee Structure - Capital Calls Aware
+    feeRateOnNic: null as number | null, // NIC management fee rate
+    feeRateOnUnfunded: null as number | null, // Unfunded commitments fee rate
+    postCommitmentFeeRate: null as number | null, // Post-commitment period fee rate
+    flatManagementFeeRate: null as number | null, // Flat management fee (when no capital calls)
+    gpPercentage: null as number | null, // GP co-investment percentage
+
+    // Step 5: Waterfall Tiers (ILPA Standard)
+    prefReturnCompounding: 'compound' as 'compound' | 'simple', // Tier 1 compounding method
+    gpCatchUpRate: '', // Tier 2 GP catch-up rate
+
+    // Step 5: Debt Structure
+    dayCountConvention: 'actual_365' as 'actual_365' | 'actual_360' | '30_360',
+
+    // Step 6: Distribution & Tax
     distributionFrequency: 'quarterly',
     defaultTaxRate: '',
     debtInterestRate: '', // Interest rate for debt instruments
     debtGrossInterestRate: '', // Gross interest rate for debt
     enableCapitalCalls: false, // NEW: Whether to enable capital calls configuration
     capitalCalls: [] as Array<{ id: string; date: string; callPercentage: number }>, // Capital calls (up to 4)
-    // Tax fields - specific to asset type
-    vatRate: '', // For Debt: VAT Rate
-    incomeDebtTaxRate: '', // For Debt: Income tax
-    witholdingDividendTaxRate: '', // For Equity: Withholding / Dividend tax
-    incomeEquityTaxRate: '', // For Equity: Income tax
-    sameTaxTreatment: true, // NEW: Same tax treatment for natural persons and legal entities
-    // Tax fields for natural persons (when sameTaxTreatment is false)
-    vatRateNaturalPersons: '', // For Debt: VAT Rate - Natural Persons
-    incomeDebtTaxRateNaturalPersons: '', // For Debt: Income tax - Natural Persons
-    witholdingDividendTaxRateNaturalPersons: '', // For Equity: Withholding / Dividend tax - Natural Persons
-    incomeEquityTaxRateNaturalPersons: '', // For Equity: Income tax - Natural Persons
-    // Tax fields for legal entities (when sameTaxTreatment is false)
-    vatRateLegalEntities: '', // For Debt: VAT Rate - Legal Entities
-    incomeDebtTaxRateLegalEntities: '', // For Debt: Income tax - Legal Entities
-    witholdingDividendTaxRateLegalEntities: '', // For Equity: Withholding / Dividend tax - Legal Entities
-    incomeEquityTaxRateLegalEntities: '', // For Equity: Income tax - Legal Entities
+
+    // Step 6: Tax Settings (Spec V2 - Residency Aware)
+    vatRateOnFees: '', // VAT on fees - always visible
+    sameTaxTreatment: true, // Same tax treatment for all investor types
+    withholdingTaxOnDistributions: '', // Single withholding tax (when sameTaxTreatment is true)
+
+    // Residency-aware tax fields (when sameTaxTreatment is false)
+    withholdingTaxNaturalResidents: '', // Natural Persons — Residents
+    withholdingTaxNaturalNonResidents: '', // Natural Persons — Non-Residents
+    withholdingTaxLegalResidents: '', // Legal Entities — Residents
+    withholdingTaxLegalNonResidents: '', // Legal Entities — Non-Residents
+
+    // Legacy tax fields (keep for backwards compatibility, but not used in new step 6)
+    vatRate: '',
+    incomeDebtTaxRate: '',
+    witholdingDividendTaxRate: '',
+    incomeEquityTaxRate: '',
+    vatRateNaturalPersons: '',
+    incomeDebtTaxRateNaturalPersons: '',
+    witholdingDividendTaxRateNaturalPersons: '',
+    incomeEquityTaxRateNaturalPersons: '',
+    vatRateLegalEntities: '',
+    incomeDebtTaxRateLegalEntities: '',
+    witholdingDividendTaxRateLegalEntities: '',
+    incomeEquityTaxRateLegalEntities: '',
 
     // Fund-specific
     fundTerm: '10',
@@ -439,9 +442,6 @@ export default function OnboardingPage() {
     totalTokens: 1000,
     minTokensPerInvestor: 1,
     maxTokensPerInvestor: 1000,
-
-    // V3.1: Investor Pre-Registration
-    preRegisteredInvestors: [] as InvestorPreRegistration[],
 
     // Document tracking
     uploadedFundDocuments: [] as { name: string; addedAt: Date; file: File }[],
@@ -3134,22 +3134,22 @@ export default function OnboardingPage() {
             <CardTitle>
               {currentStep === 1 && t.onboarding.selectStructureType}
               {currentStep === 2 && 'Basic Information'}
-              {currentStep === 3 && 'Capital Structure & Issuances'}
-              {currentStep === 4 && 'Capital Calls Configuration'}
-              {currentStep === 5 && 'Economic Terms'}
-              {currentStep === 6 && 'Distribution & Tax Settings'}
-              {currentStep === 7 && 'Payment Configurations'}
-              {currentStep === 8 && 'Document Upload'}
+              {currentStep === 3 && t.onboarding.step3Title}
+              {currentStep === 4 && t.onboarding.step4Title}
+              {currentStep === 5 && t.onboarding.step5Title}
+              {currentStep === 6 && t.onboarding.step6Title}
+              {currentStep === 7 && t.onboarding.step7Title}
+              {currentStep === 8 && t.onboarding.step8Title}
             </CardTitle>
             <CardDescription>
               {currentStep === 1 && t.onboarding.selectStructureSubtitle}
-              {currentStep === 2 && 'Provide essential information about your structure'}
-              {currentStep === 3 && 'Define capital requirements, financing strategy, and investor parameters'}
-              {currentStep === 4 && 'Set up capital call schedule and payment requirements'}
-              {currentStep === 5 && 'Set up fee structures and distribution terms'}
-              {currentStep === 6 && 'Configure distribution schedule and tax settings'}
-              {currentStep === 7 && 'Configure payment methods for investor contributions'}
-              {currentStep === 8 && 'Upload fund and investor documents'}
+              {currentStep === 2 && t.onboarding.step2Desc}
+              {currentStep === 3 && t.onboarding.step3Desc}
+              {currentStep === 4 && t.onboarding.step4Desc}
+              {currentStep === 5 && t.onboarding.step5Desc}
+              {currentStep === 6 && t.onboarding.step6Desc}
+              {currentStep === 7 && t.onboarding.step7Desc}
+              {currentStep === 8 && t.onboarding.step8Desc}
             </CardDescription>
           </CardHeader>
 
@@ -4580,21 +4580,515 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* STEP 5: Economic Terms (V3 ENHANCED) */}
+            {/* STEP 5: Economic Terms */}
             {currentStep === 5 && (() => {
               // Calculate structure features based on type and subtype
               const features = getStructureFeatures(formData.structureType, (formData as any).subtype || formData.structureSubtype)
 
               return (
               <div className="space-y-6">
-                <div className="p-4 bg-blue-50 rounded-lg space-y-3">
-                  <Label className="text-base font-semibold text-blue-900">
-                    How should these economic terms be applied?
-                  </Label>
-                  <RadioGroup
-                    value={formData.economicTermsApplication}
-                    onValueChange={(value) => updateFormData('economicTermsApplication', value)}
+
+                {/* Distribution Model Selection - Context-aware based on structure type */}
+                {formData.financingStrategy === 'equity' ? (
+                  <div className="space-y-4">
+                    {/* Fee Structure - conditional based on capital calls */}
+                    <div className="space-y-4">
+                      <h4 className="text-base font-medium text-gray-900">{t.onboarding.feeStructure}</h4>
+
+                      {formData.enableCapitalCalls ? (
+                        <>
+                          {/* 3-rate model: NIC + Unfunded + Post-Commitment */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="feeRateOnNic" className="flex items-center gap-1">
+                                {t.onboarding.nicMgtFeeRate}
+                              </Label>
+                              <Input
+                                id="feeRateOnNic"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="0.5"
+                                value={formData.feeRateOnNic ?? ''}
+                                onChange={(e) => updateFormData('feeRateOnNic', e.target.value === '' ? null : parseFloat(e.target.value))}
+                              />
+                              <p className="text-xs text-gray-500">{t.onboarding.nicMgtFeeRateHelp}</p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="feeRateOnUnfunded" className="flex items-center gap-1">
+                                {t.onboarding.unfundedMgtFeeRate}
+                              </Label>
+                              <Input
+                                id="feeRateOnUnfunded"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="0.5"
+                                value={formData.feeRateOnUnfunded ?? ''}
+                                onChange={(e) => updateFormData('feeRateOnUnfunded', e.target.value === '' ? null : parseFloat(e.target.value))}
+                              />
+                              <p className="text-xs text-gray-500">{t.onboarding.unfundedMgtFeeRateHelp}</p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="postCommitmentFeeRate" className="flex items-center gap-1">
+                                {t.onboarding.postCommitmentFeeRate}
+                              </Label>
+                              <Input
+                                id="postCommitmentFeeRate"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="1.0"
+                                value={formData.postCommitmentFeeRate ?? ''}
+                                onChange={(e) => updateFormData('postCommitmentFeeRate', e.target.value === '' ? null : parseFloat(e.target.value))}
+                              />
+                              <p className="text-xs text-gray-500">{t.onboarding.postCommitmentFeeRateHelp}</p>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Single flat fee model */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="flatManagementFeeRate" className="flex items-center gap-1">
+                                {t.onboarding.flatManagementFeeRate}
+                              </Label>
+                              <Input
+                                id="flatManagementFeeRate"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="2.0"
+                                value={formData.flatManagementFeeRate ?? ''}
+                                onChange={(e) => updateFormData('flatManagementFeeRate', e.target.value === '' ? null : parseFloat(e.target.value))}
+                              />
+                              <p className="text-xs text-gray-500">{t.onboarding.flatManagementFeeRateHelp}</p>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {/* GP Co-Investment - conditional label per structure type */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="gpPercentage" className="flex items-center gap-1">
+                            {formData.structureType === 'fund' ? t.onboarding.gpCoInvestmentPct :
+                             formData.structureType === 'fideicomiso' ? t.onboarding.managerCoInvestmentPct :
+                             t.onboarding.sponsorCoInvestmentPct}
+                          </Label>
+                          <Input
+                            id="gpPercentage"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            placeholder="20"
+                            value={formData.gpPercentage ?? ''}
+                            onChange={(e) => updateFormData('gpPercentage', e.target.value === '' ? null : parseFloat(e.target.value))}
+                          />
+                          <p className="text-xs text-gray-500">{t.onboarding.gpPercentageHelp}</p>
+                        </div>
+                      </div>
+
+                      {/* Management Fee Offset - Fund only */}
+                      {formData.structureType === 'fund' && (
+                        <div className="space-y-3 pt-2">
+                          <div className="flex items-center gap-3">
+                            <input
+                              id="managementFeeOffset"
+                              type="checkbox"
+                              checked={formData.managementFeeOffset}
+                              onChange={(e) => updateFormData('managementFeeOffset', e.target.checked)}
+                              className="w-4 h-4 cursor-pointer"
+                            />
+                            <Label htmlFor="managementFeeOffset" className="cursor-pointer font-medium">
+                              {t.onboarding.managementFeeOffset}
+                            </Label>
+                          </div>
+                          <p className="text-xs text-gray-500 ml-7">{t.onboarding.managementFeeOffsetHelp}</p>
+
+                          {formData.managementFeeOffset && (
+                            <div className="ml-7 space-y-2">
+                              <Label htmlFor="feeOffsetRate">{t.onboarding.feeOffsetRate}</Label>
+                              <Input
+                                id="feeOffsetRate"
+                                type="number"
+                                step="1"
+                                min="0"
+                                max="100"
+                                placeholder="100"
+                                value={formData.feeOffsetRate}
+                                onChange={(e) => updateFormData('feeOffsetRate', e.target.value)}
+                              />
+                              <p className="text-xs text-gray-500">{t.onboarding.feeOffsetRateHelp}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator className="my-4" />
+
+                    {/* Distribution Model Selection */}
+                    <div className="space-y-2">
+                      <Label htmlFor="distributionModel">{t.onboarding.distributionModel} *</Label>
+                      <Select
+                        value={formData.distributionModel}
+                        onValueChange={(value) => updateFormData('distributionModel', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="simple">{t.onboarding.simpleProRata}</SelectItem>
+                          {showWaterfalls && (
+                            <SelectItem value="waterfall">{t.onboarding.waterfallDistribution}</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-sm text-gray-500">
+                        {formData.distributionModel === 'simple' && t.onboarding.simpleProRataDesc}
+                        {formData.distributionModel === 'waterfall' && t.onboarding.waterfallDesc}
+                      </p>
+                    </div>
+
+                    {formData.distributionModel === 'simple' && (
+                      <div className="space-y-2">
+                        <Label htmlFor="preferredReturnSimple">{t.onboarding.preferredReturn}</Label>
+                        <Input
+                          id="preferredReturnSimple"
+                          type="number"
+                          step="0.1"
+                          placeholder="8.0"
+                          value={formData.preferredReturn || ''}
+                          onChange={(e) => updateFormData('preferredReturn', parseFloat(e.target.value) || 0)}
+                        />
+                        <p className="text-xs text-gray-500">{t.onboarding.preferredReturnHelp}</p>
+                      </div>
+                    )}
+                  </div>
+                ) : formData.financingStrategy === 'debt' ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="debtInterestRate">{t.onboarding.interestRateBrute}</Label>
+                      <Input
+                        id="debtInterestRate"
+                        type="number"
+                        step="0.1"
+                        placeholder="5.0"
+                        value={formData.debtInterestRate}
+                        onChange={(e) => updateFormData('debtInterestRate', e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500">{t.onboarding.baseInterestRate}</p>
+                    </div>
+
+                    {/* Spec V2: Day Count Convention */}
+                    <div className="space-y-2">
+                      <Label htmlFor="dayCountConvention">{t.onboarding.dayCountConvention || 'Day Count Convention'}</Label>
+                      <Select
+                        value={formData.dayCountConvention}
+                        onValueChange={(value) => updateFormData('dayCountConvention', value)}
+                      >
+                        <SelectTrigger id="dayCountConvention">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="actual_365">{t.onboarding.actual365 || 'Actual/365'}</SelectItem>
+                          <SelectItem value="actual_360">{t.onboarding.actual360 || 'Actual/360'}</SelectItem>
+                          <SelectItem value="30_360">{t.onboarding.thirty360 || '30/360'}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500">{t.onboarding.dayCountConventionHelp || 'Method used to calculate interest accrual between payment dates'}</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Conditional: Show fixed ILPA waterfall tiers if waterfall model selected - only for equity */}
+                {formData.financingStrategy === 'equity' && formData.distributionModel === 'waterfall' && (
+                <>
+                <Separator className="my-4" />
+                <div className="space-y-4">
+                  <h4 className="text-base font-medium text-gray-900">{t.onboarding.ilpaWaterfallTiers}</h4>
+
+                  {/* Tier 0 — Return of Capital (informational only) */}
+                  <div className="border border-gray-200 rounded-lg bg-gray-50 p-4">
+                    <h5 className="font-medium text-gray-900 mb-2">{t.onboarding.returnOfCapital}</h5>
+                    <p className="text-sm text-gray-600">{t.onboarding.returnOfCapitalDesc}</p>
+                  </div>
+
+                  {/* Tier 1 — Preferred Return */}
+                  <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+                    <h5 className="font-medium text-gray-900">{t.onboarding.preferredReturnTier}</h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="preferredReturn">{t.onboarding.preferredReturnRate}</Label>
+                        <Input
+                          id="preferredReturn"
+                          type="number"
+                          step="0.1"
+                          placeholder="8.0"
+                          value={formData.preferredReturn}
+                          onChange={(e) => updateFormData('preferredReturn', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t.onboarding.compounding}</Label>
+                        <RadioGroup
+                          value={formData.prefReturnCompounding}
+                          onValueChange={(value) => updateFormData('prefReturnCompounding', value)}
+                          className="flex gap-4"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="compound" id="compound" />
+                            <Label htmlFor="compound" className="cursor-pointer">{t.onboarding.compound}</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="simple" id="simple" />
+                            <Label htmlFor="simple" className="cursor-pointer">{t.onboarding.simple}</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tier 2 — Catch-Up */}
+                  <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+                    <h5 className="font-medium text-gray-900">{t.onboarding.gpCatchUpTier}</h5>
+                    <div className="space-y-2">
+                      <Label htmlFor="gpCatchUpRate">
+                        {formData.structureType === 'fund' ? t.onboarding.catchUpRate :
+                         formData.structureType === 'fideicomiso' ? t.onboarding.managerCatchUp :
+                         t.onboarding.sponsorCatchUp}
+                      </Label>
+                      <Input
+                        id="gpCatchUpRate"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        placeholder="100"
+                        value={formData.gpCatchUpRate}
+                        onChange={(e) => updateFormData('gpCatchUpRate', e.target.value)}
+                      />
+                      <p className="text-xs text-gray-500">{t.onboarding.catchUpRateHelp}</p>
+                    </div>
+                  </div>
+
+                  {/* Tier 3 — Carried Interest Split */}
+                  <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+                    <h5 className="font-medium text-gray-900">{t.onboarding.carriedInterestSplit}</h5>
+                    <div className="space-y-2">
+                      <Label htmlFor="gpSplit">
+                        {formData.structureType === 'fund' ? t.onboarding.carrySplitPct :
+                         formData.structureType === 'fideicomiso' ? t.onboarding.performanceFee :
+                         t.onboarding.sponsorPromote}
+                      </Label>
+                      <Input
+                        id="gpSplit"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        placeholder="20"
+                        value={formData.waterfallScenarios[0]?.gpSplit || '20'}
+                        onChange={(e) => {
+                          const updated = [...formData.waterfallScenarios]
+                          if (updated[0]) {
+                            updated[0].gpSplit = e.target.value
+                          } else {
+                            updated[0] = { id: '1', name: 'Tier 1', managementFee: '2', gpSplit: e.target.value, irrHurdle: '8', preferredReturn: '8', isExpanded: true }
+                          }
+                          updateFormData('waterfallScenarios', updated)
+                        }}
+                      />
+                      <p className="text-xs text-gray-500">{t.onboarding.carrySplitHelp}</p>
+                    </div>
+                  </div>
+                </div>
+                </>
+                )}
+              </div>
+              )
+            })()}
+
+            {/* STEP 6: Distribution & Tax */}
+            {currentStep === 6 && (
+              <div className="space-y-6">
+                {/* 1. Distribution Frequency — keep as-is */}
+                <div className="space-y-2">
+                  <Label htmlFor="distributionFrequency">{t.onboarding.distributionFrequency}</Label>
+                  <Select
+                    value={formData.distributionFrequency}
+                    onValueChange={(value) => updateFormData('distributionFrequency', value)}
                   >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="quarterly">{t.onboarding.quarterly}</SelectItem>
+                      <SelectItem value="semi-annual">{t.onboarding.semiAnnual}</SelectItem>
+                      <SelectItem value="annual">{t.onboarding.annual}</SelectItem>
+                      <SelectItem value="on-exit">{t.onboarding.onExitOnly}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 2. VAT Rate on Fees */}
+                <div className="space-y-2">
+                  <Label htmlFor="vatRateOnFees">
+                    {t.onboarding.vatRateOnFees || 'VAT Rate on Fees (%)'}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{t.onboarding.vatRateOnFeesHelp || 'Value-added tax applied to management and performance fees'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Label>
+                  <Input
+                    id="vatRateOnFees"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    placeholder="16.0"
+                    value={formData.vatRateOnFees}
+                    onChange={(e) => updateFormData('vatRateOnFees', e.target.value)}
+                  />
+                </div>
+
+                <Separator />
+
+                {/* 3. Same tax treatment toggle */}
+                <div className="flex items-center gap-3">
+                  <input
+                    id="sameTaxTreatment"
+                    type="checkbox"
+                    checked={formData.sameTaxTreatment}
+                    onChange={(e) => updateFormData('sameTaxTreatment', e.target.checked)}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <Label htmlFor="sameTaxTreatment" className="cursor-pointer text-sm">
+                    {t.onboarding.sameTaxTreatment}
+                  </Label>
+                </div>
+
+                {formData.sameTaxTreatment ? (
+                  /* 4. If ON: Single withholding tax field */
+                  <div className="space-y-2">
+                    <Label htmlFor="withholdingTaxOnDistributions">
+                      {t.onboarding.withholdingTaxOnDistributions || 'Withholding Tax on Distributions (%)'}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{t.onboarding.withholdingTaxOnDistributionsHelp || 'Tax withheld from distribution payments to investors'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </Label>
+                    <Input
+                      id="withholdingTaxOnDistributions"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="100"
+                      placeholder="15.0"
+                      value={formData.withholdingTaxOnDistributions}
+                      onChange={(e) => updateFormData('withholdingTaxOnDistributions', e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  /* 5. If OFF: 4 split fields */
+                  <>
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium text-sm mb-4 text-gray-900">{t.onboarding.naturalPersons}</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="withholdingTaxNaturalResidents">
+                            {t.onboarding.naturalResidents || 'Natural Persons — Residents'}
+                          </Label>
+                          <Input
+                            id="withholdingTaxNaturalResidents"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            placeholder="10.0"
+                            value={formData.withholdingTaxNaturalResidents}
+                            onChange={(e) => updateFormData('withholdingTaxNaturalResidents', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="withholdingTaxNaturalNonResidents">
+                            {t.onboarding.naturalNonResidents || 'Natural Persons — Non-Residents'}
+                          </Label>
+                          <Input
+                            id="withholdingTaxNaturalNonResidents"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            placeholder="25.0"
+                            value={formData.withholdingTaxNaturalNonResidents}
+                            onChange={(e) => updateFormData('withholdingTaxNaturalNonResidents', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="font-medium text-sm mb-4 text-gray-900">{t.onboarding.legalEntities}</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="withholdingTaxLegalResidents">
+                            {t.onboarding.legalResidents || 'Legal Entities — Residents'}
+                          </Label>
+                          <Input
+                            id="withholdingTaxLegalResidents"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            placeholder="15.0"
+                            value={formData.withholdingTaxLegalResidents}
+                            onChange={(e) => updateFormData('withholdingTaxLegalResidents', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="withholdingTaxLegalNonResidents">
+                            {t.onboarding.legalNonResidents || 'Legal Entities — Non-Residents'}
+                          </Label>
+                          <Input
+                            id="withholdingTaxLegalNonResidents"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            placeholder="30.0"
+                            value={formData.withholdingTaxLegalNonResidents}
+                            onChange={(e) => updateFormData('withholdingTaxLegalNonResidents', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
                     {visibilitySettings?.economicTermsOptions['all-investors'] && (
                       <div className="flex items-start space-x-2">
                         <RadioGroupItem value="all-investors" id="all-investors" />
@@ -5363,15 +5857,6 @@ export default function OnboardingPage() {
               )
             })()}
 
-            {/* STEP 6: Distribution & Tax */}
-            {currentStep === 6 && (
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="distributionFrequency">Distribution Frequency</Label>
-                  <Select
-                    value={formData.distributionFrequency}
-                    onValueChange={(value) => updateFormData('distributionFrequency', value)}
-                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
