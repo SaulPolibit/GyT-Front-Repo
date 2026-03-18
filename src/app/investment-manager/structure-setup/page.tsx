@@ -3831,31 +3831,6 @@ export default function OnboardingPage() {
                   </Alert>
                 )}
 
-                {/* Planned Investments */}
-                <div className="space-y-2">
-                  <Label htmlFor="plannedInvestments">
-                    Planned Investments *
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Number of planned investments for this structure</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                  <Input
-                    id="plannedInvestments"
-                    type="number"
-                    placeholder="10"
-                    value={formData.plannedInvestments}
-                    onChange={(e) => updateFormData('plannedInvestments', e.target.value)}
-                    required
-                    min="1"
-                  />
-                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
