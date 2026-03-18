@@ -3831,50 +3831,6 @@ export default function OnboardingPage() {
                   </Alert>
                 )}
 
-                {/* Total Number of Investors */}
-                <div className="space-y-2">
-                  <Label htmlFor="totalInvestors">
-                    Total Number of Investors *
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Expected or current number of investors</p>
-                          {currentTier && currentTier.maxInvestors !== Infinity && (
-                            <p className="text-xs mt-1">
-                              Your plan includes {currentTier.maxInvestors} investors.
-                              Additional investors: ${currentTier.additionalInvestorCost}/month each
-                            </p>
-                          )}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                  <Input
-                    id="totalInvestors"
-                    type="number"
-                    placeholder="50"
-                    value={formData.totalInvestors}
-                    onChange={(e) => updateFormData('totalInvestors', e.target.value)}
-                    required
-                    min="1"
-                  />
-                  {currentTier && (() => {
-                    const existingInvestorsCount = getInvestors().length
-                    const newInvestorsCount = parseInt(formData.totalInvestors) || 0
-                    const totalInvestors = existingInvestorsCount + newInvestorsCount
-                    const overage = totalInvestors - currentTier.maxInvestors
-                    return overage > 0 && currentTier.maxInvestors !== Infinity ? (
-                      <p className="text-sm text-orange-600">
-                        ⚠️ You'll have {overage} investors above your plan limit.
-                        Additional cost: ${overage * currentTier.additionalInvestorCost}/month
-                      </p>
-                    ) : null
-                  })()}
-                </div>
-
                 {/* Planned Investments */}
                 <div className="space-y-2">
                   <Label htmlFor="plannedInvestments">
