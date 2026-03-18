@@ -32,6 +32,27 @@ import { getAuthState, logout } from '@/lib/auth-storage'
 import { canCreateStructure, canCreateStructureAsync, getEmulatedSubscription, saveEmulatedSubscription, hasActiveSubscription, refreshSubscriptionCache, EmulatedSubscription } from '@/lib/stripe-products'
 import { validateStructureCreation, getLimitExceededMessage, formatCurrency } from '@/lib/subscription-limits'
 
+// V3.1: Investor Pre-Registration Interface
+interface InvestorPreRegistration {
+  firstName: string
+  lastName: string
+  email: string
+  taxId?: string
+  entityName?: string
+  entityType?: string
+  contactFirstName?: string
+  contactLastName?: string
+  investorType?: 'Individual' | 'Institution' | 'Family Office' | 'Fund of Funds'
+  hierarchyLevel?: number
+  customTerms?: {
+    managementFee?: number
+    performanceFee?: number
+    hurdleRate?: number
+    preferredReturn?: number
+  }
+  source: 'manual' | 'csv'
+  addedAt: Date
+}
 
 // Pricing tier interface
 interface PricingTier {
@@ -297,6 +318,8 @@ export default function OnboardingPage() {
   // V3.1: Investor Pre-Registration State
   const [selectedInvestorType, setSelectedInvestorType] = useState<'individual' | 'institution' | 'fund-of-funds' | 'family-office'>('individual')
   const csvFileInputRef = useRef<HTMLInputElement>(null)
+  const [showInvestorForm, setShowInvestorForm] = useState(false)
+  const [editingInvestor, setEditingInvestor] = useState<any | null>(null)
 
   // Available parent structures from API
   const [availableParentStructures, setAvailableParentStructures] = useState<Structure[]>([])
@@ -443,6 +466,10 @@ export default function OnboardingPage() {
     minTokensPerInvestor: 1,
     maxTokensPerInvestor: 1000,
 
+    // V3.1: Investor Pre-Registration
+    economicTermsApplication: 'all-investors',
+    preRegisteredInvestors: [] as any[],
+
     // Document tracking
     uploadedFundDocuments: [] as { name: string; addedAt: Date; file: File }[],
     uploadedInvestorDocuments: [] as { name: string; addedAt: Date; file: File }[],
@@ -485,6 +512,7 @@ export default function OnboardingPage() {
     paymentLocalRoutingNumber: '',
     paymentLocalAccountHolder: '',
     paymentLocalBankAddress: '',
+    paymentLocalTaxId: '',
     paymentIntlBankEnabled: false,
     paymentIntlBankName: '',
     paymentIntlAccountNumber: '',
@@ -495,8 +523,13 @@ export default function OnboardingPage() {
     paymentCryptoBlockchain: 'Polygon' as 'Polygon' | 'Arbitrum',
     paymentCryptoWalletAddress: '',
     paymentPolibitEnabled: false,
+    payWithPolibitEnabled: false,
+    payWithPolibitSettlement: 'same-day' as 'same-day' | 'standard',
     paymentCardEnabled: false,
   })
+
+  // Feature flag for waterfall distributions
+  const showWaterfalls = true
 
   const totalSteps = 8
   const progress = (currentStep / totalSteps) * 100
@@ -924,25 +957,14 @@ export default function OnboardingPage() {
         break
 
       case 4:
-        // Validate capital calls if enabled
-        if (formData.enableCapitalCalls) {
-          if (formData.capitalCalls.length === 0) {
-            errors.push('Please add at least one capital call')
-          } else {
-            const totalCallPercent = formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)
-            if (Math.abs(totalCallPercent - 100) > 0.01) { // Allow for small floating point differences
-              errors.push(`Capital call percentages must total 100% (currently ${totalCallPercent}%)`)
-            }
-          }
-        }
+        // Capital calls configuration - no validation needed as calls are created later through Operations
         break
 
       case 7:
         // Validate that at least one payment method is enabled
-        if (!formData.paymentLocalBankEnabled &&
+        if (!formData.payWithPolibitEnabled &&
+            !formData.paymentLocalBankEnabled &&
             !formData.paymentIntlBankEnabled &&
-            !formData.paymentCryptoEnabled &&
-            !formData.paymentPolibitEnabled &&
             !formData.paymentCardEnabled) {
           errors.push('Please select at least one payment method to continue')
         }
@@ -1800,104 +1822,8 @@ export default function OnboardingPage() {
         console.log('[Waterfall Tiers] Created successfully:', responseData)
       }
 
-      // Step 3: Create capital calls (if enabled)
-      const createdCapitalCallIds: string[] = []
-      if (formData.enableCapitalCalls && formData.capitalCalls && formData.capitalCalls.length > 0) {
-        console.log('[Capital Calls] Creating capital calls for structure:', structureId)
-
-        for (let index = 0; index < formData.capitalCalls.length; index++) {
-          const call = formData.capitalCalls[index]
-
-          try {
-            const capitalCallPayload = {
-              structureId: structureId,
-              callNumber: index + 1, // Index starts at 0, but callNumber starts at 1
-              callDate: call.date,
-              totalCallAmount: call.callPercentage
-            }
-
-            console.log(`[Capital Call ${index + 1}] Sending:`, capitalCallPayload)
-
-            const capitalCallResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/capital-calls`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
-              },
-              body: JSON.stringify(capitalCallPayload)
-            })
-
-            if (!capitalCallResponse.ok) {
-              // Handle 401 Unauthorized - session expired or invalid
-              if (capitalCallResponse.status === 401) {
-                try {
-                  const errorData = await capitalCallResponse.json()
-                  if (errorData.error === "Invalid or expired token") {
-                    console.log('[Capital Calls] 401 Unauthorized - clearing session and redirecting to login')
-                    logout()
-                    router.push('/sign-in')
-                    return
-                  }
-                } catch (e) {
-                  console.log('Error: ', e)
-                }
-              }
-              const errorData = await capitalCallResponse.json()
-              console.error(`[Capital Call ${index + 1}] Failed:`, errorData)
-
-              // Rollback: Delete structure and waterfalls from both API and localStorage
-              console.log('[Rollback] Deleting structure and waterfalls due to capital call failure')
-              try {
-                // Delete structure from API (this should cascade delete waterfalls)
-                await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
-                  method: 'DELETE',
-                  headers: {
-                    'Authorization': `Bearer ${authToken}`
-                  }
-                })
-                // Delete from localStorage
-                await deleteStructure(structureId)
-                console.log('[Rollback] Successfully deleted structure from both API and localStorage')
-              } catch (rollbackError) {
-                console.error('[Rollback] Failed to delete structure:', rollbackError)
-              }
-
-              toast.error(`Failed to create capital call ${index + 1}. Structure creation rolled back.`)
-              setIsSubmitting(false)
-              return
-            }
-
-            const responseData = await capitalCallResponse.json()
-            if (responseData.data?.id) {
-              createdCapitalCallIds.push(responseData.data.id)
-            }
-            console.log(`[Capital Call ${index + 1}] Created successfully:`, responseData)
-          } catch (error) {
-            console.error(`[Capital Call ${index + 1}] Error:`, error)
-
-            // Rollback: Delete structure and waterfalls from both API and localStorage
-            console.log('[Rollback] Deleting structure and waterfalls due to capital call error')
-            try {
-              // Delete from API
-              await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/structures/${structureId}`, {
-                method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${authToken}`
-                }
-              })
-              // Delete from localStorage
-              await deleteStructure(structureId)
-              console.log('[Rollback] Successfully deleted structure from both API and localStorage')
-            } catch (rollbackError) {
-              console.error('[Rollback] Failed to delete structure:', rollbackError)
-            }
-
-            toast.error(`Error creating capital call ${index + 1}. Structure creation rolled back.`)
-            setIsSubmitting(false)
-            return
-          }
-        }
-      }
+      // Capital calls are now created as needed through Operations > Capital Calls
+      // Configuration (notice period, payment deadline) is saved with the structure
 
       // Step 3: Deploy blockchain contract
       const totalCapitalCommitment = parseFloat(formData.totalCapitalCommitment)
@@ -4094,223 +4020,156 @@ export default function OnboardingPage() {
               )
             })()}
 
-            {/* STEP 7: Payment Configurations */}
+            {/* STEP 7: Payment Configurations (Spec V2 — Simplified to 3 Options) */}
             {currentStep === 7 && (
               <div className="space-y-6">
-                {/* Local Bank Transfer */}
+                {/* Info banner */}
+                <Alert className="border-blue-200 bg-blue-50">
+                  <Info className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-700 text-sm">
+                    {t.onboarding.paymentConfigContactNote}
+                  </AlertDescription>
+                </Alert>
+
+                {/* 1. Pay with PoliBit (Recommended) */}
+                <div className={`border-2 rounded-lg p-4 space-y-4 ${formData.payWithPolibitEnabled ? 'border-primary bg-primary/5' : 'border-primary/30'}`}>
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="payWithPolibit"
+                      checked={formData.payWithPolibitEnabled}
+                      onCheckedChange={(checked) => {
+                        updateFormData('payWithPolibitEnabled', checked)
+                        if (checked) updateFormData('payWithPolibitSettlement', 'same-day')
+                      }}
+                    />
+                    <Label htmlFor="payWithPolibit" className="cursor-pointer font-medium">
+                      {t.onboarding.payWithPolibit}
+                    </Label>
+                    <Badge className="bg-primary text-primary-foreground text-xs">{t.onboarding.recommended}</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 ml-7">{t.onboarding.payWithPolibitDesc}</p>
+                  {formData.payWithPolibitEnabled && (
+                    <div className="ml-7 p-3 bg-white rounded-lg border">
+                      <p className="text-xs text-gray-500">{t.onboarding.polibitFeeNote}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Bank Transfer (self-managed) — with local/international sub-checkboxes */}
                 <div className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center gap-3">
                     <Checkbox
-                      id="paymentLocalBank"
-                      checked={formData.paymentLocalBankEnabled}
-                      onCheckedChange={(checked) => updateFormData('paymentLocalBankEnabled', checked)}
+                      id="bankTransferSelfManaged"
+                      checked={formData.paymentLocalBankEnabled || formData.paymentIntlBankEnabled}
+                      onCheckedChange={(checked) => {
+                        if (!checked) {
+                          updateFormData('paymentLocalBankEnabled', false)
+                          updateFormData('paymentIntlBankEnabled', false)
+                        }
+                      }}
                     />
-                    <Label htmlFor="paymentLocalBank" className="cursor-pointer font-medium">
-                      Local Bank Transfer
+                    <Label htmlFor="bankTransferSelfManaged" className="cursor-pointer font-medium">
+                      {t.onboarding.bankTransferSelfManaged}
                     </Label>
                   </div>
+                  <p className="text-sm text-gray-600 ml-7">{t.onboarding.bankTransferSelfManagedDesc}</p>
 
-                  {formData.paymentLocalBankEnabled && (
-                    <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentLocalBankName">Bank Name *</Label>
-                          <Input
-                            id="paymentLocalBankName"
-                            value={formData.paymentLocalBankName}
-                            onChange={(e) => updateFormData('paymentLocalBankName', e.target.value)}
-                            placeholder="Enter bank name"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentLocalAccountNumber">Account Number *</Label>
-                          <Input
-                            id="paymentLocalAccountNumber"
-                            value={formData.paymentLocalAccountNumber}
-                            onChange={(e) => updateFormData('paymentLocalAccountNumber', e.target.value)}
-                            placeholder="Enter account number"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentLocalRoutingNumber">Routing / ABA Number</Label>
-                          <Input
-                            id="paymentLocalRoutingNumber"
-                            value={formData.paymentLocalRoutingNumber}
-                            onChange={(e) => updateFormData('paymentLocalRoutingNumber', e.target.value)}
-                            placeholder="Enter routing number"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentLocalAccountHolder">Account Holder Name *</Label>
-                          <Input
-                            id="paymentLocalAccountHolder"
-                            value={formData.paymentLocalAccountHolder}
-                            onChange={(e) => updateFormData('paymentLocalAccountHolder', e.target.value)}
-                            placeholder="Enter account holder name"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="paymentLocalBankAddress">Bank Address</Label>
-                        <Input
-                          id="paymentLocalBankAddress"
-                          value={formData.paymentLocalBankAddress}
-                          onChange={(e) => updateFormData('paymentLocalBankAddress', e.target.value)}
-                          placeholder="Enter bank address"
+                  <div className="ml-7 space-y-4">
+                    {/* Local Bank Transfer sub-checkbox */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          id="paymentLocalBank"
+                          checked={formData.paymentLocalBankEnabled}
+                          onCheckedChange={(checked) => updateFormData('paymentLocalBankEnabled', checked)}
                         />
+                        <Label htmlFor="paymentLocalBank" className="cursor-pointer text-sm">
+                          {t.onboarding.localBankTransfer}
+                        </Label>
                       </div>
+
+                      {formData.paymentLocalBankEnabled && (
+                        <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentLocalBankName">{t.onboarding.bankName} *</Label>
+                              <Input id="paymentLocalBankName" value={formData.paymentLocalBankName} onChange={(e) => updateFormData('paymentLocalBankName', e.target.value)} placeholder={t.onboarding.enterBankName} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentLocalAccountNumber">{t.onboarding.accountNumber} *</Label>
+                              <Input id="paymentLocalAccountNumber" value={formData.paymentLocalAccountNumber} onChange={(e) => updateFormData('paymentLocalAccountNumber', e.target.value)} placeholder={t.onboarding.enterAccountNumber} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentLocalRoutingNumber">{t.onboarding.routingNumber} *</Label>
+                              <Input id="paymentLocalRoutingNumber" value={formData.paymentLocalRoutingNumber} onChange={(e) => updateFormData('paymentLocalRoutingNumber', e.target.value)} placeholder={t.onboarding.enterRoutingNumber} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentLocalAccountHolder">{t.onboarding.accountHolder} *</Label>
+                              <Input id="paymentLocalAccountHolder" value={formData.paymentLocalAccountHolder} onChange={(e) => updateFormData('paymentLocalAccountHolder', e.target.value)} placeholder={t.onboarding.enterAccountHolder} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentLocalBankAddress">{t.onboarding.bankAddress} *</Label>
+                              <Input id="paymentLocalBankAddress" value={formData.paymentLocalBankAddress} onChange={(e) => updateFormData('paymentLocalBankAddress', e.target.value)} placeholder={t.onboarding.enterBankAddress} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentLocalTaxId">{t.onboarding.taxIdRfc}</Label>
+                              <Input id="paymentLocalTaxId" value={formData.paymentLocalTaxId} onChange={(e) => updateFormData('paymentLocalTaxId', e.target.value)} placeholder={t.onboarding.enterTaxId} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* International Bank Transfer */}
-                <div className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="paymentIntlBank"
-                      checked={formData.paymentIntlBankEnabled}
-                      onCheckedChange={(checked) => updateFormData('paymentIntlBankEnabled', checked)}
-                    />
-                    <Label htmlFor="paymentIntlBank" className="cursor-pointer font-medium">
-                      International Bank Transfer
-                    </Label>
-                  </div>
-
-                  {formData.paymentIntlBankEnabled && (
-                    <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentIntlBankName">Bank Name *</Label>
-                          <Input
-                            id="paymentIntlBankName"
-                            value={formData.paymentIntlBankName}
-                            onChange={(e) => updateFormData('paymentIntlBankName', e.target.value)}
-                            placeholder="Enter bank name"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentIntlAccountNumber">Account Number / IBAN *</Label>
-                          <Input
-                            id="paymentIntlAccountNumber"
-                            value={formData.paymentIntlAccountNumber}
-                            onChange={(e) => updateFormData('paymentIntlAccountNumber', e.target.value)}
-                            placeholder="Enter account number or IBAN"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentIntlSwiftCode">SWIFT / BIC Code *</Label>
-                          <Input
-                            id="paymentIntlSwiftCode"
-                            value={formData.paymentIntlSwiftCode}
-                            onChange={(e) => updateFormData('paymentIntlSwiftCode', e.target.value)}
-                            placeholder="Enter SWIFT/BIC code"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentIntlAccountHolder">Account Holder Name *</Label>
-                          <Input
-                            id="paymentIntlAccountHolder"
-                            value={formData.paymentIntlAccountHolder}
-                            onChange={(e) => updateFormData('paymentIntlAccountHolder', e.target.value)}
-                            placeholder="Enter account holder name"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="paymentIntlBankAddress">Bank Address</Label>
-                        <Input
-                          id="paymentIntlBankAddress"
-                          value={formData.paymentIntlBankAddress}
-                          onChange={(e) => updateFormData('paymentIntlBankAddress', e.target.value)}
-                          placeholder="Enter bank address"
+                    {/* International Bank Transfer sub-checkbox */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          id="paymentIntlBank"
+                          checked={formData.paymentIntlBankEnabled}
+                          onCheckedChange={(checked) => updateFormData('paymentIntlBankEnabled', checked)}
                         />
+                        <Label htmlFor="paymentIntlBank" className="cursor-pointer text-sm">
+                          {t.onboarding.intlBankTransfer}
+                        </Label>
                       </div>
-                    </div>
-                  )}
-                </div>
 
-                {/* Crypto Payments */}
-                <div className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="paymentCrypto"
-                      checked={formData.paymentCryptoEnabled}
-                      onCheckedChange={(checked) => updateFormData('paymentCryptoEnabled', checked)}
-                    />
-                    <Label htmlFor="paymentCrypto" className="cursor-pointer font-medium">
-                      Payments with Stablecoins
-                    </Label>
-                  </div>
-
-                  {formData.paymentCryptoEnabled && (
-                    <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentCryptoCoin">Coin</Label>
-                          <Input
-                            id="paymentCryptoCoin"
-                            value="USDC"
-                            disabled
-                            className="bg-gray-100 cursor-not-allowed"
-                          />
-                          <p className="text-xs text-gray-500">Only USDC is supported at this time</p>
+                      {formData.paymentIntlBankEnabled && (
+                        <div className="ml-7 p-4 bg-gray-50 rounded-lg space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentIntlBankName">{t.onboarding.bankName} *</Label>
+                              <Input id="paymentIntlBankName" value={formData.paymentIntlBankName} onChange={(e) => updateFormData('paymentIntlBankName', e.target.value)} placeholder={t.onboarding.enterBankName} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentIntlAccountNumber">{t.onboarding.accountNumberIban} *</Label>
+                              <Input id="paymentIntlAccountNumber" value={formData.paymentIntlAccountNumber} onChange={(e) => updateFormData('paymentIntlAccountNumber', e.target.value)} placeholder={t.onboarding.enterAccountNumberIban} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentIntlSwiftCode">{t.onboarding.swiftBic} *</Label>
+                              <Input id="paymentIntlSwiftCode" value={formData.paymentIntlSwiftCode} onChange={(e) => updateFormData('paymentIntlSwiftCode', e.target.value)} placeholder={t.onboarding.enterSwiftBic} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="paymentIntlAccountHolder">{t.onboarding.accountHolder} *</Label>
+                              <Input id="paymentIntlAccountHolder" value={formData.paymentIntlAccountHolder} onChange={(e) => updateFormData('paymentIntlAccountHolder', e.target.value)} placeholder={t.onboarding.enterAccountHolder} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="paymentIntlBankAddress">{t.onboarding.bankAddress} *</Label>
+                            <Input id="paymentIntlBankAddress" value={formData.paymentIntlBankAddress} onChange={(e) => updateFormData('paymentIntlBankAddress', e.target.value)} placeholder={t.onboarding.enterBankAddress} />
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="paymentCryptoBlockchain">Blockchain *</Label>
-                          <Select
-                            value={formData.paymentCryptoBlockchain}
-                            onValueChange={(value) => updateFormData('paymentCryptoBlockchain', value)}
-                          >
-                            <SelectTrigger id="paymentCryptoBlockchain">
-                              <SelectValue placeholder="Select blockchain" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Polygon">Polygon</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="paymentCryptoWallet">Destination Wallet Address *</Label>
-                        <Input
-                          id="paymentCryptoWallet"
-                          value={formData.paymentCryptoWalletAddress}
-                          disabled
-                          className="bg-gray-100 cursor-not-allowed"
-                        />
-                        <p className="text-xs text-gray-500">Using the wallet address from Step 1</p>
-                      </div>
+                      )}
                     </div>
-                  )}
-                </div>
-
-                {/* PoliBit Payment */}
-                <div className="border rounded-lg p-4 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="paymentPolibit"
-                      checked={formData.paymentPolibitEnabled}
-                      onCheckedChange={(checked) => updateFormData('paymentPolibitEnabled', checked)}
-                    />
-                    <Label htmlFor="paymentPolibit" className="cursor-pointer font-medium">
-                      PoliBit
-                    </Label>
                   </div>
-
-                  {formData.paymentPolibitEnabled && (
-                    <div className="ml-7 p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">
-                        PoliBit integration will be configured automatically. Investors will be able to make payments through the PoliBit platform with reduced transaction fees.
-                      </p>
-                    </div>
-                  )}
                 </div>
 
-                {/* Credit/Debit Card Payment */}
+                {/* 3. Payment with Card */}
                 <div className="border rounded-lg p-4 space-y-4">
                   <div className="flex items-center gap-3">
                     <Checkbox
@@ -4319,28 +4178,26 @@ export default function OnboardingPage() {
                       onCheckedChange={(checked) => updateFormData('paymentCardEnabled', checked)}
                     />
                     <Label htmlFor="paymentCard" className="cursor-pointer font-medium">
-                      Credit / Debit Card
+                      {t.onboarding.paymentWithCard}
                     </Label>
                   </div>
+                  <p className="text-sm text-gray-600 ml-7">{t.onboarding.paymentCardDesc}</p>
 
                   {formData.paymentCardEnabled && (
-                    <div className="ml-7 p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">
-                        Card payment processing will be configured through Stripe. Standard card processing fees apply (2.9% + $0.30 per transaction).
-                      </p>
+                    <div className="ml-7 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-xs text-gray-500">{t.onboarding.paymentCardFeeNote}</p>
                     </div>
                   )}
                 </div>
 
-                {!formData.paymentLocalBankEnabled &&
+                {!formData.payWithPolibitEnabled &&
+                  !formData.paymentLocalBankEnabled &&
                   !formData.paymentIntlBankEnabled &&
-                  !formData.paymentCryptoEnabled &&
-                  !formData.paymentPolibitEnabled &&
                   !formData.paymentCardEnabled && (
                     <Alert className="border-yellow-200 bg-yellow-50">
                       <AlertCircle className="h-4 w-4 text-yellow-600" />
                       <AlertDescription className="text-yellow-700 text-sm">
-                        Please select at least one payment method to continue
+                        {t.onboarding.selectPaymentMethod}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -4350,7 +4207,7 @@ export default function OnboardingPage() {
             {/* STEP 4: Capital Calls Configuration */}
             {currentStep === 4 && (
               <div className="space-y-6">
-                <h3 className="text-lg font-bold text-gray-900">Capital calls configuration</h3>
+                <h3 className="text-lg font-bold text-gray-900">{t.onboarding.capitalCallsConfig}</h3>
 
                 <div className="flex items-center gap-3">
                   <input
@@ -4361,7 +4218,7 @@ export default function OnboardingPage() {
                     className="w-4 h-4 cursor-pointer"
                   />
                   <Label htmlFor="enableCapitalCalls" className="cursor-pointer font-medium">
-                    Capital Calls
+                    {t.onboarding.capitalCalls}
                   </Label>
                 </div>
 
@@ -4369,150 +4226,61 @@ export default function OnboardingPage() {
                   <div className="p-4 bg-green-50 rounded-lg space-y-4">
                     {/* Global Capital Call Settings */}
                     <div className="bg-white rounded-lg p-4 space-y-4">
-                      <h4 className="font-medium text-sm text-gray-900">Capital Call Settings</h4>
+                      <h4 className="font-medium text-sm text-gray-900">{t.onboarding.capitalCallSettings}</h4>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="capitalCallNoticePeriod">Notice Period (Days)</Label>
+                          <Label htmlFor="capitalCallNoticePeriod">{t.onboarding.noticePeriod}</Label>
                           <Input
                             id="capitalCallNoticePeriod"
                             type="number"
                             min="1"
-                            placeholder="e.g., 10"
+                            placeholder={t.onboarding.placeholderNoticePeriod}
                             value={formData.capitalCallNoticePeriod}
                             onChange={(e) => updateFormData('capitalCallNoticePeriod', e.target.value)}
                           />
                           <p className="text-xs text-muted-foreground">
-                            Number of days notice before capital call is due
+                            {t.onboarding.noticePeriodHelp}
                           </p>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="capitalCallPaymentDeadline">Payment Deadline (Days)</Label>
+                          <Label htmlFor="capitalCallPaymentDeadline">{t.onboarding.paymentDeadline}</Label>
                           <Input
                             id="capitalCallPaymentDeadline"
                             type="number"
                             min="1"
-                            placeholder="e.g., 30"
+                            placeholder={t.onboarding.placeholderPaymentDeadline}
                             value={formData.capitalCallPaymentDeadline}
                             onChange={(e) => updateFormData('capitalCallPaymentDeadline', e.target.value)}
                           />
                           <p className="text-xs text-muted-foreground">
-                            Number of days investors have to pay after notice
+                            {t.onboarding.paymentDeadlineHelp}
                           </p>
                         </div>
                       </div>
+                    </div>
 
+                    {/* Commitment Period */}
+                    <div className="bg-white rounded-lg p-4 space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="commitmentPeriod">Commitment Period (Months)</Label>
+                        <Label htmlFor="commitmentPeriod">{t.onboarding.commitmentPeriod}</Label>
                         <Input
                           id="commitmentPeriod"
                           type="number"
                           min="1"
-                          placeholder="e.g., 60"
-                          value={formData.commitmentPeriod || ''}
+                          max="15"
+                          placeholder="5"
+                          value={formData.commitmentPeriod}
                           onChange={(e) => updateFormData('commitmentPeriod', e.target.value)}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Duration during which capital can be called from investors (ILPA standard)
+                          {t.onboarding.commitmentPeriodHelp}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-sm text-green-900">Capital Call Schedule</h4>
-                        <p className="text-xs text-green-700 mt-1">
-                          Define capital call schedule. Total must equal 100%.
-                        </p>
-                      </div>
-                      {formData.capitalCalls.length < 4 && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => {
-                            const newCall = {
-                              id: `call-${Date.now()}`,
-                              date: '',
-                              callPercentage: 0
-                            }
-                            updateFormData('capitalCalls', [...formData.capitalCalls, newCall])
-                          }}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Call
-                        </Button>
-                      )}
-                    </div>
-
-                    {formData.capitalCalls.length === 0 ? (
-                      <p className="text-xs text-green-700 italic">No capital calls added yet. Click "Add Call" to create one.</p>
-                    ) : (
-                      <div className="space-y-4">
-                        {formData.capitalCalls.map((call, index) => (
-                          <div key={call.id} className="bg-white rounded-lg p-4 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <h5 className="font-medium text-sm text-gray-900">Capital Call {index + 1}</h5>
-                              {formData.capitalCalls.length > 1 && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    updateFormData('capitalCalls', formData.capitalCalls.filter(c => c.id !== call.id))
-                                  }}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  Remove
-                                </Button>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor={`call-date-${call.id}`}>Date</Label>
-                                <Input
-                                  id={`call-date-${call.id}`}
-                                  type="date"
-                                  value={call.date}
-                                  onChange={(e) => {
-                                    const updated = formData.capitalCalls.map(c =>
-                                      c.id === call.id ? { ...c, date: e.target.value } : c
-                                    )
-                                    updateFormData('capitalCalls', updated)
-                                  }}
-                                  className="bg-white"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`call-percent-${call.id}`}>Call % (0-100)</Label>
-                                <Input
-                                  id={`call-percent-${call.id}`}
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.1"
-                                  value={call.callPercentage}
-                                  onChange={(e) => {
-                                    const updated = formData.capitalCalls.map(c =>
-                                      c.id === call.id ? { ...c, callPercentage: parseFloat(e.target.value) || 0 } : c
-                                    )
-                                    updateFormData('capitalCalls', updated)
-                                  }}
-                                  className="bg-white"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="bg-white rounded-lg p-4">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm text-gray-900">Total Call %:</span>
-                            <span className={`font-bold text-sm ${formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0) === 100 ? 'text-green-600' : 'text-red-600'}`}>
-                              {formData.capitalCalls.reduce((sum, c) => sum + (c.callPercentage || 0), 0)}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <p className="text-xs text-green-700 italic">
+                      {t.onboarding.capitalCallsCreatedNote}
+                    </p>
                   </div>
                 )}
 
@@ -4755,7 +4523,7 @@ export default function OnboardingPage() {
                       </Select>
                       <p className="text-sm text-gray-500">
                         {formData.distributionModel === 'simple' && t.onboarding.simpleProRataDesc}
-                        {formData.distributionModel === 'waterfall' && t.onboarding.waterfallDesc}
+                        {formData.distributionModel === 'waterfall' && t.onboarding.waterfallDesc} 
                       </p>
                     </div>
 
@@ -5089,1125 +4857,7 @@ export default function OnboardingPage() {
               </div>
             )}
 
-                    {visibilitySettings?.economicTermsOptions['all-investors'] && (
-                      <div className="flex items-start space-x-2">
-                        <RadioGroupItem value="all-investors" id="all-investors" />
-                        <div>
-                          <Label htmlFor="all-investors" className="cursor-pointer font-medium">
-                            Apply to all investors equally
-                          </Label>
-                          <p className="text-xs text-blue-700">
-                            Same terms for every investor (standard approach)
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {visibilitySettings?.economicTermsOptions['per-investor'] && (
-                      <div className="flex items-start space-x-2">
-                        <RadioGroupItem value="per-investor" id="per-investor" />
-                        <div>
-                          <Label htmlFor="per-investor" className="cursor-pointer font-medium">
-                            Configure per investor type
-                          </Label>
-                          <p className="text-xs text-blue-700">
-                            Set different terms for different investor types or large check sizes (configure during investor onboarding)
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </RadioGroup>
-                  {formData.economicTermsApplication === 'per-investor' && (
-                    <Alert className="border-blue-300 bg-white">
-                      <Info className="h-4 w-4 text-blue-600" />
-                      <AlertDescription className="text-blue-700 text-xs">
-                        The default terms below will be used as a baseline. You'll be able to negotiate
-                        specific terms with individual investors or investor types during their onboarding process.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-
-                {/* V3.1: Investor Pre-Registration Section */}
-                {formData.economicTermsApplication === 'per-investor' && (
-                  <div className="mt-4 p-4 bg-green-50 rounded-lg space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-green-900 flex items-center gap-2">
-                          <Users className="w-4 h-4" />
-                          Pre-Register Investors (Optional)
-                        </h4>
-                        <p className="text-sm text-green-700 mt-1">
-                          Add investors now with custom terms, or add them later during onboarding
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 flex-wrap">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingInvestor(null)
-                          setShowInvestorForm(true)
-                        }}
-                      >
-                        <Users className="w-4 h-4 mr-2" />
-                        Add Investor Manually
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => csvFileInputRef.current?.click()}
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload CSV
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={downloadCSVTemplate}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download Template
-                      </Button>
-                    </div>
-
-                    <input
-                      ref={csvFileInputRef}
-                      type="file"
-                      accept=".csv"
-                      className="hidden"
-                      onChange={handleCSVUpload}
-                    />
-
-                    {formData.preRegisteredInvestors.length > 0 && (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h5 className="text-sm font-medium text-green-900">
-                            Pre-Registered Investors ({formData.preRegisteredInvestors.length})
-                          </h5>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={exportInvestorsCSV}
-                            >
-                              <Download className="w-3 h-3 mr-1" />
-                              Export
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={handleClearAllInvestors}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-3 h-3 mr-1" />
-                              Clear All
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="border rounded-lg overflow-hidden bg-white">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Type</TableHead>
-                                {formData.hierarchyMode && formData.hierarchyStructures && formData.hierarchyStructures.length > 0 && (
-                                  <TableHead>Level</TableHead>
-                                )}
-                                <TableHead>Terms</TableHead>
-                                <TableHead>Source</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {formData.preRegisteredInvestors.map((investor, idx) => {
-                                const hasCustomTerms = investor.customTerms &&
-                                  (investor.customTerms.managementFee !== undefined ||
-                                   investor.customTerms.performanceFee !== undefined ||
-                                   investor.customTerms.hurdleRate !== undefined ||
-                                   investor.customTerms.preferredReturn !== undefined)
-
-                                return (
-                                  <TableRow key={idx}>
-                                    <TableCell className="font-medium">
-                                      {investor.investorType?.toLowerCase() === 'individual'
-                                        ? `${investor.firstName} ${investor.lastName}`
-                                        : (investor as any).entityName}
-                                    </TableCell>
-                                    <TableCell className="text-sm text-gray-600">
-                                      {investor.email}
-                                    </TableCell>
-                                    <TableCell className="text-xs">
-                                      <Badge variant="outline" className="text-xs capitalize">
-                                        {investor.investorType?.replace('-', ' ') || 'individual'}
-                                      </Badge>
-                                    </TableCell>
-                                    {formData.hierarchyMode && formData.hierarchyStructures.length > 0 && (
-                                      <TableCell className="text-xs">
-                                        {investor.hierarchyLevel ? (
-                                          <Badge variant="secondary" className="text-xs">
-                                            Level {investor.hierarchyLevel}
-                                          </Badge>
-                                        ) : (
-                                          <span className="text-muted-foreground">-</span>
-                                        )}
-                                      </TableCell>
-                                    )}
-                                    <TableCell className="text-xs">
-                                      {hasCustomTerms ? (
-                                        <div className="flex flex-col">
-                                          <Badge variant="secondary" className="w-fit mb-1">Custom</Badge>
-                                          <span className="text-gray-600">
-                                            {investor.customTerms?.managementFee ?? formData.managementFee}% /
-                                            {investor.customTerms?.performanceFee ?? formData.performanceFee}% /
-                                            {investor.customTerms?.hurdleRate ?? formData.hurdleRate}% /
-                                            {investor.customTerms?.preferredReturn ?? formData.preferredReturn}%
-                                          </span>
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-col">
-                                          <Badge variant="outline" className="w-fit mb-1">Defaults</Badge>
-                                          <span className="text-gray-600">
-                                            {formData.managementFee}% / {formData.performanceFee}% / {formData.hurdleRate}% / {formData.preferredReturn}%
-                                          </span>
-                                        </div>
-                                      )}
-                                    </TableCell>
-                                    <TableCell className="text-sm">
-                                      <Badge variant={investor.source === 'manual' ? 'default' : 'secondary'}>
-                                        {investor.source === 'manual' ? 'Manual' : 'CSV'}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <div className="flex items-center justify-end gap-1">
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEditInvestor(investor)}
-                                        >
-                                          <Edit className="w-3 h-3" />
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleRemoveInvestor(investor.email)}
-                                        >
-                                          <X className="w-3 h-3" />
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                )
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                        <p className="text-xs text-green-700 italic">
-                          Legend: Management Fee / Performance Fee / Hurdle Rate / Preferred Return
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* V3.1: Investor Pre-Registration Form Modal */}
-                <Sheet open={showInvestorForm} onOpenChange={setShowInvestorForm}>
-                  <SheetContent className="overflow-y-auto sm:max-w-[540px] px-6">
-                    <SheetHeader>
-                      <SheetTitle>
-                        {editingInvestor ? 'Edit Investor' : 'Add Investor Manually'}
-                      </SheetTitle>
-                      <SheetDescription>
-                        Enter investor details and optional custom economic terms
-                      </SheetDescription>
-                    </SheetHeader>
-
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault()
-                        const formEl = e.target as HTMLFormElement
-                        const formData = new FormData(formEl)
-
-                        const investorType = formData.get('investorType') as string
-                        const isEntity = investorType !== 'individual'
-
-                        const investor: any = {
-                          investorType: investorType as 'individual' | 'institution' | 'fund-of-funds' | 'family-office',
-                          email: (formData.get('email') as string).toLowerCase(),
-                          hierarchyLevel: formData.get('hierarchyLevel') ? parseInt(formData.get('hierarchyLevel') as string) : undefined,
-                          customTerms: undefined as {
-                            managementFee?: number
-                            performanceFee?: number
-                            hurdleRate?: number
-                            preferredReturn?: number
-                          } | undefined
-                        }
-
-                        // Add type-specific fields
-                        if (isEntity) {
-                          investor.entityName = formData.get('entityName') as string
-                          investor.entityType = formData.get('entityType') as string || undefined
-                          investor.contactFirstName = formData.get('contactFirstName') as string
-                          investor.contactLastName = formData.get('contactLastName') as string
-                          investor.taxId = formData.get('taxId') as string || undefined
-                        } else {
-                          investor.firstName = formData.get('firstName') as string
-                          investor.lastName = formData.get('lastName') as string
-                          investor.taxId = formData.get('taxId') as string || undefined
-                        }
-
-                        // Only include custom terms if any are provided
-                        const mgmtFee = formData.get('managementFee')
-                        const perfFee = formData.get('performanceFee')
-                        const hurdle = formData.get('hurdleRate')
-                        const prefReturn = formData.get('preferredReturn')
-
-                        if (mgmtFee || perfFee || hurdle || prefReturn) {
-                          investor.customTerms = {
-                            managementFee: mgmtFee ? parseFloat(mgmtFee as string) : undefined,
-                            performanceFee: perfFee ? parseFloat(perfFee as string) : undefined,
-                            hurdleRate: hurdle ? parseFloat(hurdle as string) : undefined,
-                            preferredReturn: prefReturn ? parseFloat(prefReturn as string) : undefined
-                          }
-                        }
-
-                        handleAddInvestor(investor)
-                        formEl.reset()
-                        setSelectedInvestorType('individual') // Reset to default
-                      }}
-                      className="space-y-6 mt-6"
-                    >
-                      {/* Basic Information */}
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-gray-900">Basic Information</h3>
-
-                        {/* Investor Type */}
-                        <div className="space-y-2">
-                          <Label htmlFor="investorType">Investor Type *</Label>
-                          <Select
-                            name="investorType"
-                            defaultValue={editingInvestor?.investorType || 'individual'}
-                            onValueChange={(value) => setSelectedInvestorType(value as 'individual' | 'institution' | 'fund-of-funds' | 'family-office')}
-                            required
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="individual">Individual</SelectItem>
-                              <SelectItem value="institution">Institution</SelectItem>
-                              <SelectItem value="family-office">Family Office</SelectItem>
-                              <SelectItem value="fund-of-funds">Fund of Funds</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Conditional fields based on investor type */}
-                        {selectedInvestorType === 'individual' ? (
-                          // Individual investor fields
-                          <>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="firstName">First Name *</Label>
-                                <Input
-                                  id="firstName"
-                                  name="firstName"
-                                  placeholder="John"
-                                  defaultValue={editingInvestor?.firstName || ''}
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="lastName">Last Name *</Label>
-                                <Input
-                                  id="lastName"
-                                  name="lastName"
-                                  placeholder="Doe"
-                                  defaultValue={editingInvestor?.lastName || ''}
-                                  required
-                                />
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="email">Email *</Label>
-                              <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                placeholder="john.doe@example.com"
-                                defaultValue={editingInvestor?.email || ''}
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="taxId">Tax ID / SSN (Optional)</Label>
-                              <Input
-                                id="taxId"
-                                name="taxId"
-                                placeholder="XXX-XX-XXXX"
-                                defaultValue={editingInvestor?.taxId || ''}
-                              />
-                            </div>
-                          </>
-                        ) : (
-                          // Entity investor fields
-                          <>
-                            <div className="space-y-2">
-                              <Label htmlFor="entityName">Entity Name *</Label>
-                              <Input
-                                id="entityName"
-                                name="entityName"
-                                placeholder="ABC Investment LLC"
-                                defaultValue={editingInvestor?.entityName || ''}
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="entityType">Entity Type</Label>
-                              <Input
-                                id="entityType"
-                                name="entityType"
-                                placeholder="LLC, Corporation, Trust, Partnership, etc."
-                                defaultValue={editingInvestor?.entityType || ''}
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="contactFirstName">Contact First Name *</Label>
-                                <Input
-                                  id="contactFirstName"
-                                  name="contactFirstName"
-                                  placeholder="Jane"
-                                  defaultValue={editingInvestor?.contactFirstName || ''}
-                                  required
-                                />
-                                <p className="text-xs text-muted-foreground">Portal user</p>
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="contactLastName">Contact Last Name *</Label>
-                                <Input
-                                  id="contactLastName"
-                                  name="contactLastName"
-                                  placeholder="Doe"
-                                  defaultValue={editingInvestor?.contactLastName || ''}
-                                  required
-                                />
-                                <p className="text-xs text-muted-foreground">Portal user</p>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="email">Contact Email *</Label>
-                              <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                placeholder="jane.doe@abcinvest.com"
-                                defaultValue={editingInvestor?.email || ''}
-                                required
-                              />
-                              <p className="text-xs text-muted-foreground">Used for portal access</p>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="taxId">Tax ID / EIN (Optional)</Label>
-                              <Input
-                                id="taxId"
-                                name="taxId"
-                                placeholder="XX-XXXXXXX"
-                                defaultValue={editingInvestor?.taxId || ''}
-                              />
-                            </div>
-                          </>
-                        )}
-
-                        {/* Hierarchy Level (conditional) */}
-                        {formData.hierarchyMode && formData.hierarchyStructures && formData.hierarchyStructures.length > 0 && (
-                          <div className="space-y-2">
-                            <Label htmlFor="hierarchyLevel">Participating Hierarchy Level *</Label>
-                            <Select name="hierarchyLevel" defaultValue={editingInvestor?.hierarchyLevel?.toString() || '1'} required>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {formData.hierarchyStructures.map((level, index) => (
-                                  <SelectItem key={index} value={(index + 1).toString()}>
-                                    Level {index + 1}: {level.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <p className="text-xs text-muted-foreground">
-                              Select which hierarchy level this investor participates in
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      <Separator />
-
-                      {/* Custom Economic Terms */}
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                            Custom Economic Terms (Optional)
-                          </h3>
-                          <p className="text-xs text-gray-500">
-                            Leave blank to use default terms ({formData.managementFee}% / {formData.performanceFee}% / {formData.hurdleRate}% / {formData.preferredReturn}%)
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="managementFee" className="text-xs">
-                              Management Fee (%)
-                            </Label>
-                            <Input
-                              id="managementFee"
-                              name="managementFee"
-                              type="number"
-                              step="0.1"
-                              placeholder={formData.managementFee}
-                              defaultValue={editingInvestor?.customTerms?.managementFee || ''}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="performanceFee" className="text-xs">
-                              Performance Fee (%)
-                            </Label>
-                            <Input
-                              id="performanceFee"
-                              name="performanceFee"
-                              type="number"
-                              step="0.1"
-                              placeholder={formData.performanceFee}
-                              defaultValue={editingInvestor?.customTerms?.performanceFee || ''}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="hurdleRate" className="text-xs">
-                              Hurdle Rate (%)
-                            </Label>
-                            <Input
-                              id="hurdleRate"
-                              name="hurdleRate"
-                              type="number"
-                              step="0.1"
-                              placeholder={formData.hurdleRate}
-                              defaultValue={editingInvestor?.customTerms?.hurdleRate || ''}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="preferredReturn" className="text-xs">
-                              Preferred Return (%)
-                            </Label>
-                            <Input
-                              id="preferredReturn"
-                              name="preferredReturn"
-                              type="number"
-                              step="0.1"
-                              placeholder={formData.preferredReturn}
-                              defaultValue={editingInvestor?.customTerms?.preferredReturn || ''}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Form Actions */}
-                      <div className="flex gap-3 pt-4">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => {
-                            setShowInvestorForm(false)
-                            setEditingInvestor(null)
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button type="submit" className="flex-1">
-                          {editingInvestor ? 'Update Investor' : 'Add Investor'}
-                        </Button>
-                      </div>
-                    </form>
-                  </SheetContent>
-                </Sheet>
-
-                {/* Distribution Model Selection - Context-aware based on structure type */}
-                {formData.structureType === 'private-debt' ? (
-                  <Alert className="border-primary/30 bg-white">
-                    <Info className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-primary">Interest Payment Model</AlertTitle>
-                    <AlertDescription className="text-primary/80">
-                      <p className="mb-2">
-                        Private debt structures use an interest payment model for debt-based investments.
-                      </p>
-                      <p className="text-sm">
-                        Returns are distributed as interest payments based on the debt terms configured.
-                      </p>
-                    </AlertDescription>
-                  </Alert>
-                ) : formData.financingStrategy === 'equity' ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="distributionModel">Distribution Model *</Label>
-                      <Select
-                        value={formData.distributionModel}
-                        onValueChange={(value) => updateFormData('distributionModel', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="simple">Simple Pro-Rata Distribution</SelectItem>
-                          <SelectItem value="waterfall">Waterfall Distribution</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-sm text-gray-500">
-                        {formData.distributionModel === 'simple' && 'Profits distributed proportionally based on ownership percentage'}
-                        {formData.distributionModel === 'waterfall' && 'Distributions are calculated on total fund performance'}
-                      </p>
-                    </div>
-
-                    {formData.distributionModel === 'simple' && (
-                      <div className="space-y-2">
-                        <Label htmlFor="preferredReturnSimple">Preferred return %</Label>
-                        <Input
-                          id="preferredReturnSimple"
-                          type="number"
-                          step="0.1"
-                          placeholder="8.0"
-                          value={formData.preferredReturn || ''}
-                          onChange={(e) => updateFormData('preferredReturn', parseFloat(e.target.value) || 0)}
-                        />
-                        <p className="text-xs text-gray-500">Minimum annual return to LPs before distributions</p>
-                      </div>
-                    )}
-                  </div>
-                ) : formData.financingStrategy === 'debt' ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="debtInterestRate">Interest Rate (Brute) %</Label>
-                      <Input
-                        id="debtInterestRate"
-                        type="number"
-                        step="0.1"
-                        placeholder="5.0"
-                        value={formData.debtInterestRate}
-                        onChange={(e) => updateFormData('debtInterestRate', e.target.value)}
-                      />
-                      <p className="text-xs text-gray-500">Base interest rate</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="debtGrossInterestRate">Annual Gross Interest %</Label>
-                      <Input
-                        id="debtGrossInterestRate"
-                        type="number"
-                        step="0.1"
-                        placeholder="5.5"
-                        value={formData.debtGrossInterestRate}
-                        onChange={(e) => updateFormData('debtGrossInterestRate', e.target.value)}
-                      />
-                      <p className="text-xs text-gray-500">Gross interest rate for reporting</p>
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Conditional: Show waterfall scenarios if waterfall model selected - only for equity */}
-                {formData.financingStrategy === 'equity' && formData.distributionModel === 'waterfall' && (
-                <>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-base font-medium text-gray-900">Waterfall Tiers</h4>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (formData.waterfallScenarios.length < 3) {
-                          const newScenario = {
-                            id: Date.now().toString(),
-                            name: `Tier ${formData.waterfallScenarios.length + 1}`,
-                            gpSplit: '20',
-                            preferredReturn: '8',
-                            isExpanded: true
-                          }
-                          updateFormData('waterfallScenarios', [...formData.waterfallScenarios, newScenario])
-                        }
-                      }}
-                      disabled={formData.waterfallScenarios.length >= 3}
-                    >
-                      + Add Tier {formData.waterfallScenarios.length < 3 ? `(${formData.waterfallScenarios.length}/3)` : '(Max)'}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="managementFee">Management Fee (%)</Label>
-                    <Input
-                      id="managementFee"
-                      type="number"
-                      step="0.1"
-                      placeholder="2.0"
-                      value={formData.managementFee}
-                      onChange={(e) => updateFormData('managementFee', e.target.value)}
-                    />
-                    <p className="text-xs text-gray-500">Annual % of AUM - applies to all tiers</p>
-                  </div>
-
-                  {formData.structureType === 'fund' && (
-                    <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
-                      <Checkbox
-                        id="managementFeeOffset"
-                        checked={formData.managementFeeOffset || false}
-                        onCheckedChange={(checked) => updateFormData('managementFeeOffset', checked)}
-                      />
-                      <div className="flex-1">
-                        <Label htmlFor="managementFeeOffset" className="cursor-pointer font-medium text-sm">
-                          Management Fee Offset
-                        </Label>
-                        <p className="text-xs text-gray-600">
-                          Offset management fees paid against carried interest (ILPA standard for Fund structures)
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {formData.waterfallScenarios.map((scenario, index) => (
-                    <div key={scenario.id} className="border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer" onClick={() => {
-                        const updated = [...formData.waterfallScenarios]
-                        updated[index].isExpanded = !updated[index].isExpanded
-                        updateFormData('waterfallScenarios', updated)
-                      }}>
-                        <div className="flex items-center gap-2">
-                          <span className={`transform transition-transform ${scenario.isExpanded ? 'rotate-180' : ''}`}>
-                            ▼
-                          </span>
-                          <h5 className="font-medium text-gray-900">{scenario.name}</h5>
-                        </div>
-                        {formData.waterfallScenarios.length > 1 && (
-                          <button
-                            type="button"
-                            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              updateFormData('waterfallScenarios', formData.waterfallScenarios.filter((_, i) => i !== index))
-                            }}
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-
-                      {scenario.isExpanded && (
-                        <div className="p-4 border-t border-gray-200 space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor={`gpSplit-${scenario.id}`}>GP Split / Carry (%)</Label>
-                            <Input
-                              id={`gpSplit-${scenario.id}`}
-                              type="number"
-                              step="0.1"
-                              placeholder="20.0"
-                              value={scenario.gpSplit}
-                              onChange={(e) => {
-                                const updated = [...formData.waterfallScenarios]
-                                updated[index].gpSplit = e.target.value
-                                updateFormData('waterfallScenarios', updated)
-                              }}
-                            />
-                            <p className="text-xs text-gray-500">% of profits above hurdle</p>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor={`preferredReturn-${scenario.id}`}>Preferred Return/Hurdle Rate (%)</Label>
-                            <Input
-                              id={`preferredReturn-${scenario.id}`}
-                              type="number"
-                              step="0.1"
-                              placeholder="8.0"
-                              value={scenario.preferredReturn}
-                              onChange={(e) => {
-                                const updated = [...formData.waterfallScenarios]
-                                updated[index].preferredReturn = e.target.value
-                                updateFormData('waterfallScenarios', updated)
-                              }}
-                            />
-                            <p className="text-xs text-gray-500">Annual preferred return to LPs</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                </>
-                )}
-              </div>
-              )
-            })()}
-
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="quarterly">Quarterly</SelectItem>
-                      <SelectItem value="semi-annual">Semi-Annual</SelectItem>
-                      <SelectItem value="annual">Annual</SelectItem>
-                      {formData.structureType !== 'private-debt' && (
-                        <SelectItem value="on-exit">On Exit Only</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <input
-                    id="sameTaxTreatment"
-                    type="checkbox"
-                    checked={formData.sameTaxTreatment}
-                    onChange={(e) => updateFormData('sameTaxTreatment', e.target.checked)}
-                    className="w-4 h-4 cursor-pointer"
-                  />
-                  <Label htmlFor="sameTaxTreatment" className="cursor-pointer text-sm">
-                    The same tax treatment applies to both natural persons and legal entities
-                  </Label>
-                </div>
-
-                {formData.sameTaxTreatment ? (
-                  // Show 2 fields for same treatment
-                  formData.structureType === 'private-debt' ? (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="vatRate">
-                          VAT Rate (%)
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Value Added Tax rate for {formData.jurisdiction}</p>
-                                <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                        <Input
-                          id="vatRate"
-                          type="number"
-                          step="0.1"
-                          placeholder="21.0"
-                          value={formData.vatRate}
-                          onChange={(e) => updateFormData('vatRate', e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="incomeDebtTaxRate">
-                          Income Tax (%)
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Income tax rate for {formData.jurisdiction}</p>
-                                <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                        <Input
-                          id="incomeDebtTaxRate"
-                          type="number"
-                          step="0.1"
-                          placeholder="25.0"
-                          value={formData.incomeDebtTaxRate}
-                          onChange={(e) => updateFormData('incomeDebtTaxRate', e.target.value)}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="witholdingDividendTaxRate">
-                          Withholding / Dividend Tax (%)
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Withholding tax rate on dividend distributions for {formData.jurisdiction}</p>
-                                <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                        <Input
-                          id="witholdingDividendTaxRate"
-                          type="number"
-                          step="0.1"
-                          placeholder="15.0"
-                          value={formData.witholdingDividendTaxRate}
-                          onChange={(e) => updateFormData('witholdingDividendTaxRate', e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="incomeEquityTaxRate">
-                          Income Tax (%)
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Income tax rate for {formData.jurisdiction}</p>
-                                <p className="text-xs mt-1">Individual investors will have different rates based on nationality</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                        <Input
-                          id="incomeEquityTaxRate"
-                          type="number"
-                          step="0.1"
-                          placeholder="25.0"
-                          value={formData.incomeEquityTaxRate}
-                          onChange={(e) => updateFormData('incomeEquityTaxRate', e.target.value)}
-                        />
-                      </div>
-                    </>
-                  )
-                ) : (
-                  // Show 4 fields for different treatment (2 for natural persons, 2 for legal entities)
-                  formData.structureType === 'private-debt' ? (
-                    <>
-                      <div className="border-t pt-4">
-                        <h4 className="font-medium text-sm mb-4 text-gray-900">Natural Persons</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="vatRateNaturalPersons">
-                              VAT Rate (%)
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>VAT rate for natural persons in {formData.jurisdiction}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                            <Input
-                              id="vatRateNaturalPersons"
-                              type="number"
-                              step="0.1"
-                              placeholder="21.0"
-                              value={formData.vatRateNaturalPersons}
-                              onChange={(e) => updateFormData('vatRateNaturalPersons', e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="incomeDebtTaxRateNaturalPersons">
-                              Income Tax (%)
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Income tax rate for natural persons in {formData.jurisdiction}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                            <Input
-                              id="incomeDebtTaxRateNaturalPersons"
-                              type="number"
-                              step="0.1"
-                              placeholder="25.0"
-                              value={formData.incomeDebtTaxRateNaturalPersons}
-                              onChange={(e) => updateFormData('incomeDebtTaxRateNaturalPersons', e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="border-t pt-4">
-                        <h4 className="font-medium text-sm mb-4 text-gray-900">Legal Entities</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="vatRateLegalEntities">
-                              VAT Rate (%)
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>VAT rate for legal entities in {formData.jurisdiction}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                            <Input
-                              id="vatRateLegalEntities"
-                              type="number"
-                              step="0.1"
-                              placeholder="21.0"
-                              value={formData.vatRateLegalEntities}
-                              onChange={(e) => updateFormData('vatRateLegalEntities', e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="incomeDebtTaxRateLegalEntities">
-                              Income Tax (%)
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Income tax rate for legal entities in {formData.jurisdiction}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                            <Input
-                              id="incomeDebtTaxRateLegalEntities"
-                              type="number"
-                              step="0.1"
-                              placeholder="25.0"
-                              value={formData.incomeDebtTaxRateLegalEntities}
-                              onChange={(e) => updateFormData('incomeDebtTaxRateLegalEntities', e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="border-t pt-4">
-                        <h4 className="font-medium text-sm mb-4 text-gray-900">Natural Persons</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="witholdingDividendTaxRateNaturalPersons">
-                              Withholding / Dividend Tax (%)
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Withholding tax rate for natural persons in {formData.jurisdiction}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                            <Input
-                              id="witholdingDividendTaxRateNaturalPersons"
-                              type="number"
-                              step="0.1"
-                              placeholder="15.0"
-                              value={formData.witholdingDividendTaxRateNaturalPersons}
-                              onChange={(e) => updateFormData('witholdingDividendTaxRateNaturalPersons', e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="incomeEquityTaxRateNaturalPersons">
-                              Income Tax (%)
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Income tax rate for natural persons in {formData.jurisdiction}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                            <Input
-                              id="incomeEquityTaxRateNaturalPersons"
-                              type="number"
-                              step="0.1"
-                              placeholder="25.0"
-                              value={formData.incomeEquityTaxRateNaturalPersons}
-                              onChange={(e) => updateFormData('incomeEquityTaxRateNaturalPersons', e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="border-t pt-4">
-                        <h4 className="font-medium text-sm mb-4 text-gray-900">Legal Entities</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="witholdingDividendTaxRateLegalEntities">
-                              Withholding / Dividend Tax (%)
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Withholding tax rate for legal entities in {formData.jurisdiction}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                            <Input
-                              id="witholdingDividendTaxRateLegalEntities"
-                              type="number"
-                              step="0.1"
-                              placeholder="15.0"
-                              value={formData.witholdingDividendTaxRateLegalEntities}
-                              onChange={(e) => updateFormData('witholdingDividendTaxRateLegalEntities', e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="incomeEquityTaxRateLegalEntities">
-                              Income Tax (%)
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="inline-block ml-1 h-4 w-4 text-gray-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Income tax rate for legal entities in {formData.jurisdiction}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </Label>
-                            <Input
-                              id="incomeEquityTaxRateLegalEntities"
-                              type="number"
-                              step="0.1"
-                              placeholder="25.0"
-                              value={formData.incomeEquityTaxRateLegalEntities}
-                              onChange={(e) => updateFormData('incomeEquityTaxRateLegalEntities', e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )
-                )}
-
-              </div>
-            )}
-
-            {/* STEP 7: Document Upload */}
+            {/* STEP 8: Document Upload */}
             {currentStep === 8 && (
               <div className="space-y-6">
                 {/* No Documents Uploaded Alert */}

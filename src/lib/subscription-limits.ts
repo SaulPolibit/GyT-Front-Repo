@@ -213,7 +213,16 @@ export const validateStructureCreation = async (
     }
 
     const data = await response.json();
-    return data.success ? data.validation : { allowed: false, reason: 'Validation failed' };
+    // API returns validation data directly in response, not nested under 'validation'
+    return {
+      allowed: data.allowed,
+      reason: data.reason,
+      currentTotal: data.currentTotal,
+      limit: data.limit,
+      newCommitment: data.newCommitment,
+      projectedTotal: data.projectedTotal,
+      remaining: data.remaining
+    };
   } catch (error) {
     console.error('[SubscriptionLimits] Error validating structure creation:', error);
     // Allow creation on error to prevent blocking
