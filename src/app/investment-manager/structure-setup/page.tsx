@@ -875,9 +875,6 @@ export default function OnboardingPage() {
         if (!formData.totalCapitalCommitment) {
           errors.push('Please enter total capital commitment')
         }
-        if (!formData.totalInvestors) {
-          errors.push('Please enter the total number of investors')
-        }
         if (!formData.minCheckSize) {
           errors.push('Please enter minimum check size')
         }
