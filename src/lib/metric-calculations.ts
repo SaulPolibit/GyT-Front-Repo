@@ -251,23 +251,71 @@ export function calculateMetric(metricId: string, structureId?: string, dashboar
     }
 
     case 'ytd-performance': {
-      // Mock YTD calculation - would need historical NAV data
-      const ytdReturn = 1.10
+      // Calculate YTD performance from portfolio value changes
+      // Note: Without historical NAV snapshots, we estimate start of year value
+      // This should be replaced with actual historical data when available
+      const currentValue = investments.reduce((sum, inv) => {
+        return sum + (inv.totalFundPosition?.currentValue || 0)
+      }, 0)
+
+      // Get YTD distributions
+      const currentYear = new Date().getFullYear()
+      const ytdDistributions = distributions
+        .filter(dist => dist.status === 'Completed')
+        .filter(dist => new Date(dist.distributionDate || dist.createdAt).getFullYear() === currentYear)
+        .reduce((sum, dist) => {
+          const distTotal = dist.investorAllocations.reduce((allocSum, alloc) => {
+            return allocSum + (alloc.finalAllocation || 0)
+          }, 0)
+          return sum + distTotal
+        }, 0)
+
+      // Estimate start of year value (current - unrealized gains)
+      // This is a simplification - ideally we'd have historical NAV snapshots
+      const unrealizedGains = investments.reduce((sum, inv) => {
+        return sum + (inv.totalFundPosition?.unrealizedGain || 0)
+      }, 0)
+      const startOfYearValue = Math.max(0, currentValue - unrealizedGains)
+
+      const ytdReturn = startOfYearValue > 0
+        ? ((currentValue + ytdDistributions - startOfYearValue) / startOfYearValue) * 100
+        : 0
+
+      const trend = ytdReturn >= 5 ? 'up' : ytdReturn >= 0 ? 'neutral' : 'down'
 
       return {
         value: formatPercentage(ytdReturn),
-        trend: 'up',
-        description: 'Year-to-date return',
+        trend,
+        description: 'Year-to-date return (estimated)',
       }
     }
 
     case 'nav-per-share': {
-      // Mock calculation
+      // Calculate NAV per share from structure data
+      let totalNav = 0
+      let totalShares = 0
+
+      structures.forEach(structure => {
+        const nav = structure.currentNav || 0
+        const shares = structure.totalSharesOutstanding || structure.tokenSupply || 0
+        totalNav += nav
+        totalShares += shares
+      })
+
+      const navPerShare = totalShares > 0 ? totalNav / totalShares : 0
+
+      // Format as currency
+      const formattedNav = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(navPerShare)
+
       return {
-        value: '$53',
-        badge: '+1.10%',
-        trend: 'up',
+        value: formattedNav,
         description: 'NAV per share',
+        trend: 'neutral',
       }
     }
 

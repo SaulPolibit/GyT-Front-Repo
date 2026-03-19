@@ -62,7 +62,19 @@ export function generateLPChartData(dataSource: string, fundId: string = 'all'):
   }
 }
 
-// Portfolio Value Over Time - simulated historical data
+// Portfolio Value Over Time
+// NOTE: This function generates SIMULATED historical data using linear interpolation
+// from current values. This is a temporary solution until historical NAV snapshots
+// are implemented in the database.
+//
+// LIMITATION: The chart assumes linear growth from $0 to current value, which does not
+// reflect actual portfolio performance over time. For accurate historical charts,
+// implement a historical_nav_snapshots table that stores periodic valuations.
+//
+// TODO: Replace with actual historical data when available:
+// - Query historical NAV snapshots from database
+// - Use real capital call dates and amounts
+// - Show actual portfolio value at each point in time
 function generatePortfolioValueData(investor: any, structures: any[]): ChartDataPoint[] {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   const currentMonth = new Date().getMonth()
@@ -72,9 +84,9 @@ function generatePortfolioValueData(investor: any, structures: any[]): ChartData
   const calledCapital = structures.reduce((sum, s) => sum + s.calledCapital, 0)
   const commitment = structures.reduce((sum, s) => sum + s.commitment, 0)
 
-  // Generate historical data (current year)
+  // Generate simulated historical data using linear interpolation (current year only)
+  // This simulates linear growth from start of year to current values
   return months.slice(0, currentMonth + 1).map((month, index) => {
-    // Simulate growth over time
     const progress = (index + 1) / (currentMonth + 1)
     const value = Math.floor(currentValue * progress)
     const called = Math.floor(calledCapital * progress)
@@ -251,11 +263,10 @@ function generateDistributionTypesData(investor: any, fundId: string): ChartData
     .forEach(dist => {
       const allocation = dist.investorAllocations.find(a => a.investorId === investor.id)
       if (allocation) {
-        // Simulate breakdown - in real implementation, this would come from distribution data
-        const total = allocation.finalAllocation || 0
-        typeMap['Return of Capital'] += total * 0.4
-        typeMap['Income'] += total * 0.3
-        typeMap['Capital Gains'] += total * 0.3
+        // Use actual distribution source breakdown from database
+        typeMap['Return of Capital'] += dist.source_debt_principal || 0
+        typeMap['Income'] += dist.source_debt_interest || 0
+        typeMap['Capital Gains'] += dist.source_equity_gain || 0
       }
     })
 
