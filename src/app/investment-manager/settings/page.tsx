@@ -44,9 +44,11 @@ import { getNotificationSettings, saveNotificationSettings } from '@/lib/notific
 import { SubscriptionManager } from '@/components/subscription-manager'
 import { SubscriptionPricingView } from '@/components/subscription-pricing-view'
 import { getSubscriptionModel } from '@/lib/stripe-products'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export default function InvestmentManagerSettingsPage() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = React.useState("firm")
 
   // Handle query parameter for tab selection
@@ -1708,12 +1710,12 @@ export default function InvestmentManagerSettingsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className={`grid w-full ${currentUserRole === 0 ? 'grid-cols-6' : (currentUserRole === 1 ? 'grid-cols-5' : 'grid-cols-4')}`}>
-          <TabsTrigger value="firm">Firm</TabsTrigger>
-          {currentUserRole === 0 && <TabsTrigger value="users">Users</TabsTrigger>}
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="email">Email</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          {(currentUserRole === 0 || currentUserRole === 1) && <TabsTrigger value="subscription">Subscription</TabsTrigger>}
+          <TabsTrigger value="firm">{t.settings.tabs.general}</TabsTrigger>
+          {currentUserRole === 0 && <TabsTrigger value="users">{t.settings.tabs.teamMembers}</TabsTrigger>}
+          <TabsTrigger value="notifications">{t.settings.tabs.notifications}</TabsTrigger>
+          <TabsTrigger value="email">{t.settings.tabs.email}</TabsTrigger>
+          <TabsTrigger value="security">{t.settings.tabs.security}</TabsTrigger>
+          {(currentUserRole === 0 || currentUserRole === 1) && <TabsTrigger value="subscription">{t.settings.tabs.subscription}</TabsTrigger>}
         </TabsList>
 
         {/* Firm Settings Tab */}
@@ -1723,28 +1725,28 @@ export default function InvestmentManagerSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5" />
-                Firm Branding
+                {t.settings.general.fundName}
               </CardTitle>
               <CardDescription>
-                Customize your firm's name and logo that appears in the sidebar
+                {t.settings.general.description}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="firmName">Firm Name</Label>
+                <Label htmlFor="firmName">{t.settings.general.fundName}</Label>
                 <Input
                   id="firmName"
                   value={settings.firmName}
                   onChange={(e) => setSettings({ ...settings, firmName: e.target.value })}
-                  placeholder="e.g., Polibit Capital"
+                  placeholder={t.settings.general.firmNamePlaceholder}
                 />
                 <p className="text-xs text-muted-foreground">
-                  This name will appear at the top of the sidebar
+                  {t.settings.general.firmNameHelp}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="firmLogo">Firm Logo</Label>
+                <Label htmlFor="firmLogo">{t.settings.general.firmLogo}</Label>
                 <div className="flex items-center gap-4">
                   {settings.firmLogo ? (
                     <div className="w-12 h-12 rounded border flex items-center justify-center overflow-hidden bg-white">
@@ -1770,10 +1772,10 @@ export default function InvestmentManagerSettingsPage() {
                       onClick={() => document.getElementById('firmLogo')?.click()}
                     >
                       <Upload className="h-4 w-4 mr-2" />
-                      Upload Logo
+                      {t.settings.general.uploadLogo}
                     </Button>
                     <p className="text-xs text-muted-foreground mt-1">
-                      JPG, PNG or SVG. Max size 5MB.
+                      {t.settings.general.logoHelp}
                     </p>
                   </div>
 
@@ -1783,7 +1785,7 @@ export default function InvestmentManagerSettingsPage() {
                       size="sm"
                       onClick={() => setSettings({ ...settings, firmLogo: null })}
                     >
-                      Remove
+                      {t.settings.general.removeLogo}
                     </Button>
                   )}
                 </div>
@@ -1794,69 +1796,69 @@ export default function InvestmentManagerSettingsPage() {
           {/* Firm Details */}
           <Card>
             <CardHeader>
-              <CardTitle>Firm Details</CardTitle>
+              <CardTitle>{t.settings.general.legalEntity}</CardTitle>
               <CardDescription>
-                Additional information about your investment firm
+                {t.settings.general.jurisdiction}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firmEmail">Firm Email</Label>
+                  <Label htmlFor="firmEmail">{t.settings.team.email}</Label>
                   <Input
                     id="firmEmail"
                     type="email"
                     value={settings.firmEmail || ''}
                     onChange={(e) => setSettings({ ...settings, firmEmail: e.target.value })}
-                    placeholder="contact@firm.com"
+                    placeholder={t.settings.general.emailPlaceholder}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="firmPhone">Firm Phone</Label>
+                  <Label htmlFor="firmPhone">{t.settings.general.firmPhone}</Label>
                   <Input
                     id="firmPhone"
                     type="tel"
                     value={settings.firmPhone || ''}
                     onChange={(e) => setSettings({ ...settings, firmPhone: e.target.value })}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder={t.settings.general.phonePlaceholder}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="firmWebsite">Website</Label>
+                <Label htmlFor="firmWebsite">{t.settings.general.website}</Label>
                 <Input
                   id="firmWebsite"
                   type="url"
                   value={settings.firmWebsite || ''}
                   onChange={(e) => setSettings({ ...settings, firmWebsite: e.target.value })}
-                  placeholder="https://www.firm.com"
+                  placeholder={t.settings.general.websitePlaceholder}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="firmAddress">Address</Label>
+                <Label htmlFor="firmAddress">{t.settings.general.address}</Label>
                 <Input
                   id="firmAddress"
                   value={settings.firmAddress || ''}
                   onChange={(e) => setSettings({ ...settings, firmAddress: e.target.value })}
-                  placeholder="123 Main St, City, State, ZIP"
+                  placeholder={t.settings.general.addressPlaceholder}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="firmDescription">Description</Label>
+                <Label htmlFor="firmDescription">{t.settings.general.description}</Label>
                 <textarea
                   id="firmDescription"
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   value={settings.firmDescription || ''}
                   onChange={(e) => setSettings({ ...settings, firmDescription: e.target.value })}
-                  placeholder="Brief description of your investment firm..."
+                  placeholder={t.settings.general.descriptionPlaceholder}
                 />
               </div>
 
-              <Button onClick={handleSaveFirmSettings}>Save Firm Settings</Button>
+              <Button onClick={handleSaveFirmSettings}>{t.settings.general.saveChanges}</Button>
             </CardContent>
           </Card>
         </TabsContent>
