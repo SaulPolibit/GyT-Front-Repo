@@ -1061,7 +1061,36 @@ export default function OnboardingPage() {
     setIsSubmitting(true)
 
     try {
-      // Validate subscription status before creating structure (emissions check)
+      // ============================================================================
+      // ⚠️⚠️⚠️ CRITICAL: SUBSCRIPTION VALIDATION - EMISSIONS CHECK ⚠️⚠️⚠️
+      // ============================================================================
+      //
+      // DO NOT REMOVE OR MODIFY without approval from Tech Lead
+      //
+      // PURPOSE: Prevents structure creation when emissions_available = 0
+      //
+      // This check validates that the platform subscription has available emissions
+      // before allowing structure creation. Each structure creation consumes 1+ emissions.
+      //
+      // FLOW:
+      // 1. Fetches subscription from platform_subscription table
+      // 2. Checks emissions_available > 0
+      // 3. If NO emissions: Blocks creation with error message
+      // 4. If emissions available: Allows creation to proceed
+      //
+      // RELATED CODE:
+      // - Validation: /src/lib/stripe-products.ts (canCreateStructureAsync, lines 646-689)
+      // - Decrement: /src/app/api/stripe/use-emission/route.ts (lines 58-69)
+      // - Service: /src/services/subscriptionLimits.service.js (lines 252-254)
+      //
+      // TESTS: /tests/integration/subscription-enforcement.test.js
+      //
+      // CONSEQUENCES OF REMOVAL:
+      // - Users can create unlimited structures without payment
+      // - Revenue loss from unpaid emissions
+      // - Subscription bypass vulnerability
+      //
+      // ============================================================================
       const authState = getAuthState()
       const userEmail = authState.user?.email || authState.supabase?.email
       const subscriptionCheck = await canCreateStructureAsync(userEmail)
@@ -1071,7 +1100,40 @@ export default function OnboardingPage() {
         return
       }
 
-      // Validate subscription limits for structure commitment (tier_based model)
+      // ============================================================================
+      // ⚠️⚠️⚠️ CRITICAL: SUBSCRIPTION VALIDATION - COMMITMENT LIMIT CHECK ⚠️⚠️⚠️
+      // ============================================================================
+      //
+      // DO NOT REMOVE OR MODIFY without approval from Tech Lead
+      //
+      // PURPOSE: Enforces max_total_commitment limit for tier_based subscriptions
+      //
+      // This check ensures users cannot exceed their subscription tier's AUM limit.
+      // Only applies to tier_based model (NOT payg model).
+      //
+      // FLOW:
+      // 1. Calculates current total commitment across all structures
+      // 2. Adds new structure's commitment
+      // 3. Compares against max_total_commitment from subscription tier
+      // 4. If exceeded: Blocks creation with upgrade suggestion
+      // 5. If within limit: Allows creation
+      //
+      // RELATED CODE:
+      // - Validation: /src/lib/subscription-limits.ts (validateStructureCreation)
+      // - Service: /src/services/subscriptionLimits.service.js (lines 536-605)
+      // - Limits: /src/services/subscriptionLimits.service.js (TIER_BASED_LIMITS, lines 60-76)
+      //
+      // TIER LIMITS (as of current implementation):
+      // - Starter: $25M max total commitment
+      // - Professional: $50M max total commitment
+      // - Enterprise: $100M max total commitment
+      //
+      // CONSEQUENCES OF REMOVAL:
+      // - Users can manage unlimited AUM without paying for higher tiers
+      // - Revenue loss from tier upgrades
+      // - Subscription tier bypass vulnerability
+      //
+      // ============================================================================
       const totalCommitment = parseFloat(formData.totalCapitalCommitment) || 0
       const commitmentValidation = await validateStructureCreation(totalCommitment)
       if (!commitmentValidation.allowed) {
@@ -1308,7 +1370,30 @@ export default function OnboardingPage() {
         })
       }
 
-      // Decrement emissions available in subscription
+      // ============================================================================
+      // ⚠️⚠️⚠️ CRITICAL: EMISSIONS DECREMENT - LOCAL EMULATED SUBSCRIPTION ⚠️⚠️⚠️
+      // ============================================================================
+      //
+      // DO NOT REMOVE OR MODIFY without approval from Tech Lead
+      //
+      // PURPOSE: Decrements emissions_available in local emulated subscription
+      //
+      // This updates the local subscription state to reflect consumed emissions.
+      // Runs AFTER successful structure creation.
+      //
+      // IMPORTANT: This is for demo/emulated subscriptions. Real subscriptions
+      // are updated by the API call below (/api/stripe/use-emission).
+      //
+      // CALCULATION:
+      // - emissions_needed = calculatedIssuances (default: 1)
+      // - emissions_used += emissions_needed
+      // - emissions_available -= emissions_needed
+      //
+      // RELATED CODE:
+      // - Storage: /src/lib/stripe-products.ts (saveEmulatedSubscription)
+      // - Real update: /src/app/api/stripe/use-emission/route.ts
+      //
+      // ============================================================================
       const currentSub = getEmulatedSubscription()
       if (currentSub) {
         const emissionsNeeded = formData.calculatedIssuances || 1
@@ -1324,7 +1409,48 @@ export default function OnboardingPage() {
         setSubscriptionStatus(updatedStatus)
       }
 
-      // Also update real Stripe subscription if user has one
+      // ============================================================================
+      // ⚠️⚠️⚠️ CRITICAL: EMISSIONS DECREMENT - REAL STRIPE SUBSCRIPTION ⚠️⚠️⚠️
+      // ============================================================================
+      //
+      // DO NOT REMOVE OR MODIFY without approval from Tech Lead
+      //
+      // PURPOSE: Decrements emissions_available in real Stripe/platform subscription
+      //
+      // This is the AUTHORITATIVE emissions decrement that updates the database.
+      // Runs AFTER successful structure creation.
+      //
+      // FLOW:
+      // 1. Calls /api/stripe/use-emission for each emission needed
+      // 2. API fetches platform_subscription record
+      // 3. API validates emissions_available > 0
+      // 4. API decrements emissions_available by 1
+      // 5. API increments emissions_used by 1
+      // 6. API updates platform_subscription table in Supabase
+      //
+      // CALCULATION:
+      // - emissions_needed = calculatedIssuances (default: 1)
+      // - For each emission: API call to decrement 1 emission
+      // - Database UPDATE: emissions_available = emissions_available - 1
+      //                    emissions_used = emissions_used + 1
+      //
+      // RELATED CODE:
+      // - API Endpoint: /src/app/api/stripe/use-emission/route.ts (lines 58-69)
+      // - Database Table: platform_subscription (emissions_available, emissions_used)
+      // - Service: /src/services/subscriptionLimits.service.js (lines 252-254)
+      //
+      // ERROR HANDLING:
+      // - If API call fails, logs error but DOES NOT block structure creation
+      // - Structure is already created at this point
+      // - Manual reconciliation may be needed if decrement fails
+      //
+      // CONSEQUENCES OF REMOVAL:
+      // - Emissions are never consumed in database
+      // - Users get unlimited structure creation
+      // - Critical revenue loss
+      // - Data inconsistency between structures created and emissions used
+      //
+      // ============================================================================
       try {
         if (userEmail) {
           const emissionsNeeded = formData.calculatedIssuances || 1
@@ -2966,8 +3092,6 @@ export default function OnboardingPage() {
               <AlertDialogTitle>Complete Setup?</AlertDialogTitle>
               <AlertDialogDescription>
                 Once the setup is complete, <span className="font-semibold text-red-600">no modifications can be made</span> to this structure configuration. Please ensure all details are correct before confirming.
-                <br /><br />
-                <span className="font-semibold text-red-600">Check wallet POL tokens, you should have at least 3 tokens for minting contract.</span>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

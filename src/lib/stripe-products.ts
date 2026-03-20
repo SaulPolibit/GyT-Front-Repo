@@ -639,6 +639,49 @@ export const canCreateStructure = (): { allowed: boolean; reason?: string; emiss
   return { allowed: false, reason: 'Unknown subscription type.' };
 };
 
+// ============================================================================
+// ⚠️⚠️⚠️ CRITICAL FUNCTION: EMISSIONS VALIDATION (ASYNC) ⚠️⚠️⚠️
+// ============================================================================
+//
+// FILE: /src/lib/stripe-products.ts
+//
+// DO NOT REMOVE, MODIFY, OR BYPASS without approval from Tech Lead
+//
+// PURPOSE: Validates user has emissions available before structure creation
+//
+// This function checks BOTH emulated and real Stripe subscriptions.
+// Must return { allowed: true } for structure creation to proceed.
+//
+// VALIDATION CHECKS:
+// 1. Subscription status is 'active' or 'trialing'
+// 2. Setup fee is paid (emulated subscriptions)
+// 3. emissions_available > 0
+//
+// FLOW:
+// 1. Check cached subscription first (fast path)
+// 2. If cache fails, fetch fresh from Stripe API
+// 3. Validate emissions_available > 0
+// 4. Return { allowed: true/false, reason: string }
+//
+// CALLED BY:
+// - /src/app/investment-manager/structure-setup/page.tsx (line 1067)
+// - Before structure creation API call
+//
+// BLOCKING BEHAVIOR:
+// - If returns { allowed: false }, structure creation is BLOCKED
+// - Error message shown to user
+// - User directed to purchase more emissions
+//
+// CONSEQUENCES OF REMOVAL/BYPASS:
+// - No validation before structure creation
+// - Users can create structures with 0 emissions
+// - Complete subscription enforcement bypass
+// - Revenue loss
+//
+// TESTS: /tests/integration/subscription-enforcement.test.js
+//
+// ============================================================================
+
 /**
  * Check if user can create a new structure (async version that checks real Stripe)
  * This fetches from API if cache is expired and updates the global cache
@@ -665,7 +708,12 @@ export const canCreateStructureAsync = async (userEmail?: string): Promise<{ all
           };
         }
 
-        // Check emissions available
+        // ========================================================================
+        // ⚠️ CRITICAL CHECK: Emissions Available > 0
+        // ========================================================================
+        // DO NOT REMOVE - This prevents structure creation without emissions
+        // Returns { allowed: false } which blocks structure creation
+        // ========================================================================
         if (stripeSub.emissionsAvailable <= 0) {
           return {
             allowed: false,
