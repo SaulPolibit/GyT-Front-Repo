@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 import { AuthRedirectHandler } from "@/components/auth-redirect-handler";
 import "./globals.css";
 
@@ -130,13 +131,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Script
-          src="https://t.contentsquare.net/uxa/543e45fcdd23b.js"
-          strategy="afterInteractive"
-        />
-        <AuthRedirectHandler />
-        {children}
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+          <Script
+            src="https://t.contentsquare.net/uxa/543e45fcdd23b.js"
+            strategy="afterInteractive"
+          />
+          <AuthRedirectHandler />
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

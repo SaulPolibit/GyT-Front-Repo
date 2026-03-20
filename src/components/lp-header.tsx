@@ -11,66 +11,62 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useBreadcrumb } from "@/contexts/lp-breadcrumb-context"
 import { useAuth } from "@/hooks/useAuth"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { User, LogOut } from "lucide-react"
+import { User } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguageToggle } from "@/components/language-toggle"
+import { useTranslation } from "@/hooks/useTranslation"
 
 export function LPHeader() {
   const pathname = usePathname()
-  const router = useRouter()
   const { customBreadcrumbs } = useBreadcrumb()
-  const { user, logout, getUserName } = useAuth()
+  const { getUserName } = useAuth()
+  const { t } = useTranslation()
 
   const getPageTitle = () => {
     const segments = pathname.split('/').filter(Boolean)
 
     // Path mapping
     const pathMap: { [key: string]: string } = {
-      'portfolio': 'Portfolio',
-      'dashboard': 'Dashboard',
-      'documents': 'Documents',
-      'chat': 'Chat',
-      'updates': 'Updates',
-      'support': 'Get Help',
-      'account': 'Account',
-      'onboarding': 'Onboarding',
-      'commitments': 'Commitments',
-      'activity': 'Activity',
-      'capital-calls': 'Capital Calls',
-      'distributions': 'Distributions',
-      'search': 'Search',
-      'reports': 'Reports',
+      'portfolio': t.nav.portfolio,
+      'dashboard': t.nav.dashboard,
+      'documents': t.nav.documents,
+      'chat': t.nav.chat,
+      'updates': t.nav.notifications,
+      'support': t.nav.getHelp,
+      'account': t.nav.account,
+      'onboarding': t.nav.onboarding,
+      'commitments': t.nav.commitments,
+      'activity': t.nav.activity,
+      'capital-calls': t.nav.capitalCalls,
+      'distributions': t.nav.distributions,
+      'search': t.nav.search,
+      'reports': t.nav.reports,
     }
 
     // If just /lp-portal or /lp-portal/, show Portfolio
     if (segments.length === 1 && segments[0] === 'lp-portal') {
-      return 'Portfolio'
+      return t.nav.portfolio
     }
+
+    // Check for custom breadcrumb first
+    const customLabel = customBreadcrumbs[pathname]
+    if (customLabel) return customLabel
 
     // Get the last segment (current page)
     const lastSegment = segments[segments.length - 1]
 
-    // Check for custom breadcrumb
-    const customLabel = customBreadcrumbs[pathname]
-    if (customLabel) return customLabel
+    // If the last segment is a UUID, use the parent segment's label instead
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (uuidRegex.test(lastSegment) && segments.length >= 2) {
+      const parentSegment = segments[segments.length - 2]
+      return pathMap[parentSegment] || parentSegment.charAt(0).toUpperCase() + parentSegment.slice(1).replace(/-/g, ' ')
+    }
 
     // Return mapped label or capitalize the segment
     return pathMap[lastSegment] || lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1).replace(/-/g, ' ')
-  }
-
-  const handleLogout = () => {
-    logout()
-    router.push('/lp-portal/login')
   }
 
   const pageTitle = getPageTitle()
@@ -87,23 +83,13 @@ export function LPHeader() {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <div className="ml-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">{getUserName() || 'User'}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="ml-auto flex items-center gap-1">
+          <LanguageToggle />
+          <ThemeToggle />
+          <div className="flex items-center gap-2 px-2 text-sm">
+            <User className="h-4 w-4" />
+            <span className="hidden sm:inline">{getUserName() || 'User'}</span>
+          </div>
         </div>
       </div>
     </header>
