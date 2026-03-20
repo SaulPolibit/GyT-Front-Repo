@@ -1688,10 +1688,10 @@ export default function InvestmentManagerSettingsPage() {
   if (loading || !settings) {
     return (
       <div className="space-y-6 p-4 md:p-6">
-        <h1 className="text-2xl font-semibold">Settings</h1>
+        <h1 className="text-2xl font-semibold">{t.settings.title}</h1>
         <div className="flex items-center gap-3">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          <p>Loading settings...</p>
+          <p>{t.settings.general.loadingSettings}</p>
         </div>
       </div>
     )
@@ -1701,9 +1701,9 @@ export default function InvestmentManagerSettingsPage() {
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.settings.title}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage your firm settings, users, notifications, and security
+          {t.settings.subtitle}
         </p>
       </div>
 
@@ -1871,10 +1871,10 @@ export default function InvestmentManagerSettingsPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    User Management
+                    {t.settings.team.title}
                   </CardTitle>
                   <CardDescription>
-                    Manage platform users and their access levels
+                    {t.settings.team.description}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1884,27 +1884,27 @@ export default function InvestmentManagerSettingsPage() {
                     onClick={() => setShowPermissionsDialog(true)}
                   >
                     <IconShieldCheck className="h-4 w-4 mr-2" />
-                    View Permissions
+                    {t.settings.team.viewPermissions}
                   </Button>
                   <Button size="sm" onClick={() => setShowAddUserModal(true)}>
                     <IconUserPlus className="h-4 w-4 mr-2" />
-                    Add User
+                    {t.settings.team.addUser}
                   </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
-                <h3 className="text-sm font-semibold mb-4">Active Users</h3>
+                <h3 className="text-sm font-semibold mb-4">{t.settings.team.activeUsers}</h3>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Login</TableHead>
-                      <TableHead className="w-[50px]">Actions</TableHead>
+                      <TableHead>{t.settings.team.name}</TableHead>
+                      <TableHead>{t.settings.team.email}</TableHead>
+                      <TableHead>{t.settings.team.role}</TableHead>
+                      <TableHead>{t.settings.team.status}</TableHead>
+                      <TableHead>{t.settings.team.lastLogin}</TableHead>
+                      <TableHead className="w-[50px]">{t.settings.team.actions}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1930,11 +1930,11 @@ export default function InvestmentManagerSettingsPage() {
                           <Badge
                             variant={user.status === 'active' ? 'default' : 'outline'}
                           >
-                            {user.status === 'active' ? 'Active' : user.status === 'pending' ? 'Pending' : 'Inactive'}
+                            {user.status === 'active' ? t.settings.team.active : user.status === 'pending' ? t.settings.team.pending : t.settings.team.inactive}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
+                          {user.lastLogin ? formatDate(user.lastLogin) : t.settings.team.never}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -1947,19 +1947,19 @@ export default function InvestmentManagerSettingsPage() {
                               <DropdownMenuItem
                                 onClick={() => setShowPermissionsDialog(true)}
                               >
-                                View Permissions
+                                {t.settings.team.viewPermissions}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => handleToggleUserStatus(user.id, user.status)}
                               >
-                                {user.status === 'active' ? 'Disable User' : 'Enable User'}
+                                {user.status === 'active' ? t.settings.team.disableUser : t.settings.team.enableUser}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => handleDeleteUser(user.id)}
                                 className="text-red-600"
                               >
-                                Remove User
+                                {t.settings.team.removeUser}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -1979,10 +1979,10 @@ export default function InvestmentManagerSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
-                Notification Preferences
+                {t.settings.notifications.title}
               </CardTitle>
               <CardDescription>
-                Choose how and when you want to receive notifications
+                {t.settings.notifications.description}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -1990,9 +1990,9 @@ export default function InvestmentManagerSettingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="text-base">Email Notifications</Label>
+                    <Label className="text-base">{t.settings.notifications.emailNotifications}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Receive notifications via email
+                      {t.settings.notifications.emailDescription}
                     </p>
                   </div>
                   <Switch checked={emailNotifications} onCheckedChange={setEmailNotifications} />
@@ -2001,27 +2001,27 @@ export default function InvestmentManagerSettingsPage() {
                 {emailNotifications && (
                   <div className="ml-6 space-y-3 border-l-2 pl-4">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-normal">Capital call notices</Label>
+                      <Label className="text-sm font-normal">{t.settings.notifications.capitalCallNotices}</Label>
                       <Switch checked={capitalCallNotices} onCheckedChange={setCapitalCallNotices} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-normal">Distribution notices</Label>
+                      <Label className="text-sm font-normal">{t.settings.notifications.distributionNotices}</Label>
                       <Switch checked={distributionNotices} onCheckedChange={setDistributionNotices} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-normal">Quarterly reports</Label>
+                      <Label className="text-sm font-normal">{t.settings.notifications.quarterlyReports}</Label>
                       <Switch checked={quarterlyReports} onCheckedChange={setQuarterlyReports} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-normal">Investor activity</Label>
+                      <Label className="text-sm font-normal">{t.settings.notifications.investorActivity}</Label>
                       <Switch checked={investorActivity} onCheckedChange={setInvestorActivity} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-normal">Document uploads</Label>
+                      <Label className="text-sm font-normal">{t.settings.notifications.documentUploads}</Label>
                       <Switch checked={documentUploads} onCheckedChange={setDocumentUploads} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-normal">General announcements</Label>
+                      <Label className="text-sm font-normal">{t.settings.notifications.generalAnnouncements}</Label>
                       <Switch checked={generalAnnouncements} onCheckedChange={setGeneralAnnouncements} />
                     </div>
                   </div>
@@ -2036,9 +2036,9 @@ export default function InvestmentManagerSettingsPage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
-                        <Label className="text-base">SMS Notifications</Label>
+                        <Label className="text-base">{t.settings.notifications.smsNotifications}</Label>
                         <p className="text-sm text-muted-foreground">
-                          Receive text alerts for urgent notifications
+                          {t.settings.notifications.smsDescription}
                         </p>
                       </div>
                       <Switch checked={smsNotifications} onCheckedChange={setSmsNotifications} />
@@ -2047,19 +2047,19 @@ export default function InvestmentManagerSettingsPage() {
                     {smsNotifications && (
                       <div className="ml-6 space-y-3 border-l-2 pl-4">
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-normal">Urgent capital calls</Label>
+                          <Label className="text-sm font-normal">{t.settings.notifications.urgentCapitalCalls}</Label>
                           <Switch checked={urgentCapitalCalls} onCheckedChange={setUrgentCapitalCalls} />
                         </div>
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-normal">Payment confirmations</Label>
+                          <Label className="text-sm font-normal">{t.settings.notifications.paymentConfirmations}</Label>
                           <Switch checked={paymentConfirmations} onCheckedChange={setPaymentConfirmations} />
                         </div>
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-normal">Security alerts</Label>
+                          <Label className="text-sm font-normal">{t.settings.notifications.securityAlerts}</Label>
                           <Switch checked={securityAlerts} onCheckedChange={setSecurityAlerts} />
                         </div>
                         <div className="flex items-center justify-between">
-                          <Label className="text-sm font-normal">New structure created</Label>
+                          <Label className="text-sm font-normal">{t.settings.notifications.newStructureCreated}</Label>
                           <Switch checked={newStructureNotifications} onCheckedChange={setNewStructureNotifications} />
                         </div>
                       </div>
@@ -2071,9 +2071,9 @@ export default function InvestmentManagerSettingsPage() {
                   {/* Portal Notifications */}
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label className="text-base">Portal Notifications</Label>
+                      <Label className="text-base">{t.settings.notifications.portalNotifications}</Label>
                       <p className="text-sm text-muted-foreground">
-                        Show notifications in the platform
+                        {t.settings.notifications.portalDescription}
                       </p>
                     </div>
                     <Switch checked={portalNotifications} onCheckedChange={setPortalNotifications} />
@@ -2083,47 +2083,47 @@ export default function InvestmentManagerSettingsPage() {
 
                   {/* Communication Preferences */}
                   <div className="space-y-4">
-                    <h3 className="text-sm font-semibold">Communication Preferences</h3>
+                    <h3 className="text-sm font-semibold">{t.settings.notifications.communicationPreferences}</h3>
 
                     <div className="grid gap-4">
                       <div className="space-y-2">
-                        <Label>Preferred Contact Method</Label>
+                        <Label>{t.settings.notifications.preferredContactMethod}</Label>
                         <Select value={preferredContactMethod} onValueChange={setPreferredContactMethod}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="email">Email</SelectItem>
-                            <SelectItem value="phone">Phone</SelectItem>
-                            <SelectItem value="portal">Portal Only</SelectItem>
+                            <SelectItem value="email">{t.settings.notifications.email}</SelectItem>
+                            <SelectItem value="phone">{t.settings.notifications.phone}</SelectItem>
+                            <SelectItem value="portal">{t.settings.notifications.portalOnly}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Report Delivery Format</Label>
+                        <Label>{t.settings.notifications.reportDeliveryFormat}</Label>
                         <Select value={reportDeliveryFormat} onValueChange={setReportDeliveryFormat}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pdf">PDF Only</SelectItem>
-                            <SelectItem value="excel">Excel Only</SelectItem>
-                            <SelectItem value="both">Both PDF & Excel</SelectItem>
+                            <SelectItem value="pdf">{t.settings.notifications.pdfOnly}</SelectItem>
+                            <SelectItem value="excel">{t.settings.notifications.excelOnly}</SelectItem>
+                            <SelectItem value="both">{t.settings.notifications.bothPdfExcel}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Notification Frequency</Label>
+                        <Label>{t.settings.notifications.notificationFrequency}</Label>
                         <Select value={notificationFrequency} onValueChange={setNotificationFrequency}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="immediate">Immediate</SelectItem>
-                            <SelectItem value="daily">Daily Digest</SelectItem>
-                            <SelectItem value="weekly">Weekly Summary</SelectItem>
+                            <SelectItem value="immediate">{t.settings.notifications.immediate}</SelectItem>
+                            <SelectItem value="daily">{t.settings.notifications.dailyDigest}</SelectItem>
+                            <SelectItem value="weekly">{t.settings.notifications.weeklySummary}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -2132,7 +2132,7 @@ export default function InvestmentManagerSettingsPage() {
                 </>
               )}
 
-              <Button onClick={handleUpdateNotifications}>Save Notification Preferences</Button>
+              <Button onClick={handleUpdateNotifications}>{t.settings.notifications.saveButton}</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -2144,30 +2144,30 @@ export default function InvestmentManagerSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="h-5 w-5" />
-                Email Domain Configuration
+                {t.settings.email.title}
               </CardTitle>
               <CardDescription>
-                Configure your email domain for white-label email sending
+                {t.settings.email.description}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Add New Domain */}
               {currentUserRole === 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold">Add New Domain</h3>
+                  <h3 className="text-sm font-semibold">{t.settings.email.addNewDomain}</h3>
                   <div className="flex gap-2">
                     <Input
-                      placeholder="yourdomain.com"
+                      placeholder={t.settings.email.domainPlaceholder}
                       value={newDomainName}
                       onChange={(e) => setNewDomainName(e.target.value)}
                       className="max-w-sm"
                     />
                     <Button onClick={handleAddDomain} disabled={isAddingDomain || !newDomainName.trim()}>
-                      {isAddingDomain ? 'Adding...' : 'Add Domain'}
+                      {isAddingDomain ? t.settings.email.adding : t.settings.email.addDomain}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Enter your domain to send emails from (e.g., yourdomain.com)
+                    {t.settings.email.domainHelp}
                   </p>
                 </div>
               )}
@@ -2175,7 +2175,7 @@ export default function InvestmentManagerSettingsPage() {
               {/* Domain List */}
               {emailDomains.length > 0 && (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold">Your Domains</h3>
+                  <h3 className="text-sm font-semibold">{t.settings.email.yourDomains}</h3>
                   <div className="grid gap-2">
                     {emailDomains.map((domain) => (
                       <div
@@ -2213,9 +2213,9 @@ export default function InvestmentManagerSettingsPage() {
               {emailDomains.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No email domains configured yet.</p>
+                  <p>{t.settings.email.noDomainsYet}</p>
                   {currentUserRole === 0 && (
-                    <p className="text-sm">Add a domain above to get started.</p>
+                    <p className="text-sm">{t.settings.email.addDomainPrompt}</p>
                   )}
                 </div>
               )}
@@ -2242,8 +2242,8 @@ export default function InvestmentManagerSettingsPage() {
                     </CardTitle>
                     <CardDescription>
                       {selectedDomain.status === 'verified'
-                        ? 'Domain is verified and ready to send emails'
-                        : 'Add the DNS records below to verify your domain'}
+                        ? t.settings.email.domainVerified
+                        : t.settings.email.addDnsRecords}
                     </CardDescription>
                   </div>
                   {currentUserRole === 0 && (
@@ -2253,7 +2253,7 @@ export default function InvestmentManagerSettingsPage() {
                       onClick={handleDeleteDomain}
                       disabled={isDeletingDomain}
                     >
-                      {isDeletingDomain ? 'Deleting...' : 'Delete Domain'}
+                      {isDeletingDomain ? t.settings.email.deleting : t.settings.email.deleteDomain}
                     </Button>
                   )}
                 </div>
@@ -2263,13 +2263,13 @@ export default function InvestmentManagerSettingsPage() {
                 {selectedDomain.status !== 'verified' && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">Domain Verification</h3>
+                      <h3 className="text-sm font-semibold">{t.settings.email.domainVerification}</h3>
                       <Button
                         onClick={handleVerifyDomain}
                         disabled={isVerifyingDomain}
                         size="sm"
                       >
-                        {isVerifyingDomain ? 'Verifying...' : 'Verify Domain'}
+                        {isVerifyingDomain ? t.settings.email.verifying : t.settings.email.verifyDomain}
                       </Button>
                     </div>
 
@@ -2277,7 +2277,7 @@ export default function InvestmentManagerSettingsPage() {
                     {selectedDomain.dnsRecords && selectedDomain.dnsRecords.length > 0 ? (
                       <>
                         <p className="text-sm text-muted-foreground">
-                          Add these DNS records to your domain provider (Cloudflare, GoDaddy, etc.):
+                          {t.settings.email.dnsInstructions}
                         </p>
                         <div className="space-y-3">
                           {selectedDomain.dnsRecords.map((record, index) => (
@@ -2298,7 +2298,7 @@ export default function InvestmentManagerSettingsPage() {
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                                 <div>
-                                  <span className="text-muted-foreground">Name: </span>
+                                  <span className="text-muted-foreground">{t.settings.email.name}: </span>
                                   <code className="bg-background px-1 rounded">{record.name}</code>
                                   <Button
                                     variant="ghost"
@@ -2310,12 +2310,12 @@ export default function InvestmentManagerSettingsPage() {
                                   </Button>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">TTL: </span>
+                                  <span className="text-muted-foreground">{t.settings.email.ttl}: </span>
                                   <span>{record.ttl || 'Auto'}</span>
                                 </div>
                               </div>
                               <div className="text-sm">
-                                <span className="text-muted-foreground">Value: </span>
+                                <span className="text-muted-foreground">{t.settings.email.value}: </span>
                                 <code className="bg-background px-1 rounded text-xs break-all">{record.value}</code>
                                 <Button
                                   variant="ghost"
@@ -2332,7 +2332,7 @@ export default function InvestmentManagerSettingsPage() {
                       </>
                     ) : (
                       <p className="text-sm text-muted-foreground">
-                        Click &quot;Verify Domain&quot; to check DNS verification status.
+                        {t.settings.email.verifyDomainPrompt}
                       </p>
                     )}
                   </div>
@@ -2343,10 +2343,10 @@ export default function InvestmentManagerSettingsPage() {
                   <>
                     <Separator />
                     <div className="space-y-4">
-                      <h3 className="text-sm font-semibold">Email Configuration</h3>
+                      <h3 className="text-sm font-semibold">{t.settings.email.emailConfiguration}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="domainFromEmail">From Email *</Label>
+                          <Label htmlFor="domainFromEmail">{t.settings.email.fromEmail} *</Label>
                           <Input
                             id="domainFromEmail"
                             type="email"
@@ -2355,32 +2355,32 @@ export default function InvestmentManagerSettingsPage() {
                             placeholder={`notifications@${selectedDomain.domainName}`}
                           />
                           <p className="text-xs text-muted-foreground">
-                            Must use @{selectedDomain.domainName}
+                            {t.settings.email.mustUseDomain} @{selectedDomain.domainName}
                           </p>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="domainFromName">From Name</Label>
+                          <Label htmlFor="domainFromName">{t.settings.email.fromName}</Label>
                           <Input
                             id="domainFromName"
                             value={domainEmailConfig.fromName}
                             onChange={(e) => setDomainEmailConfig({ ...domainEmailConfig, fromName: e.target.value })}
-                            placeholder="Your Company Name"
+                            placeholder={t.settings.email.fromNamePlaceholder}
                           />
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="domainReplyTo">Reply-To Email</Label>
+                        <Label htmlFor="domainReplyTo">{t.settings.email.replyToEmail}</Label>
                         <Input
                           id="domainReplyTo"
                           type="email"
                           value={domainEmailConfig.replyToEmail}
                           onChange={(e) => setDomainEmailConfig({ ...domainEmailConfig, replyToEmail: e.target.value })}
-                          placeholder="support@yourcompany.com"
+                          placeholder={t.settings.email.replyToPlaceholder}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Where replies will be sent (can be any email)
+                          {t.settings.email.replyToHelp}
                         </p>
                       </div>
 
@@ -2388,7 +2388,7 @@ export default function InvestmentManagerSettingsPage() {
                         onClick={handleSaveDomainEmailConfig}
                         disabled={isSavingDomainConfig}
                       >
-                        {isSavingDomainConfig ? 'Saving...' : 'Save Email Configuration'}
+                        {isSavingDomainConfig ? t.settings.email.saving : t.settings.email.saveEmailConfiguration}
                       </Button>
                     </div>
                   </>
@@ -2399,11 +2399,11 @@ export default function InvestmentManagerSettingsPage() {
                   <>
                     <Separator />
                     <div className="space-y-4">
-                      <h3 className="text-sm font-semibold">Test Email</h3>
+                      <h3 className="text-sm font-semibold">{t.settings.email.testEmail}</h3>
                       <div className="flex gap-2">
                         <Input
                           type="email"
-                          placeholder="test@example.com"
+                          placeholder={t.settings.email.testEmailPlaceholder}
                           value={emailConfig.testEmail}
                           onChange={(e) => setEmailConfig({ ...emailConfig, testEmail: e.target.value })}
                           className="max-w-sm"
@@ -2413,7 +2413,7 @@ export default function InvestmentManagerSettingsPage() {
                           disabled={isSendingTest || !emailConfig.testEmail}
                           variant="outline"
                         >
-                          {isSendingTest ? 'Sending...' : 'Send Test'}
+                          {isSendingTest ? t.settings.email.sending : t.settings.email.sendTest}
                         </Button>
                       </div>
                     </div>
@@ -2430,10 +2430,10 @@ export default function InvestmentManagerSettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Security & Privacy
+                {t.settings.security.title}
               </CardTitle>
               <CardDescription>
-                Manage your account security and privacy settings
+                {t.settings.security.description}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -2441,9 +2441,9 @@ export default function InvestmentManagerSettingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label className="text-base">Multi-Factor Authentication (MFA)</Label>
+                    <Label className="text-base">{t.settings.security.mfaTitle}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Add an extra layer of security to your account
+                      {t.settings.security.mfaDescription}
                     </p>
                   </div>
                   <Switch
@@ -2456,7 +2456,7 @@ export default function InvestmentManagerSettingsPage() {
                 {isEnrollingMfa && (
                   <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    <p className="text-sm">Enrolling in MFA...</p>
+                    <p className="text-sm">{t.settings.security.enrollingMfa}</p>
                   </div>
                 )}
 
@@ -2467,10 +2467,10 @@ export default function InvestmentManagerSettingsPage() {
                       <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                       <div className="text-sm flex-1">
                         <p className="font-medium text-amber-900 dark:text-amber-100">
-                          Complete MFA Setup
+                          {t.settings.security.completeMfaSetup}
                         </p>
                         <p className="text-amber-700 dark:text-amber-300 mt-1">
-                          Follow the steps below to finish enabling MFA on your account
+                          {t.settings.security.followSteps}
                         </p>
                       </div>
                     </div>
@@ -2479,7 +2479,7 @@ export default function InvestmentManagerSettingsPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">1</div>
-                        <p className="font-medium text-sm">Scan QR code with your authenticator app</p>
+                        <p className="font-medium text-sm">{t.settings.security.scanQrCode}</p>
                       </div>
                       <div className="flex flex-col items-center gap-4 p-4 bg-white dark:bg-gray-900 rounded-lg ml-8">
                         <img
@@ -2490,7 +2490,7 @@ export default function InvestmentManagerSettingsPage() {
                         {mfaSecret && (
                           <div className="text-center space-y-2">
                             <p className="text-xs text-muted-foreground">
-                              Or enter this code manually:
+                              {t.settings.security.orEnterManually}
                             </p>
                             <code className="block text-sm font-mono bg-muted px-3 py-2 rounded border">
                               {mfaSecret}
@@ -2504,7 +2504,7 @@ export default function InvestmentManagerSettingsPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">2</div>
-                        <p className="font-medium text-sm">Enter the code from your authenticator app</p>
+                        <p className="font-medium text-sm">{t.settings.security.enterCode}</p>
                       </div>
                       <div className="ml-8 space-y-3">
                         <Input
@@ -2527,7 +2527,7 @@ export default function InvestmentManagerSettingsPage() {
                           }}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Enter the 6-digit code shown in your authenticator app to complete setup
+                          {t.settings.security.enterSixDigitCode}
                         </p>
                         <div className="flex gap-2">
                           <Button
@@ -2538,10 +2538,10 @@ export default function InvestmentManagerSettingsPage() {
                             {isVerifyingEnrollment ? (
                               <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
-                                Verifying...
+                                {t.settings.security.verifying}
                               </>
                             ) : (
-                              'Complete Setup'
+                              t.settings.security.completeSetup
                             )}
                           </Button>
                           <Button
@@ -2550,7 +2550,7 @@ export default function InvestmentManagerSettingsPage() {
                             disabled={isVerifyingEnrollment}
                             size="sm"
                           >
-                            Cancel
+                            {t.settings.security.cancel}
                           </Button>
                         </div>
                       </div>
@@ -2564,9 +2564,9 @@ export default function InvestmentManagerSettingsPage() {
                     <div className="flex items-start gap-3">
                       <CheckCircle className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                       <div className="text-sm">
-                        <p className="font-medium text-green-900 dark:text-green-100">MFA is enabled</p>
+                        <p className="font-medium text-green-900 dark:text-green-100">{t.settings.security.mfaEnabled}</p>
                         <p className="text-green-700 dark:text-green-300 mt-1">
-                          You&apos;ll be asked for a verification code when signing in
+                          {t.settings.security.mfaEnabledDescription}
                         </p>
                       </div>
                     </div>
@@ -2604,15 +2604,15 @@ export default function InvestmentManagerSettingsPage() {
       <AlertDialog open={deleteUserDialogOpen} onOpenChange={setDeleteUserDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove User</AlertDialogTitle>
+            <AlertDialogTitle>{t.settings.team.removeUser}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this user? This action cannot be undone and will revoke their access to the platform.
+              {t.settings.team.removeUserConfirmation}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t.settings.security.cancel}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeleteUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remove User
+              {t.settings.team.removeUser}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -2622,9 +2622,9 @@ export default function InvestmentManagerSettingsPage() {
       <Dialog open={showMfaConfirmDialog} onOpenChange={setShowMfaConfirmDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enable Multi-Factor Authentication?</DialogTitle>
+            <DialogTitle>{t.settings.security.enableMfaQuestion}</DialogTitle>
             <DialogDescription>
-              You&apos;re about to enable MFA for your account. This will add an extra layer of security by requiring a code from your authenticator app when you sign in.
+              {t.settings.security.enableMfaDialogDescription}
             </DialogDescription>
           </DialogHeader>
 
@@ -2633,10 +2633,10 @@ export default function InvestmentManagerSettingsPage() {
               <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                 <Shield className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">What you&apos;ll need:</p>
+                  <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">{t.settings.security.whatYouNeed}</p>
                   <ul className="list-disc list-inside text-blue-700 dark:text-blue-300 space-y-1">
-                    <li>An authenticator app (Google Authenticator, Authy, etc.)</li>
-                    <li>Your phone or device to scan the QR code</li>
+                    <li>{t.settings.security.authenticatorApp}</li>
+                    <li>{t.settings.security.phoneDevice}</li>
                   </ul>
                 </div>
               </div>
@@ -2644,9 +2644,9 @@ export default function InvestmentManagerSettingsPage() {
               <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
                 <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium text-amber-900 dark:text-amber-100 mb-1">Important:</p>
+                  <p className="font-medium text-amber-900 dark:text-amber-100 mb-1">{t.settings.security.important}</p>
                   <p className="text-amber-700 dark:text-amber-300">
-                    Once enabled, you&apos;ll need your authenticator app code each time you sign in. Make sure to complete the setup process.
+                    {t.settings.security.importantMessage}
                   </p>
                 </div>
               </div>
@@ -2658,12 +2658,12 @@ export default function InvestmentManagerSettingsPage() {
               variant="outline"
               onClick={handleCancelEnable2FA}
             >
-              Cancel
+              {t.settings.security.cancel}
             </Button>
             <Button
               onClick={handleConfirmEnable2FA}
             >
-              Enable MFA
+              {t.settings.security.enableMfa}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2673,15 +2673,15 @@ export default function InvestmentManagerSettingsPage() {
       <Dialog open={showMfaVerifyDialog} onOpenChange={setShowMfaVerifyDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Verify MFA Code</DialogTitle>
+            <DialogTitle>{t.settings.security.verifyMfaCode}</DialogTitle>
             <DialogDescription>
-              Enter the 6-digit code from your authenticator app to continue.
+              {t.settings.security.verifyMfaDescription}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="mfaCode">Authentication Code</Label>
+              <Label htmlFor="mfaCode">{t.settings.security.authenticationCode}</Label>
               <Input
                 id="mfaCode"
                 type="text"
@@ -2704,7 +2704,7 @@ export default function InvestmentManagerSettingsPage() {
                 }}
               />
               <p className="text-xs text-muted-foreground text-center">
-                Enter the code shown in your authenticator app
+                {t.settings.security.enterCodeFromApp}
               </p>
             </div>
           </div>
@@ -2719,7 +2719,7 @@ export default function InvestmentManagerSettingsPage() {
               }}
               disabled={isVerifyingMfa}
             >
-              Cancel
+              {t.settings.security.cancel}
             </Button>
             <Button
               onClick={handleVerifyMfa}
@@ -2728,10 +2728,10 @@ export default function InvestmentManagerSettingsPage() {
               {isVerifyingMfa ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
-                  Verifying...
+                  {t.settings.security.verifying}
                 </>
               ) : (
-                'Verify'
+                t.settings.security.verify
               )}
             </Button>
           </DialogFooter>
