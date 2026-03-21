@@ -5,6 +5,7 @@ import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SetupFormProps {
   onSuccess: (paymentMethodId: string) => void;
@@ -27,6 +28,7 @@ const CARD_ELEMENT_OPTIONS = {
 };
 
 export function SetupForm({ onSuccess, onCancel }: SetupFormProps) {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function SetupForm({ onSuccess, onCancel }: SetupFormProps) {
       const cardElement = elements.getElement(CardElement);
 
       if (!cardElement) {
-        setError('Card element not found');
+        setError(t.settings.subscription.forms.cardElementNotFound);
         setProcessing(false);
         return;
       }
@@ -55,13 +57,13 @@ export function SetupForm({ onSuccess, onCancel }: SetupFormProps) {
       const { error: tokenError, token } = await stripe.createToken(cardElement);
 
       if (tokenError) {
-        setError(tokenError.message || 'Failed to create card token');
+        setError(tokenError.message || t.settings.subscription.forms.failedToCreateToken);
         setProcessing(false);
         return;
       }
 
       if (!token) {
-        setError('No card token returned');
+        setError(t.settings.subscription.forms.noTokenReturned);
         setProcessing(false);
         return;
       }
@@ -72,7 +74,7 @@ export function SetupForm({ onSuccess, onCancel }: SetupFormProps) {
       onSuccess(token.id);
     } catch (err: any) {
       console.error('[SetupForm] Error:', err);
-      setError(err.message || 'An unexpected error occurred');
+      setError(err.message || t.settings.subscription.forms.unexpectedError);
       setProcessing(false);
     }
   };
@@ -99,7 +101,7 @@ export function SetupForm({ onSuccess, onCancel }: SetupFormProps) {
             disabled={processing}
             className="flex-1"
           >
-            Cancel
+            {t.settings.subscription.cancel}
           </Button>
         )}
         <Button
@@ -110,10 +112,10 @@ export function SetupForm({ onSuccess, onCancel }: SetupFormProps) {
           {processing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
+              {t.settings.subscription.forms.processing}
             </>
           ) : (
-            'Subscribe & Pay'
+            t.settings.subscription.forms.subscribeAndPay
           )}
         </Button>
       </div>

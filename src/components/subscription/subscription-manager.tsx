@@ -24,8 +24,10 @@ import { Elements } from '@stripe/react-stripe-js';
 import { getStripe } from '@/lib/stripe';
 import { StripeAPI } from '@/lib/stripe-api';
 import { SetupForm } from '@/components/subscription/setup-form';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export function SubscriptionManager() {
+  const { t } = useTranslation();
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export function SubscriptionManager() {
     } catch (err: any) {
       console.error('Failed to load subscription:', err);
       if (!err.message?.includes('No subscription')) {
-        setError(err.message || 'Failed to load subscription');
+        setError(err.message || t.settings.subscription.manager.failedToLoadSubscription);
       }
     } finally {
       setLoading(false);
@@ -62,8 +64,8 @@ export function SubscriptionManager() {
       setShowPaymentForm(true);
     } catch (err: any) {
       console.error('[Subscription] Error creating customer:', err);
-      setError(err.message || 'Failed to create customer');
-      toast.error(err.message || 'Failed to create customer');
+      setError(err.message || t.settings.subscription.manager.failedToCreateCustomer);
+      toast.error(err.message || t.settings.subscription.manager.failedToCreateCustomer);
     }
   };
 
@@ -79,30 +81,31 @@ export function SubscriptionManager() {
 
       if (result.success && result.subscriptionId) {
         if (result.status === 'active') {
-          toast.success('Subscription created and payment successful!');
+          toast.success(t.settings.subscription.manager.subscriptionCreatedPaymentSuccessful);
         } else if (result.status === 'incomplete') {
-          toast.error('Subscription created but payment failed. Please try again.');
+          toast.error(t.settings.subscription.manager.subscriptionCreatedPaymentFailed);
         } else {
-          toast.success('Subscription created successfully!');
+          toast.success(t.settings.subscription.manager.subscriptionCreatedSuccessfully);
         }
 
         setShowPaymentForm(false);
         await loadSubscription();
       } else {
-        setError('Failed to create subscription');
-        toast.error('Failed to create subscription');
+        setError(t.settings.subscription.manager.failedToCreateSubscription);
+        toast.error(t.settings.subscription.manager.failedToCreateSubscription);
       }
     } catch (err: any) {
       console.error('[Subscription] Error creating subscription:', err);
-      setError(err.message || 'Failed to create subscription');
-      toast.error(err.message || 'Failed to create subscription');
+      setError(err.message || t.settings.subscription.manager.failedToCreateSubscription);
+      toast.error(err.message || t.settings.subscription.manager.failedToCreateSubscription);
     } finally {
       setProcessing(false);
     }
   };
 
   const handleCancelSubscription = async (immediately: boolean) => {
-    if (!confirm(`Are you sure you want to cancel your subscription ${immediately ? 'immediately' : 'at the end of the billing period'}?`)) {
+    const when = immediately ? t.settings.subscription.manager.immediately : t.settings.subscription.manager.atEndOfBillingPeriod;
+    if (!confirm(t.settings.subscription.manager.confirmCancelSubscription.replace('{when}', when))) {
       return;
     }
 
@@ -112,10 +115,10 @@ export function SubscriptionManager() {
     try {
       await StripeAPI.cancelSubscription(immediately);
       await loadSubscription();
-      toast.success('Subscription canceled successfully');
+      toast.success(t.settings.subscription.manager.subscriptionCanceled);
     } catch (err: any) {
-      setError(err.message || 'Failed to cancel subscription');
-      toast.error(err.message || 'Failed to cancel subscription');
+      setError(err.message || t.settings.subscription.manager.failedToCancelSubscription);
+      toast.error(err.message || t.settings.subscription.manager.failedToCancelSubscription);
     } finally {
       setProcessing(false);
     }
@@ -128,17 +131,17 @@ export function SubscriptionManager() {
     try {
       await StripeAPI.reactivateSubscription();
       await loadSubscription();
-      toast.success('Subscription reactivated successfully');
+      toast.success(t.settings.subscription.manager.subscriptionReactivated);
     } catch (err: any) {
-      setError(err.message || 'Failed to reactivate subscription');
-      toast.error(err.message || 'Failed to reactivate subscription');
+      setError(err.message || t.settings.subscription.manager.failedToReactivateSubscription);
+      toast.error(err.message || t.settings.subscription.manager.failedToReactivateSubscription);
     } finally {
       setProcessing(false);
     }
   };
 
   const handleAddAdditionalService = async () => {
-    if (!confirm('Add Additional Service to your subscription? You will be charged a prorated amount for the current billing period.')) {
+    if (!confirm(t.settings.subscription.manager.confirmAddAdditionalService)) {
       return;
     }
 
@@ -148,10 +151,10 @@ export function SubscriptionManager() {
     try {
       await StripeAPI.addAdditionalService();
       await loadSubscription();
-      toast.success('Additional service added successfully');
+      toast.success(t.settings.subscription.manager.additionalServiceAdded);
     } catch (err: any) {
-      setError(err.message || 'Failed to add additional service');
-      toast.error(err.message || 'Failed to add additional service');
+      setError(err.message || t.settings.subscription.manager.failedToAddAdditionalService);
+      toast.error(err.message || t.settings.subscription.manager.failedToAddAdditionalService);
     } finally {
       setProcessing(false);
     }
@@ -161,16 +164,15 @@ export function SubscriptionManager() {
     const newQuantity = currentQuantity + change;
 
     if (newQuantity < 1) {
-      toast.error('Quantity must be at least 1. Use the trash icon to remove the service.');
+      toast.error(t.settings.subscription.manager.quantityMustBeAtLeast);
       return;
     }
 
-    const action = change > 0 ? 'increase' : 'decrease';
-    const chargeMessage = change > 0
-      ? 'You will be charged a prorated amount for the current billing period.'
-      : 'You will receive a prorated credit for the current billing period.';
+    const confirmMessage = change > 0
+      ? t.settings.subscription.manager.confirmIncreaseQuantity
+      : t.settings.subscription.manager.confirmDecreaseQuantity;
 
-    if (!confirm(`${action === 'increase' ? 'Increase' : 'Decrease'} service quantity from ${currentQuantity} to ${newQuantity}? ${chargeMessage}`)) {
+    if (!confirm(confirmMessage.replace('{current}', currentQuantity.toString()).replace('{new}', newQuantity.toString()))) {
       return;
     }
 
@@ -180,17 +182,17 @@ export function SubscriptionManager() {
     try {
       await StripeAPI.updateServiceQuantity(itemId, newQuantity);
       await loadSubscription();
-      toast.success(`Service quantity updated to ${newQuantity}`);
+      toast.success(t.settings.subscription.manager.serviceQuantityUpdated.replace('{quantity}', newQuantity.toString()));
     } catch (err: any) {
-      setError(err.message || 'Failed to update service quantity');
-      toast.error(err.message || 'Failed to update service quantity');
+      setError(err.message || t.settings.subscription.manager.failedToUpdateServiceQuantity);
+      toast.error(err.message || t.settings.subscription.manager.failedToUpdateServiceQuantity);
     } finally {
       setProcessing(false);
     }
   };
 
   const handleRemoveService = async (itemId: string) => {
-    if (!confirm('Are you sure you want to remove this service? You will receive a prorated credit.')) {
+    if (!confirm(t.settings.subscription.manager.confirmRemoveService)) {
       return;
     }
 
@@ -200,10 +202,10 @@ export function SubscriptionManager() {
     try {
       await StripeAPI.removeService(itemId);
       await loadSubscription();
-      toast.success('Service removed successfully');
+      toast.success(t.settings.subscription.manager.serviceRemoved);
     } catch (err: any) {
-      setError(err.message || 'Failed to remove service');
-      toast.error(err.message || 'Failed to remove service');
+      setError(err.message || t.settings.subscription.manager.failedToRemoveService);
+      toast.error(err.message || t.settings.subscription.manager.failedToRemoveService);
     } finally {
       setProcessing(false);
     }
@@ -235,8 +237,8 @@ export function SubscriptionManager() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Enter Payment Details</CardTitle>
-          <CardDescription>Enter your card details to activate your subscription</CardDescription>
+          <CardTitle>{t.settings.subscription.manager.enterPaymentDetails}</CardTitle>
+          <CardDescription>{t.settings.subscription.manager.enterCardDetails}</CardDescription>
         </CardHeader>
         <CardContent>
           <Elements stripe={getStripe()}>
@@ -267,9 +269,9 @@ export function SubscriptionManager() {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Your subscription will cancel at the end of the current billing period.
+              {t.settings.subscription.manager.subscriptionWillCancelAtPeriodEnd}
               {subscription.current_period_end && (
-                <> Ends on {new Date(subscription.current_period_end * 1000).toLocaleDateString()}.</>
+                <> {t.settings.subscription.manager.endsOn.replace('{date}', new Date(subscription.current_period_end * 1000).toLocaleDateString())}</>
               )}
             </AlertDescription>
           </Alert>
@@ -281,8 +283,8 @@ export function SubscriptionManager() {
               <div className="flex items-center gap-3">
                 <Building2 className="h-8 w-8 text-primary" />
                 <div>
-                  <CardTitle>Platform Subscription</CardTitle>
-                  <CardDescription>Active services and billing information</CardDescription>
+                  <CardTitle>{t.settings.subscription.manager.platformSubscription}</CardTitle>
+                  <CardDescription>{t.settings.subscription.manager.activeServicesInfo}</CardDescription>
                 </div>
               </div>
               <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
@@ -293,7 +295,7 @@ export function SubscriptionManager() {
           <CardContent className="space-y-6">
             {/* Active Services */}
             <div>
-              <h3 className="font-semibold mb-4">Active Services</h3>
+              <h3 className="font-semibold mb-4">{t.settings.subscription.manager.activeServices}</h3>
               <div className="space-y-3">
                 {subscription.items.data.map((item: any) => (
                   <div key={item.id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -359,14 +361,14 @@ export function SubscriptionManager() {
               <>
                 <Separator />
                 <div>
-                  <h3 className="font-semibold mb-4">Available Add-ons</h3>
+                  <h3 className="font-semibold mb-4">{t.settings.subscription.manager.availableAddons}</h3>
                   <div className="flex items-center justify-between p-4 border rounded-lg border-dashed">
                     <div className="flex items-center gap-3">
                       <Plus className="h-5 w-5 text-muted-foreground" />
                       <div>
-                        <p className="font-medium">Additional Service</p>
+                        <p className="font-medium">{t.settings.subscription.manager.additionalService}</p>
                         <p className="text-sm text-muted-foreground">
-                          Add additional service features ($49/month each)
+                          {t.settings.subscription.manager.addAdditionalService}
                         </p>
                       </div>
                     </div>
@@ -382,7 +384,7 @@ export function SubscriptionManager() {
                         disabled={processing}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        Add One
+                        {t.settings.subscription.manager.addOne}
                       </Button>
                     </div>
                   </div>
@@ -396,7 +398,7 @@ export function SubscriptionManager() {
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  Next billing date
+                  {t.settings.subscription.manager.nextBillingDate}
                 </p>
                 <p className="font-medium">
                   {subscription.current_period_end
@@ -407,7 +409,7 @@ export function SubscriptionManager() {
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
-                  Amount
+                  {t.settings.subscription.manager.amount}
                 </p>
                 <p className="font-medium">
                   ${subscription.items.data.reduce((total: number, item: any) =>
@@ -423,7 +425,7 @@ export function SubscriptionManager() {
               {isCanceling ? (
                 <Button onClick={handleReactivate} disabled={processing} className="flex-1">
                   {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Reactivate Subscription
+                  {t.settings.subscription.manager.reactivateSubscription}
                 </Button>
               ) : (
                 <>
@@ -433,14 +435,14 @@ export function SubscriptionManager() {
                     disabled={processing}
                     className="flex-1"
                   >
-                    Cancel at Period End
+                    {t.settings.subscription.manager.cancelAtPeriodEnd}
                   </Button>
                   <Button
                     variant="destructive"
                     onClick={() => handleCancelSubscription(true)}
                     disabled={processing}
                   >
-                    Cancel Immediately
+                    {t.settings.subscription.manager.cancelImmediately}
                   </Button>
                 </>
               )}
@@ -466,9 +468,9 @@ export function SubscriptionManager() {
           <div className="flex items-center gap-3">
             <Building2 className="h-8 w-8 text-primary" />
             <div>
-              <CardTitle>Select Your Services</CardTitle>
+              <CardTitle>{t.settings.subscription.manager.selectYourServices}</CardTitle>
               <CardDescription>
-                Start with the base service and optionally add additional features
+                {t.settings.subscription.manager.startWithBaseService}
               </CardDescription>
             </div>
           </div>
@@ -480,10 +482,10 @@ export function SubscriptionManager() {
               <div>
                 <h3 className="text-xl font-bold flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-primary" />
-                  Service Base Cost
+                  {t.settings.subscription.manager.serviceBaseCost}
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Required - Base service subscription
+                  {t.settings.subscription.manager.required}
                 </p>
               </div>
               <div className="text-right">
@@ -494,15 +496,15 @@ export function SubscriptionManager() {
             <ul className="space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
-                Core platform features
+                {t.settings.subscription.manager.corePlatformFeatures}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
-                Standard support
+                {t.settings.subscription.manager.standardSupport}
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
-                Basic analytics
+                {t.settings.subscription.manager.basicAnalytics}
               </li>
             </ul>
           </div>
@@ -513,16 +515,16 @@ export function SubscriptionManager() {
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-lg font-semibold">Additional Service</Label>
-                    <p className="text-sm text-muted-foreground mt-1">Optional - Additional features</p>
+                    <Label className="text-lg font-semibold">{t.settings.subscription.manager.additionalService}</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{t.settings.subscription.manager.optionalAdditionalFeatures}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold">$49.00</p>
-                    <p className="text-sm text-muted-foreground">/month each</p>
+                    <p className="text-sm text-muted-foreground">{t.settings.subscription.manager.monthEach}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 mt-4">
-                  <Label className="text-sm font-medium">Quantity:</Label>
+                  <Label className="text-sm font-medium">{t.settings.subscription.manager.quantity}</Label>
                   <div className="flex items-center gap-2">
                     <Button
                       type="button"
@@ -549,7 +551,7 @@ export function SubscriptionManager() {
                   </div>
                   {additionalServiceQuantity > 0 && (
                     <div className="ml-auto text-right">
-                      <p className="text-sm text-muted-foreground">Subtotal</p>
+                      <p className="text-sm text-muted-foreground">{t.settings.subscription.manager.subtotal}</p>
                       <p className="text-lg font-semibold">${(49 * additionalServiceQuantity).toFixed(2)}/month</p>
                     </div>
                   )}
@@ -560,11 +562,11 @@ export function SubscriptionManager() {
               <ul className="space-y-2 text-sm mt-4 pt-4 border-t">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  Advanced analytics
+                  {t.settings.subscription.manager.advancedAnalytics}
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  Priority support
+                  {t.settings.subscription.manager.prioritySupport}
                 </li>
               </ul>
             )}
@@ -573,12 +575,12 @@ export function SubscriptionManager() {
           {/* Total */}
           <Separator />
           <div className="flex justify-between items-center text-lg font-semibold">
-            <span>Total per month:</span>
+            <span>{t.settings.subscription.manager.totalPerMonth}</span>
             <span className="text-2xl">${calculateTotal().toFixed(2)}</span>
           </div>
           {additionalServiceQuantity > 0 && (
             <p className="text-sm text-muted-foreground text-center">
-              Base: $999.00 + Additional: ${(49 * additionalServiceQuantity).toFixed(2)}
+              {t.settings.subscription.manager.basePlusAdditional.replace('${amount}', (49 * additionalServiceQuantity).toFixed(2))}
             </p>
           )}
 
@@ -587,18 +589,18 @@ export function SubscriptionManager() {
             {processing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
+                {t.settings.subscription.manager.processing}
               </>
             ) : (
               <>
                 <CreditCard className="mr-2 h-4 w-4" />
-                Subscribe Now
+                {t.settings.subscription.manager.subscribeNow_btn}
               </>
             )}
           </Button>
 
           <p className="text-xs text-center text-muted-foreground">
-            By subscribing, you agree to our terms of service. You can cancel anytime.
+            {t.settings.subscription.manager.agreeToTerms}
           </p>
         </CardContent>
       </Card>

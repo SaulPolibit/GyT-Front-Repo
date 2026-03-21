@@ -1127,6 +1127,298 @@ export const en = {
       enterCodeFromApp: "Enter the code shown in your authenticator app",
       verify: "Verify",
     },
+    subscription: {
+      // Header & Status
+      yourSubscription: "Your Subscription",
+      subscriptionPlan: "Subscription Plan",
+      paused: "Paused",
+      cancelling: "Cancelling",
+      active: "Active",
+      trial: "Trial",
+      pastDue: "Past Due",
+
+      // Actions
+      manageBilling: "Manage Billing",
+      resume: "Resume",
+      reactivate: "Reactivate",
+      pause: "Pause",
+      cancel: "Cancel",
+
+      // Warnings
+      pausedWarning: "Your subscription is paused. Payment collection has stopped. Click \"Resume\" to reactivate billing.",
+      cancelWarning: "Your subscription is set to cancel on {date}. Click \"Reactivate\" to continue your subscription.",
+
+      // Summary Cards
+      monthlyFee: "Monthly Fee",
+      emissions: "Emissions",
+      available: "available",
+      creditWallet: "Credit Wallet",
+      emissionsUsed: "Emissions Used",
+
+      // Capacity
+      investorCapacity: "Investor Capacity",
+      currentInvestorUsage: "Current investor usage and limits",
+      investorsAdded: "Investors Added",
+      slotsRemaining: "slots remaining",
+      used: "used",
+
+      // Subscription Limits
+      subscriptionLimits: "Subscription Limits & Extras",
+      purchaseAdditional: "Purchase additional capacity for your account",
+      loading: "Loading limits...",
+      retry: "Retry",
+      aumCapacity: "AUM Capacity",
+
+      // Purchase Additional
+      purchaseAdditionalEmissions: "Purchase Additional Emissions",
+      addCreditsToWallet: "Add Credits to Wallet",
+      forKycAndEnvelope: "For KYC and envelope costs",
+      lowCreditBalance: "Low credit balance ({balance} remaining) - add more credits to continue operations",
+
+      // Dialogs
+      cancelSubscription: "Cancel Subscription",
+      cancelSubscriptionConfirm: "Are you sure you want to cancel your subscription? Your access will continue until the end of the current billing period.",
+      keepSubscription: "Keep Subscription",
+      yesCancel: "Yes, Cancel",
+      purchaseAdditionalEmissionsTitle: "Purchase Additional Emissions",
+      purchaseEmissionsConfirm: "You are about to purchase {count} emission{plural} for {amount}. This charge will be processed immediately.",
+      confirmYourPurchase: "Confirm your purchase.",
+      confirmPurchase: "Confirm Purchase",
+      addCreditsTitle: "Add Credits to Wallet",
+      addCreditsConfirm: "You are about to add {amount} to your credit wallet. This charge will be processed immediately.",
+      confirmTopUp: "Confirm Top-Up",
+      reactivateTitle: "Reactivate Subscription",
+      reactivateConfirm: "Your subscription is scheduled to cancel. Would you like to reactivate it and continue with your current plan?",
+      keepCancelled: "Keep Cancelled",
+      yesReactivate: "Yes, Reactivate",
+      pauseTitle: "Pause Subscription",
+      pauseConfirm: "Pausing your subscription will stop payment collection. Your subscription will remain active but you won't be charged until you resume. You can resume at any time.",
+      keepActive: "Keep Active",
+      yesPause: "Yes, Pause",
+      purchaseExtraInvestorsTitle: "Purchase Extra Investor Slot{plural}",
+      purchaseExtraInvestorsConfirm: "You are about to purchase {count} additional investor slot{plural} for ${price}. This will increase your maximum investor capacity.",
+      purchaseFor: "Purchase for ${price}",
+      purchaseExtraAumTitle: "Purchase Extra AUM Capacity",
+      purchaseExtraAumConfirm: "You are about to purchase ${millions}M additional AUM capacity for ${price}. This will increase your maximum total commitment limit.",
+      currencyConflictTitle: "Currency Conflict Detected",
+      currencyConflictMessage: "Your account has existing billing items in a different currency. This can happen if you previously had a subscription in another currency.\n\nWould you like to create a new billing profile to proceed with this subscription?",
+      createNewProfile: "Create New Profile & Continue",
+
+      // Plan Selection
+      subscriptionPlans: "Subscription Plans",
+      enterprisePlans: "Enterprise Plans",
+      reviewAllCosts: "Review all costs before subscribing",
+      stripeCheckout: "Stripe Checkout",
+      selectMonthlyPlan: "1. Select Monthly Plan",
+      recurringMonthlyCharge: "Recurring monthly charge",
+      perMonth: "/month",
+      maxAum: "Max AUM:",
+      maxInvestors: "Max Investors:",
+      kycCost: "KYC Cost:",
+      envelopeCost: "Envelope Cost:",
+      perInvestor: "/investor",
+      perSigning: "/signing",
+      overageCharges: "Overage charges if you exceed limits: ",
+
+      // Setup Fee
+      oneTimeSetupFee: "2. One-Time Setup Fee",
+      requiredToActivate: "Required to activate your account",
+      setupFee: "Setup Fee",
+      whitelabelConfig: "White-label configuration, smart contracts, payment integration, 5h training",
+      includesEmissions: "Includes 5 emissions",
+
+      // Additional Emissions
+      additionalEmissions: "3. Additional Emissions (Optional)",
+      oneTime: "One-time",
+      setupIncludes: "Setup includes 5 emissions. Select a pack if you need more.",
+      emission: "emission",
+      emissions_plural: "emissions",
+      each: "/each",
+      clearSelection: "Clear selection",
+
+      // Credit Wallet
+      creditWalletPayg: "4. Credit Wallet (Pay-As-You-Go)",
+      prepaidCredits: "Pre-paid credits for KYC and envelope costs",
+      initialDeposit: "Initial deposit (required):",
+      autoTopUpThreshold: "Auto top-up threshold:",
+      whenBalanceBelow: "When balance ≤ {amount}",
+      autoTopUpAmount: "Auto top-up amount:",
+
+      // Order Summary
+      orderSummary: "Order Summary",
+      monthlyPlan: "Monthly Plan ({plan})",
+      setupFeeOnetime: "Setup Fee (one-time, includes 5 emissions)",
+      additionalEmissionsOnetime: "Additional Emissions ({count}) - one-time",
+      creditWalletDeposit: "Credit Wallet Deposit (one-time)",
+      totalDueToday: "Total Due Today",
+      thenMonthly: "Then {amount}/month starting next billing cycle",
+      proceedToCheckout: "Proceed to Checkout",
+      subscribeNow: "Subscribe Now",
+      selectPlanAbove: "Select a plan above to see the total",
+
+      // Usage & Extras
+      currentUsageExtras: "Current Usage & Extras",
+      loadingUsageData: "Loading usage data...",
+      total: "total",
+
+      // Forms
+      forms: {
+        paymentError: "An error occurred during payment",
+        unexpectedError: "An unexpected error occurred",
+        processing: "Processing...",
+        completePayment: "Complete Payment",
+        cardElementNotFound: "Card element not found",
+        failedToCreateToken: "Failed to create card token",
+        noTokenReturned: "No card token returned",
+        subscribeAndPay: "Subscribe & Pay",
+      },
+
+      // Subscription Manager
+      manager: {
+        enterPaymentDetails: "Enter Payment Details",
+        enterCardDetails: "Enter your card details to activate your subscription",
+        platformSubscription: "Platform Subscription",
+        activeServicesInfo: "Active services and billing information",
+        activeServices: "Active Services",
+        nextBillingDate: "Next billing date",
+        amount: "Amount",
+        selectYourServices: "Select Your Services",
+        startWithBaseService: "Start with the base service and optionally add additional features",
+        reactivateSubscription: "Reactivate Subscription",
+        cancelAtPeriodEnd: "Cancel at Period End",
+        cancelImmediately: "Cancel Immediately",
+        subscribeNow_btn: "Subscribe Now",
+        addOne: "Add One",
+        serviceBaseCost: "Service Base Cost",
+        required: "Required - Base service subscription",
+        corePlatformFeatures: "Core platform features",
+        standardSupport: "Standard support",
+        basicAnalytics: "Basic analytics",
+        additionalService: "Additional Service",
+        optionalAdditionalFeatures: "Optional - Additional features",
+        monthEach: "/month each",
+        quantity: "Quantity:",
+        subtotal: "Subtotal",
+        availableAddons: "Available Add-ons",
+        addAdditionalService: "Add additional service features ($49/month each)",
+        totalPerMonth: "Total per month:",
+        basePlusAdditional: "Base: $999.00 + Additional: ${amount}",
+        agreeToTerms: "By subscribing, you agree to our terms of service. You can cancel anytime.",
+        advancedAnalytics: "Advanced analytics",
+        prioritySupport: "Priority support",
+        processing: "Processing...",
+
+        // Toast messages - Success
+        subscriptionCanceled: "Subscription canceled successfully",
+        subscriptionReactivated: "Subscription reactivated successfully",
+        additionalServiceAdded: "Additional service added successfully",
+        serviceRemoved: "Service removed successfully",
+        serviceQuantityUpdated: "Service quantity updated to {quantity}",
+
+        // Toast messages - Error
+        failedToCreateSubscription: "Failed to create subscription",
+        failedToCancelSubscription: "Failed to cancel subscription",
+        failedToReactivateSubscription: "Failed to reactivate subscription",
+        failedToAddAdditionalService: "Failed to add additional service",
+        failedToUpdateServiceQuantity: "Failed to update service quantity",
+        failedToRemoveService: "Failed to remove service",
+        failedToLoadSubscription: "Failed to load subscription",
+        failedToCreateCustomer: "Failed to create customer",
+        quantityMustBeAtLeast: "Quantity must be at least 1. Use the trash icon to remove the service.",
+        subscriptionCreatedPaymentSuccessful: "Subscription created and payment successful!",
+        subscriptionCreatedPaymentFailed: "Subscription created but payment failed. Please try again.",
+        subscriptionCreatedSuccessfully: "Subscription created successfully!",
+
+        // Confirm dialogs
+        confirmCancelSubscription: "Are you sure you want to cancel your subscription {when}?",
+        immediately: "immediately",
+        atEndOfBillingPeriod: "at the end of the billing period",
+        confirmAddAdditionalService: "Add Additional Service to your subscription? You will be charged a prorated amount for the current billing period.",
+        confirmIncreaseQuantity: "Increase service quantity from {current} to {new}? You will be charged a prorated amount for the current billing period.",
+        confirmDecreaseQuantity: "Decrease service quantity from {current} to {new}? You will receive a prorated credit for the current billing period.",
+        confirmRemoveService: "Are you sure you want to remove this service? You will receive a prorated credit.",
+
+        // Alert messages
+        subscriptionWillCancelAtPeriodEnd: "Your subscription will cancel at the end of the current billing period.",
+        endsOn: "Ends on {date}.",
+      },
+
+      // Pricing view toast messages
+      purchaseVerifiedSuccessfully: "Purchase verified successfully!",
+      failedToVerifyPurchase: "Failed to verify purchase",
+      creditsPurchasedBalanceUpdated: "Credits purchased! Your balance has been updated.",
+      creditsPurchasedRefreshing: "Credits purchased! Refreshing...",
+      purchaseCompletedRefreshingLimits: "Purchase completed! Refreshing your limits...",
+      subscriptionCreatedSuccessfully: "Subscription created successfully!",
+      pleaseSelectPlan: "Please select a plan",
+      pleaseSignInToSubscribe: "Please sign in to subscribe",
+      alreadyHaveActiveSubscription: "You already have an active subscription. Please manage it from the billing portal.",
+      subscriptionActivated: "Subscription activated!",
+      productNotFound: "Product not found",
+      subscriptionWillBeCancelledAtEndOfBillingPeriod: "Subscription will be cancelled at end of billing period",
+      subscriptionCancelled: "Subscription cancelled",
+      subscriptionReactivatedSuccessfully: "Subscription reactivated successfully!",
+      subscriptionPausedPaymentStopped: "Subscription paused. Payment collection has stopped.",
+      subscriptionResumedSuccessfully: "Subscription resumed successfully!",
+      purchaseAlreadyApplied: "Purchase already applied",
+      checkoutWasCancelled: "Checkout was cancelled",
+
+      // Capacity and usage labels
+      usage: "Usage",
+      slotsRemainingCount: "{count} slots remaining",
+      remaining: "{amount} remaining",
+      usedDetailed: "{current} / {limit} used",
+      purchaseExtraInvestors: "Purchase Extra Investors",
+      addInvestor: "+1 Investor",
+      addInvestors: "+{count} Investor{plural}",
+      addExtraCapacity: "Add extra capacity",
+      purchaseExtraAum: "Purchase Extra AUM",
+      addAum: "+${amount}M AUM",
+      purchaseAdditionalCapacity: "Purchase additional capacity for your account",
+
+      // Emissions
+      emissionCount: "{count} emission{plural}",
+      perEach: "/each",
+
+      // Credit wallet
+      forKycAndEnvelopeCosts: "For KYC and envelope costs",
+      addAmount: "Add {amount}",
+      creditWalletPayAsYouGo: "4. Credit Wallet (Pay-As-You-Go)",
+      prepaidCreditsForKycAndEnvelope: "Pre-paid credits for KYC and envelope costs",
+      initialDepositRequired: "Initial deposit (required):",
+      whenBalanceLessThanOrEqual: "When balance ≤ {amount}",
+
+      // Overage charges
+      overageChargesIfExceedLimits: "Overage charges if you exceed limits: ",
+
+      // Dialog messages
+      confirmYourTopUp: "Confirm your top-up.",
+      purchaseEmissionsDialogDescription: "You are about to purchase {count} emission{plural} for {amount}. This charge will be processed immediately.",
+      purchaseTopUpDialogDescription: "You are about to add {amount} to your credit wallet. This charge will be processed immediately.",
+      purchaseExtraInvestorSlots: "Purchase Extra Investor Slot{plural}",
+      purchaseExtraInvestorsDialogDescription: "You are about to purchase {count} additional investor slot{plural} for ${cost}. This will increase your maximum investor capacity.",
+      purchaseExtraAumCapacity: "Purchase Extra AUM Capacity",
+      purchaseExtraAumDialogDescription: "You are about to purchase ${millions}M additional AUM capacity for ${cost}. This will increase your maximum total commitment limit.",
+
+      // Currency conflict dialog
+      currencyConflictDetected: "Currency Conflict Detected",
+      currencyConflictDescription: "Your account has existing billing items in a different currency. This can happen if you previously had a subscription in another currency.",
+      createNewProfileQuestion: "Would you like to create a new billing profile to proceed with this subscription?",
+      createNewProfileAndContinue: "Create New Profile & Continue",
+
+      // Error messages
+      failedToLoadUsageData: "Failed to load usage data",
+      notAuthenticated: "Not authenticated",
+      alreadyHaveExistingSubscription: "You already have an existing subscription.",
+
+      // Dynamic success messages
+      emissionsAddedTotal: "{added} emissions added! Total: {total}",
+      creditsAddedNewBalance: "Credits added! New balance: ${balance}",
+      extraInvestorSlotsAdded: "Successfully added {quantity} extra investor slots! New limit: {newLimit}",
+      extraAumAdded: "Successfully added ${amount}M extra AUM! New limit: ${newLimit}M",
+      extraInvestorSlotsPurchased: "Extra investor slots purchased! Your limits have been updated.",
+      extraAumPurchased: "Extra AUM capacity purchased! Your limits have been updated.",
+    },
   },
 
   // Approvals Page

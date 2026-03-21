@@ -9,12 +9,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CheckoutFormProps {
   onSuccess: () => void;
 }
 
 export function CheckoutForm({ onSuccess }: CheckoutFormProps) {
+  const { t } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -39,13 +41,13 @@ export function CheckoutForm({ onSuccess }: CheckoutFormProps) {
       });
 
       if (submitError) {
-        setError(submitError.message || 'An error occurred during payment');
+        setError(submitError.message || t.settings.subscription.forms.paymentError);
         setProcessing(false);
       } else {
         onSuccess();
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setError(t.settings.subscription.forms.unexpectedError);
       setProcessing(false);
     }
   };
@@ -69,10 +71,10 @@ export function CheckoutForm({ onSuccess }: CheckoutFormProps) {
         {processing ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Processing...
+            {t.settings.subscription.forms.processing}
           </>
         ) : (
-          'Complete Payment'
+          t.settings.subscription.forms.completePayment
         )}
       </Button>
     </form>

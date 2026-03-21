@@ -53,6 +53,7 @@ import {
 } from '@/lib/stripe-products';
 import { getAuthState, getAuthToken } from '@/lib/auth-storage';
 import { getApiUrl, API_CONFIG } from '@/lib/api-config';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SubscriptionPricingViewProps {
   onSubscriptionChange?: (subscription: EmulatedSubscription | null) => void;
@@ -63,6 +64,14 @@ interface SubscriptionPricingViewProps {
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = false }: SubscriptionPricingViewProps) {
+  const { t, language } = useTranslation();
+
+  // Helper function to get plural suffix based on language
+  const getPluralSuffix = (count: number) => {
+    if (count <= 1) return '';
+    return language === 'spanish' ? 'es' : 's';
+  };
+
   const [subscription, setSubscription] = useState<EmulatedSubscription | null>(null);
   const [stripeSubscription, setStripeSubscription] = useState<any>(null);
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -145,19 +154,19 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
           if (data.success) {
             if (data.type === 'emission_purchase') {
-              toast.success(`${data.emissionsAdded} emissions added! Total: ${data.newEmissions}`);
+              toast.success(t.settings.subscription.emissionsAddedTotal.replace('{added}', data.emissionsAdded).replace('{total}', data.newEmissions));
             } else if (data.message === 'Session already processed') {
-              toast.info('Purchase already applied');
+              toast.info(t.settings.subscription.purchaseAlreadyApplied);
             } else {
-              toast.success('Purchase verified successfully!');
+              toast.success(t.settings.subscription.purchaseVerifiedSuccessfully);
             }
           } else {
             console.error('[SubscriptionPricingView] Verify purchase error:', data.error);
-            toast.error(data.error || 'Failed to verify purchase');
+            toast.error(data.error || t.settings.subscription.failedToVerifyPurchase);
           }
         } catch (error) {
           console.error('[SubscriptionPricingView] Verify purchase exception:', error);
-          toast.error('Failed to verify purchase');
+          toast.error(t.settings.subscription.failedToVerifyPurchase);
         }
         window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
       } else if (success === 'true' && purchase === 'credits' && sessionId) {
@@ -179,13 +188,13 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           console.log('[SubscriptionPricingView] Verify credits response:', verifyData);
 
           if (verifyData.success) {
-            toast.success(`Credits added! New balance: $${(verifyData.newBalance / 100).toFixed(2)}`);
+            toast.success(t.settings.subscription.creditsAddedNewBalance.replace('{balance}', (verifyData.newBalance / 100).toFixed(2)));
           } else {
-            toast.success('Credits purchased! Your balance has been updated.');
+            toast.success(t.settings.subscription.creditsPurchasedBalanceUpdated);
           }
         } catch (error) {
           console.error('[SubscriptionPricingView] Error verifying credit purchase:', error);
-          toast.success('Credits purchased! Refreshing...');
+          toast.success(t.settings.subscription.creditsPurchasedRefreshing);
         }
         window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
       } else if (success === 'true' && (purchase === 'extra_investors' || purchase === 'extra_aum') && sessionId) {
@@ -208,31 +217,31 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
           if (verifyData.success) {
             if (purchase === 'extra_investors') {
-              toast.success(`Successfully added ${quantity || ''} extra investor slots! New limit: ${verifyData.newLimit}`);
+              toast.success(t.settings.subscription.extraInvestorSlotsAdded.replace('{quantity}', quantity || '').replace('{newLimit}', verifyData.newLimit));
             } else {
-              toast.success(`Successfully added $${quantity || ''}M extra AUM! New limit: $${(verifyData.newLimit / 1000000).toFixed(0)}M`);
+              toast.success(t.settings.subscription.extraAumAdded.replace('{amount}', quantity || '').replace('{newLimit}', (verifyData.newLimit / 1000000).toFixed(0)));
             }
           } else {
             // May already be processed
             if (purchase === 'extra_investors') {
-              toast.success(`Extra investor slots purchased! Your limits have been updated.`);
+              toast.success(t.settings.subscription.extraInvestorSlotsPurchased);
             } else {
-              toast.success(`Extra AUM capacity purchased! Your limits have been updated.`);
+              toast.success(t.settings.subscription.extraAumPurchased);
             }
           }
         } catch (verifyError) {
           console.error('[SubscriptionPricingView] Error verifying extra purchase:', verifyError);
-          toast.success('Purchase completed! Refreshing your limits...');
+          toast.success(t.settings.subscription.purchaseCompletedRefreshingLimits);
         }
         window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
       } else if (success === 'true') {
         if (sessionId) {
-          toast.success('Subscription created successfully!');
+          toast.success(t.settings.subscription.subscriptionCreatedSuccessfully);
         }
         // Clean up URL
         window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
       } else if (canceled === 'true') {
-        toast.info('Checkout was cancelled');
+        toast.info(t.settings.subscription.checkoutWasCancelled);
         // Clean up URL
         window.history.replaceState({}, '', window.location.pathname + '?tab=subscription');
       }
@@ -370,15 +379,15 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           setUsageLoadError(null);
         } else {
           console.error('[LoadSubscription] API returned error:', usageData);
-          setUsageLoadError(usageData.message || usageData.error || 'Failed to load usage data');
+          setUsageLoadError(usageData.message || usageData.error || t.settings.subscription.failedToLoadUsageData);
         }
       } else {
         console.warn('[LoadSubscription] No auth token found');
-        setUsageLoadError('Not authenticated');
+        setUsageLoadError(t.settings.subscription.notAuthenticated);
       }
     } catch (usageError: any) {
       console.error('[LoadSubscription] Error loading usage:', usageError);
-      setUsageLoadError(usageError.message || 'Failed to load usage data');
+      setUsageLoadError(usageError.message || t.settings.subscription.failedToLoadUsageData);
     }
 
     setLoading(false);
@@ -407,7 +416,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
   const handleSubscribe = async (forceNewCustomer = false) => {
     if (!selectedPlan) {
-      toast.error('Please select a plan');
+      toast.error(t.settings.subscription.pleaseSelectPlan);
       return;
     }
 
@@ -432,7 +441,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
         // Require valid user email for real Stripe
         if (!userEmail) {
-          toast.error('Please sign in to subscribe');
+          toast.error(t.settings.subscription.pleaseSignInToSubscribe);
           setProcessing(false);
           return;
         }
@@ -442,7 +451,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         const checkData = await checkResponse.json();
 
         if (checkData.success && checkData.subscription && checkData.subscription.status === 'active') {
-          toast.error('You already have an active subscription. Please manage it from the billing portal.');
+          toast.error(t.settings.subscription.alreadyHaveActiveSubscription);
           setStripeSubscription(checkData.subscription);
           setCustomerId(checkData.customerId);
           await loadSubscription();
@@ -476,7 +485,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           // Handle specific errors
           if (data.subscriptionStatus || data.error?.includes('already have')) {
             // Existing subscription found - reload to show it
-            toast.error(data.error || 'You already have an existing subscription.');
+            toast.error(data.error || t.settings.subscription.alreadyHaveExistingSubscription);
             await loadSubscription();
           } else if (data.retryWithNewCustomer || data.error?.includes('currency') || data.error?.includes('currencies')) {
             // Currency conflict - offer to create with new customer
@@ -522,7 +531,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       saveEmulatedSubscription(newSubscription);
       setSubscription(newSubscription);
       onSubscriptionChange?.(newSubscription);
-      toast.success('Subscription activated!');
+      toast.success(t.settings.subscription.subscriptionActivated);
     }
 
     setProcessing(false);
@@ -576,7 +585,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
       const product = SHARED_PRODUCTS.find(p => p.id === productId);
       if (!product) {
-        toast.error('Product not found');
+        toast.error(t.settings.subscription.productNotFound);
         setProcessing(false);
         return;
       }
@@ -680,7 +689,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         const data = await response.json();
 
         if (data.success) {
-          toast.success('Subscription will be cancelled at end of billing period');
+          toast.success(t.settings.subscription.subscriptionWillBeCancelledAtEndOfBillingPeriod);
           await loadSubscription();
         } else if (data.error === 'MINIMUM_COMMITMENT') {
           // 12-month minimum commitment not met
@@ -698,7 +707,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       setSubscription(null);
       setSelectedPlanId(null);
       onSubscriptionChange?.(null);
-      toast.success('Subscription cancelled');
+      toast.success(t.settings.subscription.subscriptionCancelled);
     }
 
     setProcessing(false);
@@ -747,7 +756,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Subscription reactivated successfully!');
+        toast.success(t.settings.subscription.subscriptionReactivatedSuccessfully);
         setCancelAtPeriodEnd(false);
         await loadSubscription();
       } else {
@@ -779,7 +788,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Subscription paused. Payment collection has stopped.');
+        toast.success(t.settings.subscription.subscriptionPausedPaymentStopped);
         setIsPaused(true);
         await loadSubscription();
       } else {
@@ -810,7 +819,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Subscription resumed successfully!');
+        toast.success(t.settings.subscription.subscriptionResumedSuccessfully);
         setIsPaused(false);
         await loadSubscription();
       } else {
@@ -941,52 +950,52 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             <Building2 className="h-6 w-6 text-primary" />
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold">Your Subscription</h2>
+                <h2 className="text-xl font-bold">{t.settings.subscription.yourSubscription}</h2>
                 {isPaused ? (
                   <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
                     <PauseCircle className="h-3 w-3 mr-1" />
-                    Paused
+                    {t.settings.subscription.paused}
                   </Badge>
                 ) : cancelAtPeriodEnd ? (
                   <Badge variant="destructive">
-                    Cancelling
+                    {t.settings.subscription.cancelling}
                   </Badge>
                 ) : (
                   <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
-                    {subscription.status === 'active' ? 'Active' :
-                     subscription.status === 'trialing' ? 'Trial' :
-                     subscription.status === 'past_due' ? 'Past Due' :
+                    {subscription.status === 'active' ? t.settings.subscription.active :
+                     subscription.status === 'trialing' ? t.settings.subscription.trial :
+                     subscription.status === 'past_due' ? t.settings.subscription.pastDue :
                      subscription.status}
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">{subscription.currentPlan?.name || 'Subscription Plan'}</p>
+              <p className="text-sm text-muted-foreground">{subscription.currentPlan?.name || t.settings.subscription.subscriptionPlan}</p>
             </div>
           </div>
           <div className="flex gap-2">
             {useRealStripe && customerId && (
               <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={processing}>
                 <ExternalLink className="h-4 w-4 mr-1" />
-                Manage Billing
+                {t.settings.subscription.manageBilling}
               </Button>
             )}
             {isPaused ? (
               <Button variant="default" size="sm" onClick={handleResumeSubscription} disabled={processing}>
                 <PlayCircle className="h-4 w-4 mr-1" />
-                Resume
+                {t.settings.subscription.resume}
               </Button>
             ) : cancelAtPeriodEnd ? (
               <Button variant="default" size="sm" onClick={() => setShowReactivateDialog(true)} disabled={processing}>
-                Reactivate
+                {t.settings.subscription.reactivate}
               </Button>
             ) : (
               <>
                 <Button variant="outline" size="sm" onClick={() => setShowPauseDialog(true)} disabled={processing}>
                   <PauseCircle className="h-4 w-4 mr-1" />
-                  Pause
+                  {t.settings.subscription.pause}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setShowCancelDialog(true)} disabled={processing}>
-                  Cancel
+                  {t.settings.subscription.cancel}
                 </Button>
               </>
             )}
@@ -998,7 +1007,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           <Alert className="bg-yellow-50 border-yellow-200">
             <PauseCircle className="h-4 w-4 text-yellow-600" />
             <AlertDescription className="text-yellow-800">
-              Your subscription is paused. Payment collection has stopped. Click "Resume" to reactivate billing.
+              {t.settings.subscription.pausedWarning}
             </AlertDescription>
           </Alert>
         )}
@@ -1008,8 +1017,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Your subscription is set to cancel on {subscription.currentPeriodEnd.toLocaleDateString()}.
-              Click "Reactivate" to continue your subscription.
+              {t.settings.subscription.cancelWarning.replace('{date}', subscription.currentPeriodEnd.toLocaleDateString())}
             </AlertDescription>
           </Alert>
         )}
@@ -1018,27 +1026,27 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-4">
-              <div className="text-sm text-muted-foreground">Monthly Fee</div>
+              <div className="text-sm text-muted-foreground">{t.settings.subscription.monthlyFee}</div>
               <div className="text-xl font-bold">{formatAmount(subscription.currentPlan?.amount || 0)}</div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
-              <div className="text-sm text-muted-foreground">Emissions</div>
-              <div className="text-xl font-bold">{subscription.emissionsAvailable} available</div>
+              <div className="text-sm text-muted-foreground">{t.settings.subscription.emissions}</div>
+              <div className="text-xl font-bold">{subscription.emissionsAvailable} {t.settings.subscription.available}</div>
             </CardContent>
           </Card>
           {subscriptionModel === 'payg' && (
             <Card>
               <CardContent className="pt-4">
-                <div className="text-sm text-muted-foreground">Credit Wallet</div>
+                <div className="text-sm text-muted-foreground">{t.settings.subscription.creditWallet}</div>
                 <div className="text-xl font-bold">{formatAmount(subscription.creditBalance || 0)}</div>
               </CardContent>
             </Card>
           )}
           <Card>
             <CardContent className="pt-4">
-              <div className="text-sm text-muted-foreground">Emissions Used</div>
+              <div className="text-sm text-muted-foreground">{t.settings.subscription.emissionsUsed}</div>
               <div className="text-xl font-bold">{subscription.emissionsUsed}</div>
             </CardContent>
           </Card>
@@ -1050,14 +1058,14 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                Investor Capacity
+                {t.settings.subscription.investorCapacity}
               </CardTitle>
-              <CardDescription>Current investor usage and limits</CardDescription>
+              <CardDescription>{t.settings.subscription.currentInvestorUsage}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Investors Added</span>
+                  <span className="text-sm text-muted-foreground">{t.settings.subscription.investorsAdded}</span>
                   <span className="font-medium">{subscriptionUsage.investors.current} / {subscriptionUsage.investors.limit}</span>
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
@@ -1067,7 +1075,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   />
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{subscriptionUsage.investors.remaining} slots remaining</span>
+                  <span>{subscriptionUsage.investors.remaining}{t.settings.subscription.slotsRemaining}</span>
                   <span>{subscriptionUsage.investors.limit > 0 ? Math.round((subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100) : 0}% used</span>
                 </div>
               </div>
@@ -1081,21 +1089,21 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
-                Subscription Limits & Extras
+                {t.settings.subscription.subscriptionLimits}
               </CardTitle>
-              <CardDescription>Purchase additional capacity for your account</CardDescription>
+              <CardDescription>{t.settings.subscription.purchaseAdditional}</CardDescription>
             </CardHeader>
             <CardContent>
               {usageLoadError ? (
                 <div className="text-center py-4">
                   <AlertCircle className="h-6 w-6 text-destructive mx-auto mb-2" />
                   <p className="text-sm text-destructive mb-2">{usageLoadError}</p>
-                  <Button variant="outline" size="sm" onClick={loadSubscription}>Retry</Button>
+                  <Button variant="outline" size="sm" onClick={loadSubscription}>{t.settings.subscription.retry}</Button>
                 </div>
               ) : !subscriptionUsage ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-                  <span className="text-muted-foreground">Loading limits...</span>
+                  <span className="text-muted-foreground">{t.settings.subscription.loading}</span>
                 </div>
               ) : (
           <div className="grid md:grid-cols-2 gap-4">
@@ -1103,10 +1111,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium">Investor Capacity</span>
+                <span className="font-medium">{t.settings.subscription.investorCapacity}</span>
               </div>
               <div className="text-sm text-muted-foreground">
-                {subscriptionUsage.investors.current} / {subscriptionUsage.investors.limit} used
+                {subscriptionUsage.investors.current} / {subscriptionUsage.investors.limit} {t.settings.subscription.used}
               </div>
               <div className="w-full bg-muted rounded-full h-2">
                 <div
@@ -1135,7 +1143,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   </Button>
                 </div>
                 <div className="text-xs text-muted-foreground text-center">
-                  ${(4 * extraInvestorsInput).toFixed(0)} total
+                  ${(4 * extraInvestorsInput).toFixed(0)} {t.settings.subscription.total}
                 </div>
               </div>
             </div>
@@ -1145,7 +1153,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">AUM Capacity</span>
+                  <span className="font-medium">{t.settings.subscription.aumCapacity}</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   ${(subscriptionUsage.commitment.current / 1000000).toFixed(1)}M / ${(subscriptionUsage.commitment.limit / 1000000).toFixed(0)}M
@@ -1205,7 +1213,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <CardContent>
                 <div className="mb-3">
                   <div className="flex justify-between text-sm mb-1">
-                    <span>Usage</span>
+                    <span>{t.settings.subscription.usage}</span>
                     <span>{subscriptionUsage.investors.limit > 0 ? Math.round((subscriptionUsage.investors.current / subscriptionUsage.investors.limit) * 100) : 0}%</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
@@ -1215,12 +1223,12 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                     />
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {subscriptionUsage.investors.remaining} slots remaining
+                    {t.settings.subscription.slotsRemainingCount.replace('{count}', subscriptionUsage.investors.remaining.toString())}
                   </div>
                 </div>
                 <Separator className="my-3" />
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">Purchase Extra Investors</div>
+                  <div className="text-sm font-medium">{t.settings.subscription.purchaseExtraInvestors}</div>
                   <div className="pt-2">
                     <Button
                       variant="outline"
@@ -1229,8 +1237,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                       onClick={() => initiateExtraInvestorsPurchase(1)}
                       disabled={processing}
                     >
-                      <span className="font-semibold">+1 Investor</span>
-                      <span className="text-xs text-muted-foreground">Add extra capacity</span>
+                      <span className="font-semibold">{t.settings.subscription.addInvestor}</span>
+                      <span className="text-xs text-muted-foreground">{t.settings.subscription.addExtraCapacity}</span>
                     </Button>
                   </div>
                 </div>
@@ -1243,7 +1251,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <TrendingUp className="h-4 w-4" />
-                    AUM Capacity
+                    {t.settings.subscription.aumCapacity}
                   </CardTitle>
                   <CardDescription>
                     ${(subscriptionUsage.commitment.current / 1000000).toFixed(1)}M / ${(subscriptionUsage.commitment.limit / 1000000).toFixed(0)}M used
@@ -1252,7 +1260,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <CardContent>
                   <div className="mb-3">
                     <div className="flex justify-between text-sm mb-1">
-                      <span>Usage</span>
+                      <span>{t.settings.subscription.usage}</span>
                       <span>{Math.round((subscriptionUsage.commitment.current / subscriptionUsage.commitment.limit) * 100)}%</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
@@ -1262,12 +1270,12 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                       />
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      ${((subscriptionUsage.commitment.limit - subscriptionUsage.commitment.current) / 1000000).toFixed(1)}M remaining
+                      {t.settings.subscription.remaining.replace('{amount}', `$${((subscriptionUsage.commitment.limit - subscriptionUsage.commitment.current) / 1000000).toFixed(1)}M`)}
                     </div>
                   </div>
                   <Separator className="my-3" />
                   <div className="space-y-2">
-                    <div className="text-sm font-medium">Purchase Extra AUM</div>
+                    <div className="text-sm font-medium">{t.settings.subscription.purchaseExtraAum}</div>
                     <div className="grid grid-cols-3 gap-2">
                       {[1, 5, 10].map((millions) => (
                         <Button
@@ -1293,7 +1301,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         {/* Purchase More Emissions */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Purchase Additional Emissions</CardTitle>
+            <CardTitle className="text-base">{t.settings.subscription.purchaseAdditionalEmissions}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -1305,7 +1313,11 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   onClick={() => initiateEmissionPurchase(product.id)}
                   disabled={processing}
                 >
-                  <span className="font-semibold">{product.metadata.pack_size || 1} emission{(product.metadata.pack_size || 1) > 1 ? 's' : ''}</span>
+                  <span className="font-semibold">
+                    {t.settings.subscription.emissionCount
+                      .replace('{count}', (product.metadata.pack_size || 1).toString())
+                      .replace('{plural}', getPluralSuffix(product.metadata.pack_size || 1))}
+                  </span>
                   <span className="text-sm text-muted-foreground">{formatAmount(product.amount)}</span>
                 </Button>
               ))}
@@ -1317,8 +1329,8 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         {subscriptionModel === 'payg' && stripeSubscription && (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Add Credits to Wallet</CardTitle>
-              <CardDescription>For KYC and envelope costs</CardDescription>
+              <CardTitle className="text-base">{t.settings.subscription.addCreditsToWallet}</CardTitle>
+              <CardDescription>{t.settings.subscription.forKycAndEnvelopeCosts}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
@@ -1337,7 +1349,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <Alert className="mt-3" variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="flex items-center justify-between w-full">
-                    <span>Low credit balance ({formatAmount(subscription.creditBalance)} remaining) - add more credits to continue operations</span>
+                    <span>{t.settings.subscription.lowCreditBalance.replace('{balance}', formatAmount(subscription.creditBalance))}</span>
                     <Button
                       size="sm"
                       variant="outline"
@@ -1345,7 +1357,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                       onClick={() => initiateTopUpCredits(CREDIT_WALLET_CONFIG.autoTopUpAmount)}
                       disabled={processing}
                     >
-                      Add {formatAmount(CREDIT_WALLET_CONFIG.autoTopUpAmount)}
+                      {t.settings.subscription.addAmount.replace('{amount}', formatAmount(CREDIT_WALLET_CONFIG.autoTopUpAmount))}
                     </Button>
                   </AlertDescription>
                 </Alert>
@@ -1358,15 +1370,15 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
+              <AlertDialogTitle>{t.settings.subscription.cancelSubscription}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to cancel your subscription? Your access will continue until the end of the current billing period.
+                {t.settings.subscription.cancelSubscriptionConfirm}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+              <AlertDialogCancel>{t.settings.subscription.keepSubscription}</AlertDialogCancel>
               <AlertDialogAction onClick={handleCancelSubscription}>
-                Yes, Cancel
+                {t.settings.subscription.yesCancel}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1376,20 +1388,23 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showEmissionPurchaseDialog} onOpenChange={setShowEmissionPurchaseDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Purchase Additional Emissions</AlertDialogTitle>
+              <AlertDialogTitle>{t.settings.subscription.purchaseAdditionalEmissions}</AlertDialogTitle>
               <AlertDialogDescription>
                 {(() => {
                   const product = emissionProducts.find(p => p.id === pendingEmissionProductId);
-                  if (!product) return 'Confirm your purchase.';
+                  if (!product) return t.settings.subscription.confirmYourPurchase;
                   const count = product.metadata.pack_size || 1;
-                  return `You are about to purchase ${count} emission${count > 1 ? 's' : ''} for ${formatAmount(product.amount)}. This charge will be processed immediately.`;
+                  return t.settings.subscription.purchaseEmissionsDialogDescription
+                    .replace('{count}', count.toString())
+                    .replace('{plural}', getPluralSuffix(count))
+                    .replace('{amount}', formatAmount(product.amount));
                 })()}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setPendingEmissionProductId(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setPendingEmissionProductId(null)}>{t.settings.subscription.cancel}</AlertDialogCancel>
               <AlertDialogAction onClick={handlePurchaseEmissions}>
-                Confirm Purchase
+                {t.settings.subscription.confirmPurchase}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1399,17 +1414,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showTopUpDialog} onOpenChange={setShowTopUpDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Add Credits to Wallet</AlertDialogTitle>
+              <AlertDialogTitle>{t.settings.subscription.addCreditsTitle}</AlertDialogTitle>
               <AlertDialogDescription>
                 {pendingTopUpAmount
-                  ? `You are about to add ${formatAmount(pendingTopUpAmount)} to your credit wallet. This charge will be processed immediately.`
-                  : 'Confirm your top-up.'}
+                  ? t.settings.subscription.purchaseTopUpDialogDescription.replace('{amount}', formatAmount(pendingTopUpAmount))
+                  : t.settings.subscription.confirmTopUp}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setPendingTopUpAmount(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setPendingTopUpAmount(null)}>{t.settings.subscription.cancel}</AlertDialogCancel>
               <AlertDialogAction onClick={handleTopUpCredits}>
-                Confirm Top-Up
+                {t.settings.subscription.confirmTopUp}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1419,15 +1434,15 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showReactivateDialog} onOpenChange={setShowReactivateDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Reactivate Subscription</AlertDialogTitle>
+              <AlertDialogTitle>{t.settings.subscription.reactivateTitle}</AlertDialogTitle>
               <AlertDialogDescription>
-                Your subscription is scheduled to cancel. Would you like to reactivate it and continue with your current plan?
+                {t.settings.subscription.reactivateConfirm}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Keep Cancelled</AlertDialogCancel>
+              <AlertDialogCancel>{t.settings.subscription.keepCancelled}</AlertDialogCancel>
               <AlertDialogAction onClick={handleReactivateSubscription}>
-                Yes, Reactivate
+                {t.settings.subscription.yesReactivate}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1437,15 +1452,15 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showPauseDialog} onOpenChange={setShowPauseDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Pause Subscription</AlertDialogTitle>
+              <AlertDialogTitle>{t.settings.subscription.pauseTitle}</AlertDialogTitle>
               <AlertDialogDescription>
-                Pausing your subscription will stop payment collection. Your subscription will remain active but you won't be charged until you resume. You can resume at any time.
+                {t.settings.subscription.pauseConfirm}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Keep Active</AlertDialogCancel>
+              <AlertDialogCancel>{t.settings.subscription.keepActive}</AlertDialogCancel>
               <AlertDialogAction onClick={handlePauseSubscription}>
-                Yes, Pause
+                {t.settings.subscription.yesPause}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1455,17 +1470,20 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showExtraInvestorsDialog} onOpenChange={setShowExtraInvestorsDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Purchase Extra Investor Slot{pendingExtraInvestors && pendingExtraInvestors > 1 ? 's' : ''}</AlertDialogTitle>
+              <AlertDialogTitle>{t.settings.subscription.purchaseExtraInvestorSlots.replace('{plural}', pendingExtraInvestors && pendingExtraInvestors > 1 ? 's' : '')}</AlertDialogTitle>
               <AlertDialogDescription>
                 {pendingExtraInvestors
-                  ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''} for $${pendingExtraInvestors * 4}. This will increase your maximum investor capacity.`
-                  : 'Confirm your purchase.'}
+                  ? t.settings.subscription.purchaseExtraInvestorsDialogDescription
+                      .replace('{count}', pendingExtraInvestors.toString())
+                      .replace('{plural}', pendingExtraInvestors > 1 ? 's' : '')
+                      .replace('{cost}', (pendingExtraInvestors * 4).toString())
+                  : t.settings.subscription.confirmYourPurchase}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>{t.settings.subscription.cancel}</AlertDialogCancel>
               <AlertDialogAction onClick={handlePurchaseExtraInvestors}>
-                Purchase for ${pendingExtraInvestors ? pendingExtraInvestors * 4 : 0}
+                {t.settings.subscription.purchaseFor.replace('{amount}', (pendingExtraInvestors ? pendingExtraInvestors * 4 : 0).toString())}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1475,17 +1493,19 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <AlertDialog open={showExtraAumDialog} onOpenChange={setShowExtraAumDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Purchase Extra AUM Capacity</AlertDialogTitle>
+              <AlertDialogTitle>{t.settings.subscription.purchaseExtraAumCapacity}</AlertDialogTitle>
               <AlertDialogDescription>
                 {pendingExtraAum
-                  ? `You are about to purchase $${pendingExtraAum}M additional AUM capacity for $${pendingExtraAum * 110}. This will increase your maximum total commitment limit.`
-                  : 'Confirm your purchase.'}
+                  ? t.settings.subscription.purchaseExtraAumDialogDescription
+                      .replace('{millions}', pendingExtraAum.toString())
+                      .replace('{cost}', (pendingExtraAum * 110).toString())
+                  : t.settings.subscription.confirmYourPurchase}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>{t.settings.subscription.cancel}</AlertDialogCancel>
               <AlertDialogAction onClick={handlePurchaseExtraAum}>
-                Purchase for ${pendingExtraAum ? pendingExtraAum * 110 : 0}
+                {t.settings.subscription.purchaseFor.replace('{amount}', (pendingExtraAum ? pendingExtraAum * 110 : 0).toString())}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -1503,17 +1523,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           <Building2 className="h-6 w-6 text-primary" />
           <div>
             <h2 className="text-xl font-bold">
-              {subscriptionModel === 'tier_based' ? 'Subscription Plans' : 'Enterprise Plans'}
+              {subscriptionModel === 'tier_based' ? t.settings.subscription.subscriptionPlans : t.settings.subscription.enterprisePlans}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Review all costs before subscribing
+              {t.settings.subscription.reviewAllCosts}
             </p>
           </div>
         </div>
         {useRealStripe && (
           <Badge variant="outline" className="text-xs">
             <CreditCard className="h-3 w-3 mr-1" />
-            Stripe Checkout
+            {t.settings.subscription.stripeCheckout}
           </Badge>
         )}
       </div>
@@ -1523,9 +1543,9 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
-            1. Select Monthly Plan
+            {t.settings.subscription.selectMonthlyPlan}
           </CardTitle>
-          <CardDescription>Recurring monthly charge</CardDescription>
+          <CardDescription>{t.settings.subscription.recurringMonthlyCharge}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-3">
@@ -1558,14 +1578,14 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   <div className="text-sm text-muted-foreground space-y-1">
                     {subscriptionModel === 'tier_based' ? (
                       <>
-                        <div className="flex justify-between"><span>Max AUM:</span> <span className="font-medium text-foreground">{(plan as any).limits.maxAUM}</span></div>
-                        <div className="flex justify-between"><span>Max Investors:</span> <span className="font-medium text-foreground">{(plan as any).limits.maxInvestors}</span></div>
+                        <div className="flex justify-between"><span>{t.settings.subscription.maxAum}</span> <span className="font-medium text-foreground">{(plan as any).limits.maxAUM}</span></div>
+                        <div className="flex justify-between"><span>{t.settings.subscription.maxInvestors}</span> <span className="font-medium text-foreground">{(plan as any).limits.maxInvestors}</span></div>
                       </>
                     ) : (
                       <>
-                        <div className="flex justify-between"><span>Max Investors:</span> <span className="font-medium text-foreground">{(plan as any).limits.maxInvestors.toLocaleString()}</span></div>
-                        <div className="flex justify-between"><span>KYC Cost:</span> <span className="font-medium text-foreground">{formatAmount(costs?.kyc?.amount || 0)}/investor</span></div>
-                        <div className="flex justify-between"><span>Envelope Cost:</span> <span className="font-medium text-foreground">{formatAmount(costs?.envelope?.amount || 0)}/signing</span></div>
+                        <div className="flex justify-between"><span>{t.settings.subscription.maxInvestors}</span> <span className="font-medium text-foreground">{(plan as any).limits.maxInvestors.toLocaleString()}</span></div>
+                        <div className="flex justify-between"><span>{t.settings.subscription.kycCost}</span> <span className="font-medium text-foreground">{formatAmount(costs?.kyc?.amount || 0)}{t.settings.subscription.perInvestor}</span></div>
+                        <div className="flex justify-between"><span>{t.settings.subscription.envelopeCost}</span> <span className="font-medium text-foreground">{formatAmount(costs?.envelope?.amount || 0)}{t.settings.subscription.perSigning}</span></div>
                       </>
                     )}
                   </div>
@@ -1576,7 +1596,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
 
           {subscriptionModel === 'tier_based' && (
             <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm">
-              <span className="font-medium">Overage charges if you exceed limits: </span>
+              <span className="font-medium">{t.settings.subscription.overageChargesIfExceedLimits}</span>
               {TIER_BASED_ADDONS.map((addon, i) => (
                 <span key={addon.id}>
                   {addon.name.replace('Add-on: ', '')}: {formatAmount(addon.amount)}/{addon.per_unit.toLowerCase()}
@@ -1593,21 +1613,21 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            2. One-Time Setup Fee
+            {t.settings.subscription.oneTimeSetupFee}
           </CardTitle>
-          <CardDescription>Required to activate your account</CardDescription>
+          <CardDescription>{t.settings.subscription.requiredToActivate}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-lg">
             <div>
-              <div className="font-semibold text-amber-900">Setup Fee</div>
+              <div className="font-semibold text-amber-900">{t.settings.subscription.setupFee}</div>
               <div className="text-sm text-amber-700">
-                White-label configuration, smart contracts, payment integration, 5h training
+                {t.settings.subscription.whitelabelConfig}
               </div>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-amber-900">{formatAmount(setupFee.amount)}</div>
-              <div className="text-sm text-amber-700">Includes 5 emissions</div>
+              <div className="text-sm text-amber-700">{t.settings.subscription.includesEmissions}</div>
             </div>
           </div>
         </CardContent>
@@ -1618,10 +1638,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Package className="h-4 w-4" />
-            3. Additional Emissions (Optional)
-            <Badge variant="outline" className="ml-2 text-xs font-normal">One-time</Badge>
+            {t.settings.subscription.additionalEmissions}
+            <Badge variant="outline" className="ml-2 text-xs font-normal">{t.settings.subscription.oneTime}</Badge>
           </CardTitle>
-          <CardDescription>Setup includes 5 emissions. Select a pack if you need more.</CardDescription>
+          <CardDescription>{t.settings.subscription.setupIncludes}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1636,13 +1656,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                   onClick={() => setSelectedEmissions(isSelected ? null : product.id)}
                 >
                   <div className="flex items-center justify-center gap-1 mb-1">
-                    <span className="font-semibold">{product.metadata.pack_size || 1} emission{(product.metadata.pack_size || 1) > 1 ? 's' : ''}</span>
+                    <span className="font-semibold">
+                      {t.settings.subscription.emissionCount
+                        .replace('{count}', (product.metadata.pack_size || 1).toString())
+                        .replace('{plural}', getPluralSuffix(product.metadata.pack_size || 1))}
+                    </span>
                     {isSelected && <CheckCircle2 className="h-4 w-4 text-primary" />}
                   </div>
                   <div className="text-lg font-bold text-primary">{formatAmount(product.amount)}</div>
                   {(product.metadata.pack_size || 1) > 1 && (
                     <div className="text-xs text-muted-foreground">
-                      {formatAmount(product.amount / (product.metadata.pack_size || 1))}/each
+                      {formatAmount(product.amount / (product.metadata.pack_size || 1))}{t.settings.subscription.perEach}
                     </div>
                   )}
                 </div>
@@ -1656,7 +1680,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               className="mt-2"
               onClick={() => setSelectedEmissions(null)}
             >
-              Clear selection
+              {t.settings.subscription.clearSelection}
             </Button>
           )}
         </CardContent>
@@ -1668,22 +1692,22 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Wallet className="h-4 w-4" />
-              4. Credit Wallet (Pay-As-You-Go)
+              {t.settings.subscription.creditWalletPayAsYouGo}
             </CardTitle>
-            <CardDescription>Pre-paid credits for KYC and envelope costs</CardDescription>
+            <CardDescription>{t.settings.subscription.prepaidCreditsForKycAndEnvelope}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
               <div className="flex justify-between">
-                <span className="text-blue-800">Initial deposit (required):</span>
+                <span className="text-blue-800">{t.settings.subscription.initialDepositRequired}</span>
                 <span className="font-bold text-blue-900">{formatAmount(CREDIT_WALLET_CONFIG.minimumTopUp)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-blue-700">Auto top-up threshold:</span>
-                <span className="text-blue-800">When balance ≤ {formatAmount(CREDIT_WALLET_CONFIG.autoTopUpThreshold)}</span>
+                <span className="text-blue-700">{t.settings.subscription.autoTopUpThreshold}</span>
+                <span className="text-blue-800">{t.settings.subscription.whenBalanceLessThanOrEqual.replace('{amount}', formatAmount(CREDIT_WALLET_CONFIG.autoTopUpThreshold))}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-blue-700">Auto top-up amount:</span>
+                <span className="text-blue-700">{t.settings.subscription.autoTopUpAmount}</span>
                 <span className="text-blue-800">{formatAmount(CREDIT_WALLET_CONFIG.autoTopUpAmount)}</span>
               </div>
             </div>
@@ -1694,37 +1718,37 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       {/* TOTAL & Subscribe */}
       <Card className="border-primary">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Order Summary</CardTitle>
+          <CardTitle className="text-base">{t.settings.subscription.orderSummary}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {selectedPlan ? (
             <>
               <div className="flex justify-between">
-                <span>Monthly Plan ({selectedPlan.name.replace('Monthly Fee - ', '').replace('Base Fee - ', '')})</span>
+                <span>{t.settings.subscription.monthlyPlan.replace('{plan}', selectedPlan.name.replace('Monthly Fee - ', '').replace('Base Fee - ', ''))}</span>
                 <span className="font-medium">{formatAmount(selectedPlan.amount)}/mo</span>
               </div>
               <div className="flex justify-between">
-                <span>Setup Fee (one-time, includes 5 emissions)</span>
+                <span>{t.settings.subscription.setupFeeOnetime}</span>
                 <span className="font-medium">{formatAmount(setupFee.amount)}</span>
               </div>
               {selectedEmissions && (() => {
                 const emissionProduct = emissionProducts.find(p => p.id === selectedEmissions);
                 return emissionProduct ? (
                   <div className="flex justify-between">
-                    <span>Additional Emissions ({emissionProduct.metadata.pack_size || 1}) - one-time</span>
+                    <span>{t.settings.subscription.additionalEmissionsOnetime.replace('{count}', String(emissionProduct.metadata.pack_size || 1))}</span>
                     <span className="font-medium">{formatAmount(emissionProduct.amount)}</span>
                   </div>
                 ) : null;
               })()}
               {subscriptionModel === 'payg' && (
                 <div className="flex justify-between">
-                  <span>Credit Wallet Deposit (one-time)</span>
+                  <span>{t.settings.subscription.creditWalletDeposit}</span>
                   <span className="font-medium">{formatAmount(CREDIT_WALLET_CONFIG.minimumTopUp)}</span>
                 </div>
               )}
               <Separator />
               <div className="flex justify-between text-lg font-bold">
-                <span>Total Due Today</span>
+                <span>{t.settings.subscription.totalDueToday}</span>
                 <span className="text-primary">
                   {formatAmount(
                     selectedPlan.amount +
@@ -1735,7 +1759,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 </span>
               </div>
               <div className="text-sm text-muted-foreground">
-                Then {formatAmount(selectedPlan.amount)}/month starting next billing cycle
+                {t.settings.subscription.thenMonthly.replace('{amount}', formatAmount(selectedPlan.amount))}
               </div>
               <Button
                 className="w-full mt-4"
@@ -1744,12 +1768,12 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 disabled={processing}
               >
                 {processing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                {useRealStripe ? 'Proceed to Checkout' : 'Subscribe Now'}
+                {useRealStripe ? t.settings.subscription.proceedToCheckout : t.settings.subscription.subscribeNow}
               </Button>
             </>
           ) : (
             <div className="text-center text-muted-foreground py-4">
-              Select a plan above to see the total
+              {t.settings.subscription.selectPlanAbove}
             </div>
           )}
         </CardContent>
@@ -1761,9 +1785,9 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Current Usage & Extras
+              {t.settings.subscription.currentUsageExtras}
             </CardTitle>
-            <CardDescription>Purchase additional capacity for your account</CardDescription>
+            <CardDescription>{t.settings.subscription.purchaseAdditionalCapacity}</CardDescription>
           </CardHeader>
           <CardContent>
             {usageLoadError ? (
@@ -1771,13 +1795,13 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <AlertCircle className="h-6 w-6 text-destructive mx-auto mb-2" />
                 <p className="text-sm text-destructive mb-2">{usageLoadError}</p>
                 <Button variant="outline" size="sm" onClick={loadSubscription}>
-                  Retry
+                  {t.settings.subscription.retry}
                 </Button>
               </div>
             ) : !subscriptionUsage ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
-                <span className="text-muted-foreground">Loading usage data...</span>
+                <span className="text-muted-foreground">{t.settings.subscription.loadingUsageData}</span>
               </div>
             ) : (
             <div className="grid md:grid-cols-2 gap-6">
@@ -1785,10 +1809,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Investor Capacity</span>
+                  <span className="font-medium">{t.settings.subscription.investorCapacity}</span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {subscriptionUsage.investors.current} / {subscriptionUsage.investors.limit} used
+                  {t.settings.subscription.used.replace('{current}', subscriptionUsage.investors.current.toString()).replace('{limit}', subscriptionUsage.investors.limit.toString())}
                 </div>
                 <div className="w-full bg-muted rounded-full h-2">
                   <div
@@ -1817,7 +1841,7 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                     </Button>
                   </div>
                   <div className="text-xs text-muted-foreground text-center">
-                    ${(4 * extraInvestorsInput).toFixed(0)} total
+                    ${(4 * extraInvestorsInput).toFixed(0)} {t.settings.subscription.total}
                   </div>
                 </div>
               </div>
@@ -1827,10 +1851,10 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">AUM Capacity</span>
+                    <span className="font-medium">{t.settings.subscription.aumCapacity}</span>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    ${(subscriptionUsage.commitment.current / 1000000).toFixed(1)}M / ${(subscriptionUsage.commitment.limit / 1000000).toFixed(0)}M used
+                    {t.settings.subscription.used.replace('{current}', `$${(subscriptionUsage.commitment.current / 1000000).toFixed(1)}M`).replace('{limit}', `$${(subscriptionUsage.commitment.limit / 1000000).toFixed(0)}M`)}
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
                     <div
@@ -1855,11 +1879,11 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
                         onClick={() => initiateExtraAumPurchase(extraAumInput)}
                         disabled={processing}
                       >
-                        <span className="font-semibold">+${extraAumInput}M AUM</span>
+                        <span className="font-semibold">{t.settings.subscription.addAum.replace('{amount}', extraAumInput.toString())}</span>
                       </Button>
                     </div>
                     <div className="text-xs text-muted-foreground text-center">
-                      ${(110 * extraAumInput).toFixed(0)} total
+                      ${(110 * extraAumInput).toFixed(0)} {t.settings.subscription.total}
                     </div>
                   </div>
                 </div>
@@ -1874,17 +1898,20 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       <AlertDialog open={showExtraInvestorsDialog} onOpenChange={setShowExtraInvestorsDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Purchase Extra Investor Slot{pendingExtraInvestors && pendingExtraInvestors > 1 ? 's' : ''}</AlertDialogTitle>
+            <AlertDialogTitle>{t.settings.subscription.purchaseExtraInvestorSlots.replace('{plural}', getPluralSuffix(pendingExtraInvestors || 0))}</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingExtraInvestors
-                ? `You are about to purchase ${pendingExtraInvestors} additional investor slot${pendingExtraInvestors > 1 ? 's' : ''} for $${pendingExtraInvestors * 4}. This will increase your maximum investor capacity.`
-                : 'Confirm your purchase.'}
+                ? t.settings.subscription.purchaseExtraInvestorsDialogDescription
+                    .replace('{count}', pendingExtraInvestors.toString())
+                    .replace('{plural}', getPluralSuffix(pendingExtraInvestors))
+                    .replace('{cost}', (pendingExtraInvestors * 4).toString())
+                : t.settings.subscription.confirmYourPurchase}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setPendingExtraInvestors(null)}>{t.settings.subscription.cancel}</AlertDialogCancel>
             <AlertDialogAction onClick={handlePurchaseExtraInvestors}>
-              Purchase for ${pendingExtraInvestors ? pendingExtraInvestors * 4 : 0}
+              {t.settings.subscription.purchaseFor.replace('{amount}', (pendingExtraInvestors ? pendingExtraInvestors * 4 : 0).toString())}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1894,17 +1921,19 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       <AlertDialog open={showExtraAumDialog} onOpenChange={setShowExtraAumDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Purchase Extra AUM Capacity</AlertDialogTitle>
+            <AlertDialogTitle>{t.settings.subscription.purchaseExtraAumCapacity}</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingExtraAum
-                ? `You are about to purchase $${pendingExtraAum}M additional AUM capacity for $${pendingExtraAum * 110}. This will increase your maximum total commitment limit.`
-                : 'Confirm your purchase.'}
+                ? t.settings.subscription.purchaseExtraAumDialogDescription
+                    .replace('{millions}', pendingExtraAum.toString())
+                    .replace('{cost}', (pendingExtraAum * 110).toString())
+                : t.settings.subscription.confirmYourPurchase}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setPendingExtraAum(null)}>{t.settings.subscription.cancel}</AlertDialogCancel>
             <AlertDialogAction onClick={handlePurchaseExtraAum}>
-              Purchase for ${pendingExtraAum ? pendingExtraAum * 110 : 0}
+              {t.settings.subscription.purchaseFor.replace('{amount}', (pendingExtraAum ? pendingExtraAum * 110 : 0).toString())}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1914,17 +1943,17 @@ export function SubscriptionPricingView({ onSubscriptionChange, useRealStripe = 
       <AlertDialog open={showCurrencyConflictDialog} onOpenChange={setShowCurrencyConflictDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Currency Conflict Detected</AlertDialogTitle>
+            <AlertDialogTitle>{t.settings.subscription.currencyConflictDetected}</AlertDialogTitle>
             <AlertDialogDescription>
-              Your account has existing billing items in a different currency. This can happen if you previously had a subscription in another currency.
+              {t.settings.subscription.currencyConflictDescription}
               <br /><br />
-              Would you like to create a new billing profile to proceed with this subscription?
+              {t.settings.subscription.createNewProfileQuestion}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t.settings.subscription.cancel}</AlertDialogCancel>
             <AlertDialogAction onClick={() => handleSubscribe(true)}>
-              Create New Profile & Continue
+              {t.settings.subscription.createNewProfileAndContinue}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
