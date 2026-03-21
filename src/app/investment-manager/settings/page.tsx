@@ -40,6 +40,8 @@ import { getFirmSettings, saveFirmSettings, FirmSettings } from '@/lib/firm-sett
 import { getUsers, deleteUser, User, getRoleLabel } from '@/lib/user-management-storage'
 import { AddUserModal } from '@/components/add-user-modal'
 import { PermissionsMatrixDialog } from '@/components/permissions-matrix-dialog'
+import { AppearanceTab } from '@/components/settings/appearance-tab'
+import { NavigationTab } from '@/components/settings/navigation-tab'
 import { getNotificationSettings, saveNotificationSettings } from '@/lib/notification-settings-storage'
 import { SubscriptionManager } from '@/components/subscription-manager'
 import { SubscriptionPricingView } from '@/components/subscription-pricing-view'
@@ -55,7 +57,7 @@ export default function InvestmentManagerSettingsPage() {
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const tab = urlParams.get('tab')
-    if (tab && ['firm', 'users', 'notifications', 'email', 'security', 'subscription'].includes(tab)) {
+    if (tab && ['firm', 'appearance', 'users', 'navigation', 'notifications', 'email', 'security', 'subscription'].includes(tab)) {
       setActiveTab(tab)
     }
   }, [])
@@ -1709,9 +1711,11 @@ export default function InvestmentManagerSettingsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className={`grid w-full ${currentUserRole === 0 ? 'grid-cols-6' : (currentUserRole === 1 ? 'grid-cols-5' : 'grid-cols-4')}`}>
+        <TabsList className={`grid w-full ${currentUserRole === 0 ? 'grid-cols-8' : (currentUserRole === 1 ? 'grid-cols-6' : 'grid-cols-5')}`}>
           <TabsTrigger value="firm">{t.settings.tabs.general}</TabsTrigger>
+          <TabsTrigger value="appearance">{t.settings.tabs.appearance}</TabsTrigger>
           {currentUserRole === 0 && <TabsTrigger value="users">{t.settings.tabs.teamMembers}</TabsTrigger>}
+          {currentUserRole === 0 && <TabsTrigger value="navigation">{t.settings.tabs.navigation}</TabsTrigger>}
           <TabsTrigger value="notifications">{t.settings.tabs.notifications}</TabsTrigger>
           <TabsTrigger value="email">{t.settings.tabs.email}</TabsTrigger>
           <TabsTrigger value="security">{t.settings.tabs.security}</TabsTrigger>
@@ -1863,6 +1867,11 @@ export default function InvestmentManagerSettingsPage() {
           </Card>
         </TabsContent>
 
+        {/* Appearance Tab */}
+        <TabsContent value="appearance" className="space-y-4">
+          <AppearanceTab initialThemeConfig={settings?.themeConfig} />
+        </TabsContent>
+
         {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
           <Card>
@@ -1971,6 +1980,11 @@ export default function InvestmentManagerSettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Navigation Tab */}
+        <TabsContent value="navigation" className="space-y-4">
+          <NavigationTab />
         </TabsContent>
 
         {/* Notifications Tab */}

@@ -78,6 +78,8 @@ export const API_CONFIG = {
     getFirmSettings: '/api/firm-settings',
     getFirmLogo: '/api/firm-settings/logo',
     updateFirmSettings: '/api/firm-settings',
+    getNavVisibility: '/api/firm-settings/nav-visibility',
+    updateNavVisibility: '/api/firm-settings/nav-visibility',
 
     // Email configuration (legacy SMTP)
     getUserEmailSettings: (userId: string) => `/api/users/${userId}/email-settings`,

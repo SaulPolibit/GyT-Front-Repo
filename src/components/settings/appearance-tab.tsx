@@ -16,6 +16,7 @@ import {
 import { Palette, Type, RotateCcw, Check, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/hooks/useTranslation"
 
 import type { ThemeConfig } from "@/lib/theme-utils"
 import { applyThemeToDOM, removeThemeFromDOM } from "@/lib/theme-utils"
@@ -32,6 +33,7 @@ interface AppearanceTabProps {
 const RADIUS_STEPS = [0, 0.25, 0.5, 0.65, 0.75, 1.0, 1.5]
 
 export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
+  const { t } = useTranslation()
   const [themeConfig, setThemeConfig] = React.useState<ThemeConfig>({
     primaryColor: initialThemeConfig?.primaryColor || '#1a0a4e',
     fontFamily: initialThemeConfig?.fontFamily || 'Geist',
@@ -90,7 +92,7 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
     try {
       const token = getAuthToken()
       if (!token) {
-        toast.error('Authentication required')
+        toast.error(t.settings.appearance.authenticationRequired)
         return
       }
 
@@ -112,10 +114,10 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
 
       initialRef.current = JSON.stringify(themeConfig)
       setHasChanges(false)
-      toast.success('Theme saved successfully! Changes will apply on next page load.')
+      toast.success(t.settings.appearance.themeSaved)
     } catch (error) {
       console.error('Error saving theme:', error)
-      toast.error('Failed to save theme settings')
+      toast.error(t.settings.appearance.failedToSaveTheme)
     } finally {
       setSaving(false)
     }
@@ -150,9 +152,9 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
       )
       initialRef.current = 'null'
       setHasChanges(false)
-      toast.success('Theme reset to default')
+      toast.success(t.settings.appearance.themeResetToDefaults)
     } catch {
-      toast.error('Failed to reset theme')
+      toast.error(t.settings.appearance.failedToSaveTheme)
     } finally {
       setSaving(false)
     }
@@ -173,10 +175,10 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
-            Theme Presets
+            {t.settings.appearance.themePresets}
           </CardTitle>
           <CardDescription>
-            Choose a preset as a starting point, then customize further
+            {t.settings.appearance.themePresetsDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -218,10 +220,10 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Palette className="h-5 w-5" />
-            Brand Color
+            {t.settings.appearance.brandColor}
           </CardTitle>
           <CardDescription>
-            Pick your primary brand color — the entire palette auto-generates from it
+            {t.settings.appearance.brandColorDescription}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -236,7 +238,7 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
             </div>
             <div className="flex-1">
               <Label htmlFor="hexInput" className="text-xs text-muted-foreground">
-                Hex Code
+                {t.settings.appearance.hexCode}
               </Label>
               <Input
                 id="hexInput"
@@ -260,7 +262,7 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
 
           {/* Generated Palette Preview */}
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Generated Palette</Label>
+            <Label className="text-xs text-muted-foreground">{t.settings.appearance.generatedPalette}</Label>
             <div className="flex gap-1.5 flex-wrap">
               {[
                 { label: 'Primary', value: palette.light['--primary'] },
@@ -290,15 +292,15 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Type className="h-5 w-5" />
-            Typography
+            {t.settings.appearance.typography}
           </CardTitle>
           <CardDescription>
-            Choose a font family for your platform
+            {t.settings.appearance.typographyDescription}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Font Family</Label>
+            <Label>{t.settings.appearance.fontFamily}</Label>
             <Select
               value={themeConfig.fontFamily || 'Geist'}
               onValueChange={(value) => updateConfig({ fontFamily: value })}
@@ -353,15 +355,15 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
       {/* Border Radius */}
       <Card>
         <CardHeader>
-          <CardTitle>Border Radius</CardTitle>
+          <CardTitle>{t.settings.appearance.borderRadius}</CardTitle>
           <CardDescription>
-            Adjust the corner roundness of buttons, cards, and inputs
+            {t.settings.appearance.borderRadiusDescription}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Radius</Label>
+              <Label>{t.settings.appearance.radius}</Label>
               <span className="text-sm text-muted-foreground font-mono">
                 {themeConfig.borderRadius ?? 0.65}rem
               </span>
@@ -374,8 +376,8 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
               step={1}
             />
             <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
-              <span>Sharp</span>
-              <span>Rounded</span>
+              <span>{t.settings.appearance.sharp}</span>
+              <span>{t.settings.appearance.rounded}</span>
             </div>
           </div>
 
@@ -385,19 +387,19 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
               className="h-10 px-4 bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium"
               style={{ borderRadius: `${themeConfig.borderRadius ?? 0.65}rem` }}
             >
-              Button
+              {t.settings.appearance.buttonPreview}
             </div>
             <div
               className="h-16 w-32 border bg-card flex items-center justify-center text-xs text-muted-foreground"
               style={{ borderRadius: `${themeConfig.borderRadius ?? 0.65}rem` }}
             >
-              Card
+              {t.settings.appearance.cardPreview}
             </div>
             <div
               className="h-10 w-32 border bg-background flex items-center justify-center text-xs text-muted-foreground"
               style={{ borderRadius: `calc(${themeConfig.borderRadius ?? 0.65}rem - 2px)` }}
             >
-              Input
+              {t.settings.appearance.inputPreview}
             </div>
           </div>
         </CardContent>
@@ -406,9 +408,9 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
       {/* Preview */}
       <Card>
         <CardHeader>
-          <CardTitle>Preview</CardTitle>
+          <CardTitle>{t.settings.appearance.preview}</CardTitle>
           <CardDescription>
-            See how your theme looks across different UI elements
+            {t.settings.appearance.previewDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -416,7 +418,7 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
             {/* Light mode preview */}
             <div className="rounded-lg border overflow-hidden">
               <div className="bg-background p-3 space-y-3">
-                <div className="text-xs font-medium text-muted-foreground mb-2">Light Mode</div>
+                <div className="text-xs font-medium text-muted-foreground mb-2">{t.settings.appearance.lightMode}</div>
                 {/* Mini sidebar */}
                 <div className="flex gap-2">
                   <div className="w-16 rounded-md bg-sidebar border p-2 space-y-1.5">
@@ -486,7 +488,7 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
               } as React.CSSProperties}
             >
               <div className="p-3 space-y-3" style={{ backgroundColor: palette.dark['--background'], color: palette.dark['--foreground'] }}>
-                <div className="text-xs font-medium mb-2" style={{ color: palette.dark['--muted-foreground'] }}>Dark Mode</div>
+                <div className="text-xs font-medium mb-2" style={{ color: palette.dark['--muted-foreground'] }}>{t.settings.appearance.darkMode}</div>
                 <div className="flex gap-2">
                   <div className="w-16 rounded-md p-2 space-y-1.5" style={{ backgroundColor: palette.dark['--sidebar'], borderColor: palette.dark['--border'], borderWidth: '1px' }}>
                     <div className="h-2 rounded w-full" style={{ backgroundColor: palette.dark['--sidebar-primary'] }} />
@@ -530,7 +532,7 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
 
           {/* Chart color swatches */}
           <div className="mt-4 space-y-2">
-            <Label className="text-xs text-muted-foreground">Chart Colors</Label>
+            <Label className="text-xs text-muted-foreground">{t.settings.appearance.chartColors}</Label>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="flex flex-col items-center gap-1">
@@ -538,7 +540,7 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
                     className="h-6 w-12 rounded-md"
                     style={{ backgroundColor: `var(--chart-${i})` }}
                   />
-                  <span className="text-[9px] text-muted-foreground">Chart {i}</span>
+                  <span className="text-[9px] text-muted-foreground">{t.settings.appearance.chartNumber.replace('{number}', i.toString())}</span>
                 </div>
               ))}
             </div>
@@ -554,7 +556,7 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
           disabled={saving}
         >
           <RotateCcw className="mr-2 h-4 w-4" />
-          Reset to Default
+          {t.settings.appearance.resetToDefault}
         </Button>
         <Button
           onClick={handleSave}
@@ -563,10 +565,10 @@ export function AppearanceTab({ initialThemeConfig }: AppearanceTabProps) {
           {saving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
+              {t.settings.appearance.saving}
             </>
           ) : (
-            'Save Theme'
+            t.settings.appearance.saveTheme
           )}
         </Button>
       </div>

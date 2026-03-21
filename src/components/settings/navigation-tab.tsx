@@ -16,6 +16,7 @@ import {
 import { Navigation, RotateCcw, Save, Loader2, ToggleLeft } from "lucide-react"
 import { toast } from "sonner"
 import { getAuthToken } from "@/lib/auth-storage"
+import { useTranslation } from "@/hooks/useTranslation"
 import {
   type NavVisibilityConfig,
   type NavItemVisibility,
@@ -32,6 +33,7 @@ import {
 } from "@/lib/nav-visibility-storage"
 
 export function NavigationTab() {
+  const { t } = useTranslation()
   const [config, setConfig] = React.useState<NavVisibilityConfig>(getNavVisibility)
   const [isSaving, setIsSaving] = React.useState(false)
 
@@ -84,18 +86,18 @@ export function NavigationTab() {
     try {
       const token = getAuthToken()
       if (!token) {
-        toast.error('Authentication required')
+        toast.error(t.settings.navigation.authenticationRequired)
         return
       }
 
       const success = await saveNavVisibility(config, token)
       if (success) {
-        toast.success('Navigation visibility saved')
+        toast.success(t.settings.navigation.navigationVisibilitySaved)
       } else {
-        toast.error('Failed to save navigation visibility')
+        toast.error(t.settings.navigation.failedToSaveNavigationVisibility)
       }
     } catch {
-      toast.error('Failed to save navigation visibility')
+      toast.error(t.settings.navigation.failedToSaveNavigationVisibility)
     } finally {
       setIsSaving(false)
     }
@@ -103,7 +105,7 @@ export function NavigationTab() {
 
   const handleReset = () => {
     setConfig(DEFAULT_NAV_VISIBILITY)
-    toast.info('Reset to defaults — click Save to apply')
+    toast.info(t.settings.navigation.resetToDefaultsMessage)
   }
 
   // Group IM items by section
@@ -135,10 +137,10 @@ export function NavigationTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Navigation className="h-5 w-5" />
-            Investment Manager Navigation
+            {t.settings.navigation.investmentManagerNavigation}
           </CardTitle>
           <CardDescription>
-            Configure which navigation items each role can see in the Investment Manager sidebar. Root always sees everything.
+            {t.settings.navigation.investmentManagerNavigationDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -146,10 +148,10 @@ export function NavigationTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[200px]">Nav Item</TableHead>
-                  <TableHead className="text-center w-[100px]">Admin</TableHead>
-                  <TableHead className="text-center w-[100px]">Operations</TableHead>
-                  <TableHead className="text-center w-[100px]">Read-Only</TableHead>
+                  <TableHead className="w-[200px]">{t.settings.navigation.navItem}</TableHead>
+                  <TableHead className="text-center w-[100px]">{t.settings.navigation.admin}</TableHead>
+                  <TableHead className="text-center w-[100px]">{t.settings.navigation.operations}</TableHead>
+                  <TableHead className="text-center w-[100px]">{t.settings.navigation.readOnly}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -201,10 +203,10 @@ export function NavigationTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Navigation className="h-5 w-5" />
-            LP Portal Navigation
+            {t.settings.navigation.lpPortalNavigation}
           </CardTitle>
           <CardDescription>
-            Configure which navigation items investors can see in the LP Portal sidebar.
+            {t.settings.navigation.lpPortalNavigationDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -212,8 +214,8 @@ export function NavigationTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[200px]">Nav Item</TableHead>
-                  <TableHead className="text-center w-[100px]">Investor</TableHead>
+                  <TableHead className="w-[200px]">{t.settings.navigation.navItem}</TableHead>
+                  <TableHead className="text-center w-[100px]">{t.settings.navigation.investor}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -253,10 +255,10 @@ export function NavigationTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ToggleLeft className="h-5 w-5" />
-            Feature Flags
+            {t.settings.navigation.featureFlags}
           </CardTitle>
           <CardDescription>
-            Enable or disable platform features. Changes apply immediately after saving — no redeployment required.
+            {t.settings.navigation.featureFlagsDescription}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -286,11 +288,11 @@ export function NavigationTab() {
           ) : (
             <Save className="h-4 w-4 mr-2" />
           )}
-          Save Changes
+          {t.settings.navigation.saveChanges}
         </Button>
         <Button variant="outline" onClick={handleReset}>
           <RotateCcw className="h-4 w-4 mr-2" />
-          Reset to Defaults
+          {t.settings.navigation.resetToDefaults}
         </Button>
       </div>
     </div>
